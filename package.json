@@ -1,6 +1,6 @@
 {
   "name": "@restry/generic-channel",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "Generic WebSocket/Webhook channel plugin for OpenClaw",
   "license": "MIT",
