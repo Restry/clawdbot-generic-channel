@@ -162,21 +162,19 @@ Open `examples/h5-client.html` in your browser to see a working chat interface:
 
 ```typescript
 // Monitor provider (starts the WebSocket/Webhook server)
-import { monitorGenericProvider } from '@m1heng-clawd/feishu';
+import { monitorGenericProvider } from '@restry/generic-channel';
 
 // Send a message
-import { sendMessageGeneric } from '@m1heng-clawd/feishu';
+import { sendMessageGeneric } from '@restry/generic-channel';
 
 // Probe channel status
-import { probeGeneric } from '@m1heng-clawd/feishu';
+import { probeGeneric } from '@restry/generic-channel';
 
 // Access the plugin
-import { genericPlugin } from '@m1heng-clawd/feishu';
+import { genericPlugin } from '@restry/generic-channel';
 ```
 
 ## Architecture
-
-The Generic Channel follows the same architecture as the Feishu channel:
 
 ```
 src/generic/
@@ -192,15 +190,6 @@ src/generic/
 ├── probe.ts           - Health check utility
 └── channel.ts         - Channel plugin definition
 ```
-
-## Differences from Feishu Channel
-
-- No external platform dependencies (Feishu SDK, etc.)
-- Simplified message format without complex platform-specific features
-- Direct WebSocket support for real-time communication
-- No media upload/download (media URLs sent as text)
-- No native typing indicators or reactions
-- No directory services (no user/group lookup)
 
 ## Development
 

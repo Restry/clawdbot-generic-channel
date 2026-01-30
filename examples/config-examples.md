@@ -8,27 +8,19 @@ Choose one of the following methods:
 
 **Option A: Using OpenClaw CLI (Recommended)**
 ```bash
-openclaw plugins install @m1heng-clawd/feishu
+openclaw plugins install @restry/generic-channel
 ```
 
 **Option B: Using npm**
 ```bash
-npm install @m1heng-clawd/feishu
-```
-
-**Option C: Manual Installation**
-```bash
-# Download the package
-curl -O https://registry.npmjs.org/@m1heng-clawd/feishu/-/feishu-0.1.3.tgz
-# Install from local file
-openclaw plugins install ./feishu-0.1.3.tgz
+npm install @restry/generic-channel
 ```
 
 ### Step 2: Plugin Location
 
 After installation, the plugin is automatically placed in the OpenClaw plugins directory:
-- **Linux/macOS**: `~/.openclaw/plugins/@m1heng-clawd/feishu/`
-- **Windows**: `%USERPROFILE%\.openclaw\plugins\@m1heng-clawd\feishu\`
+- **Linux/macOS**: `~/.openclaw/plugins/@restry/generic-channel/`
+- **Windows**: `%USERPROFILE%\.openclaw\plugins\@restry\generic-channel\`
 
 You don't need to move any files manually - the OpenClaw plugin system handles this.
 
@@ -71,8 +63,8 @@ There are two ways to connect:
 #### Option A: Use the Included Example Client
 
 1. Locate the example client file:
-   - If installed via npm: `node_modules/@m1heng-clawd/feishu/examples/h5-client.html`
-   - If installed via OpenClaw: `~/.openclaw/plugins/@m1heng-clawd/feishu/examples/h5-client.html`
+   - If installed via npm: `node_modules/@restry/generic-channel/examples/h5-client.html`
+   - If installed via OpenClaw: `~/.openclaw/plugins/@restry/generic-channel/examples/h5-client.html`
 
 2. Open `h5-client.html` in your web browser (double-click or use `file://` URL)
 
@@ -182,29 +174,6 @@ channels:
     wsPort: 8080
     wsPath: "/ws"
     dmPolicy: "pairing"
-    historyLimit: 10
-    textChunkLimit: 4000
-```
-
-### Example 5: Combined with Feishu Channel
-
-```yaml
-channels:
-  feishu:
-    enabled: true
-    appId: "cli_xxxxx"
-    appSecret: "your_app_secret"
-    connectionMode: "websocket"
-    dmPolicy: "pairing"
-    groupPolicy: "allowlist"
-    requireMention: true
-    
-  generic:
-    enabled: true
-    connectionMode: "websocket"
-    wsPort: 8080
-    wsPath: "/ws"
-    dmPolicy: "open"
     historyLimit: 10
     textChunkLimit: 4000
 ```
@@ -328,7 +297,7 @@ server {
 FROM node:20
 WORKDIR /app
 RUN npm install -g openclaw
-RUN openclaw plugins install @m1heng-clawd/feishu
+RUN openclaw plugins install @restry/generic-channel
 EXPOSE 8080
 CMD ["openclaw", "start"]
 ```
@@ -346,5 +315,5 @@ docker run -p 8080:8080 -v /path/to/config.yaml:/root/.openclaw/config.yaml open
 ## See Also
 
 - [Generic Channel Documentation](../GENERIC_CHANNEL.md) - Full API reference
-- [README](../README.md) - Overview and Feishu channel setup
+- [README](../README.md) - Overview and setup
 - [H5 Client Example](./h5-client.html) - Working demo client

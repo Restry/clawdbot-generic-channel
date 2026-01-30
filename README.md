@@ -1,8 +1,8 @@
-# clawd-feishu
+# Generic Channel
 
-Feishu/Lark (飞书) channel plugin for [OpenClaw](https://github.com/openclaw/openclaw) with Generic Channel support.
+Generic WebSocket/Webhook channel plugin for [OpenClaw](https://github.com/openclaw/openclaw).
 
-**NEW**: Now includes a **Generic Channel** plugin that supports WebSocket and Webhook connections for H5 pages. See [Generic Channel Documentation](./GENERIC_CHANNEL.md) for details.
+A flexible channel plugin that allows H5 pages to connect directly via WebSocket or Webhook without depending on third-party platforms.
 
 [English](#english) | [中文](#中文)
 
@@ -13,158 +13,63 @@ Feishu/Lark (飞书) channel plugin for [OpenClaw](https://github.com/openclaw/o
 ### Installation
 
 ```bash
-openclaw plugins install @m1heng-clawd/feishu
+openclaw plugins install @restry/generic-channel
 ```
 
 Or install via npm:
 
 ```bash
-npm install @m1heng-clawd/feishu
+npm install @restry/generic-channel
 ```
 
 ### Configuration
 
-1. Create a self-built app on [Feishu Open Platform](https://open.feishu.cn)
-2. Get your App ID and App Secret from the Credentials page
-3. Enable required permissions (see below)
-4. **Configure event subscriptions** (see below) ⚠️ Important
-5. Configure the plugin:
+```yaml
+channels:
+  generic:
+    enabled: true
+    connectionMode: "websocket"  # or "webhook"
+    wsPort: 8080
+    wsPath: "/ws"
+    dmPolicy: "open"
+    historyLimit: 10
+    textChunkLimit: 4000
+```
 
-#### Required Permissions
-
-| Permission | Scope | Description |
-|------------|-------|-------------|
-| `contact:user.base:readonly` | User info | Get basic user info (required to resolve sender display names for speaker attribution) |
-| `im:message` | Messaging | Send and receive messages |
-| `im:message.p2p_msg:readonly` | DM | Read direct messages to bot |
-| `im:message.group_at_msg:readonly` | Group | Receive @mention messages in groups |
-| `im:message:send_as_bot` | Send | Send messages as the bot |
-| `im:resource` | Media | Upload and download images/files |
-
-#### Optional Permissions
-
-| Permission | Scope | Description |
-|------------|-------|-------------|
-| `im:message.group_msg` | Group | Read all group messages (sensitive) |
-| `im:message:readonly` | Read | Get message history |
-| `im:message:update` | Edit | Update/edit sent messages |
-| `im:message:recall` | Recall | Recall sent messages |
-| `im:message.reactions:read` | Reactions | View message reactions |
-
-#### Event Subscriptions ⚠️
-
-> **This is the most commonly missed configuration!** If the bot can send messages but cannot receive them, check this section.
-
-In the Feishu Open Platform console, go to **Events & Callbacks**:
-
-1. **Event configuration**: Select **Long connection** (recommended)
-2. **Add event subscriptions**:
-
-| Event | Description |
-|-------|-------------|
-| `im.message.receive_v1` | Receive messages (required) |
-| `im.message.message_read_v1` | Message read receipts |
-| `im.chat.member.bot.added_v1` | Bot added to group |
-| `im.chat.member.bot.deleted_v1` | Bot removed from group |
-
-3. Ensure the event permissions are approved
+Or via CLI:
 
 ```bash
-openclaw config set channels.feishu.appId "cli_xxxxx"
-openclaw config set channels.feishu.appSecret "your_app_secret"
-openclaw config set channels.feishu.enabled true
+openclaw config set channels.generic.enabled true
+openclaw config set channels.generic.connectionMode websocket
+openclaw config set channels.generic.wsPort 8080
 ```
 
 ### Configuration Options
 
-```yaml
-channels:
-  feishu:
-    enabled: true
-    appId: "cli_xxxxx"
-    appSecret: "secret"
-    # Domain: "feishu" (China) or "lark" (International)
-    domain: "feishu"
-    # Connection mode: "websocket" (recommended) or "webhook"
-    connectionMode: "websocket"
-    # DM policy: "pairing" | "open" | "allowlist"
-    dmPolicy: "pairing"
-    # Group policy: "open" | "allowlist" | "disabled"
-    groupPolicy: "allowlist"
-    # Require @mention in groups
-    requireMention: true
-    # Max media size in MB (default: 30)
-    mediaMaxMb: 30
-    # Render mode for bot replies: "auto" | "raw" | "card"
-    renderMode: "auto"
-```
-
-#### Render Mode
-
-| Mode | Description |
-|------|-------------|
-| `auto` | (Default) Automatically detect: use card for messages with code blocks or tables, plain text otherwise. |
-| `raw` | Always send replies as plain text. Markdown tables are converted to ASCII. |
-| `card` | Always send replies as interactive cards with full markdown rendering (syntax highlighting, tables, clickable links). |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | `false` | Enable/disable the generic channel |
+| `connectionMode` | enum | `"websocket"` | Connection mode: `"websocket"` or `"webhook"` |
+| `wsPort` | number | `8080` | WebSocket server port |
+| `wsPath` | string | `"/ws"` | WebSocket endpoint path |
+| `webhookPath` | string | `"/generic/events"` | Webhook endpoint path |
+| `webhookPort` | number | `3000` | Webhook server port |
+| `webhookSecret` | string | - | Optional webhook signature secret |
+| `dmPolicy` | enum | `"open"` | DM policy: `"open"`, `"pairing"`, or `"allowlist"` |
+| `allowFrom` | array | `[]` | Allowed sender IDs (for allowlist policy) |
+| `historyLimit` | number | `10` | Number of history messages to keep for group chats |
+| `textChunkLimit` | number | `4000` | Maximum characters per message chunk |
 
 ### Features
 
-- WebSocket and Webhook connection modes
-- Direct messages and group chats
-- Message replies and quoted message context
-- **Inbound media support**: AI can see images, read files (PDF, Excel, etc.), and process rich text with embedded images
-- Image and file uploads (outbound)
-- Typing indicator (via emoji reactions)
-- Pairing flow for DM approval
-- User and group directory lookup
-- **Card render mode**: Optional markdown rendering with syntax highlighting
-- **Generic Channel**: WebSocket/Webhook support for H5 pages (see [Generic Channel Documentation](./GENERIC_CHANNEL.md))
+- **Dual Connection Modes**: WebSocket and Webhook support
+- **Multi-Client Management**: Support for multiple simultaneous WebSocket connections
+- **Direct Message & Group Chat**: Handle both DM and group conversations
+- **Message History**: Configurable history tracking for group chats
+- **Access Control**: DM policy (open, pairing, allowlist)
+- **Auto Heartbeat**: WebSocket heartbeat for connection health monitoring
 
-### FAQ
-
-#### Bot cannot receive messages
-
-Check the following:
-1. Have you configured **event subscriptions**? (See Event Subscriptions section)
-2. Is the event configuration set to **long connection**?
-3. Did you add the `im.message.receive_v1` event?
-4. Are the permissions approved?
-
-#### 403 error when sending messages
-
-Ensure `im:message:send_as_bot` permission is approved.
-
-#### How to clear history / start new conversation
-
-Send `/new` command in the chat.
-
-#### Why is the output not streaming
-
-Feishu API has rate limits. Streaming updates can easily trigger throttling. We use complete-then-send approach for stability.
-
-#### Windows install error `spawn npm ENOENT`
-
-If `openclaw plugins install` fails, install manually:
-
-```bash
-# 1. Download the package
-curl -O https://registry.npmjs.org/@m1heng-clawd/feishu/-/feishu-0.1.3.tgz
-
-# 2. Install from local file
-openclaw plugins install ./feishu-0.1.3.tgz
-```
-
-#### Cannot find the bot in Feishu
-
-1. Ensure the app is published (at least to test version)
-2. Search for the bot name in Feishu search box
-3. Check if your account is in the app's availability scope
-
-### Generic Channel
-
-This plugin also includes a **Generic Channel** that allows H5 pages to connect directly via WebSocket or Webhook without depending on third-party platforms like Feishu or DingTalk.
-
-#### Quick Start
+### Quick Start
 
 1. Enable the Generic Channel:
 ```bash
@@ -177,7 +82,96 @@ openclaw config set channels.generic.wsPort 8080
 
 3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, and name, then click "Connect"
 
-For detailed documentation, see [Generic Channel Documentation](./GENERIC_CHANNEL.md).
+### Message Protocol
+
+#### Inbound Message (H5 → Server)
+
+```typescript
+{
+  messageId: string;      // Unique message ID
+  chatId: string;         // Chat/conversation ID
+  chatType: "direct" | "group";
+  senderId: string;       // Sender user ID
+  senderName?: string;    // Optional sender display name
+  messageType: "text" | "image" | "file";
+  content: string;        // Message content
+  timestamp: number;      // Unix timestamp
+  parentId?: string;      // Optional parent message ID for replies
+}
+```
+
+#### Outbound Message (Server → H5)
+
+```typescript
+{
+  messageId: string;      // Unique message ID
+  chatId: string;         // Chat/conversation ID
+  content: string;        // Message content
+  contentType: "text" | "markdown";
+  replyTo?: string;       // Optional message ID being replied to
+  timestamp: number;      // Unix timestamp
+}
+```
+
+### WebSocket Events
+
+| Event Type | Description |
+|------------|-------------|
+| `message.receive` | Inbound message from client |
+| `message.send` | Outbound message to client |
+| `connection.open` | Connection established |
+| `connection.close` | Connection closed |
+| `typing` | Typing indicator (optional) |
+
+### H5 Client Example
+
+```javascript
+// Connect to WebSocket server
+const ws = new WebSocket('ws://localhost:8080/ws?chatId=user-123');
+
+ws.onopen = () => {
+  console.log('Connected to Generic Channel');
+};
+
+// Send a message
+const message = {
+  type: 'message.receive',
+  data: {
+    messageId: 'msg-' + Date.now(),
+    chatId: 'user-123',
+    chatType: 'direct',
+    senderId: 'user-123',
+    senderName: 'Alice',
+    messageType: 'text',
+    content: 'Hello, AI!',
+    timestamp: Date.now()
+  }
+};
+ws.send(JSON.stringify(message));
+
+// Receive messages
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  if (message.type === 'message.send') {
+    console.log('AI Reply:', message.data.content);
+  }
+};
+```
+
+### FAQ
+
+#### WebSocket connection failed
+
+1. Check if OpenClaw is running
+2. Verify the `wsPort` configuration
+3. Make sure no other service is using the same port
+4. Check firewall settings
+
+#### Messages are not received
+
+1. Verify `channels.generic.enabled` is set to `true`
+2. Check the `chatId` in the connection URL matches your setup
+3. Review OpenClaw logs for error messages
 
 ---
 
@@ -186,158 +180,63 @@ For detailed documentation, see [Generic Channel Documentation](./GENERIC_CHANNE
 ### 安装
 
 ```bash
-openclaw plugins install @m1heng-clawd/feishu
+openclaw plugins install @restry/generic-channel
 ```
 
 或通过 npm 安装：
 
 ```bash
-npm install @m1heng-clawd/feishu
+npm install @restry/generic-channel
 ```
 
 ### 配置
 
-1. 在 [飞书开放平台](https://open.feishu.cn) 创建自建应用
-2. 在凭证页面获取 App ID 和 App Secret
-3. 开启所需权限（见下方）
-4. **配置事件订阅**（见下方）⚠️ 重要
-5. 配置插件：
+```yaml
+channels:
+  generic:
+    enabled: true
+    connectionMode: "websocket"  # 或 "webhook"
+    wsPort: 8080
+    wsPath: "/ws"
+    dmPolicy: "open"
+    historyLimit: 10
+    textChunkLimit: 4000
+```
 
-#### 必需权限
-
-| 权限 | 范围 | 说明 |
-|------|------|------|
-| `contact:user.base:readonly` | 用户信息 | 获取用户基本信息（用于解析发送者姓名，避免群聊/私聊把不同人当成同一说话者） |
-| `im:message` | 消息 | 发送和接收消息 |
-| `im:message.p2p_msg:readonly` | 私聊 | 读取发给机器人的私聊消息 |
-| `im:message.group_at_msg:readonly` | 群聊 | 接收群内 @机器人 的消息 |
-| `im:message:send_as_bot` | 发送 | 以机器人身份发送消息 |
-| `im:resource` | 媒体 | 上传和下载图片/文件 |
-
-#### 可选权限
-
-| 权限 | 范围 | 说明 |
-|------|------|------|
-| `im:message.group_msg` | 群聊 | 读取所有群消息（敏感） |
-| `im:message:readonly` | 读取 | 获取历史消息 |
-| `im:message:update` | 编辑 | 更新/编辑已发送消息 |
-| `im:message:recall` | 撤回 | 撤回已发送消息 |
-| `im:message.reactions:read` | 表情 | 查看消息表情回复 |
-
-#### 事件订阅 ⚠️
-
-> **这是最容易遗漏的配置！** 如果机器人能发消息但收不到消息，请检查此项。
-
-在飞书开放平台的应用后台，进入 **事件与回调** 页面：
-
-1. **事件配置方式**：选择 **使用长连接接收事件**（推荐）
-2. **添加事件订阅**，勾选以下事件：
-
-| 事件 | 说明 |
-|------|------|
-| `im.message.receive_v1` | 接收消息（必需） |
-| `im.message.message_read_v1` | 消息已读回执 |
-| `im.chat.member.bot.added_v1` | 机器人进群 |
-| `im.chat.member.bot.deleted_v1` | 机器人被移出群 |
-
-3. 确保事件订阅的权限已申请并通过审核
+或通过命令行：
 
 ```bash
-openclaw config set channels.feishu.appId "cli_xxxxx"
-openclaw config set channels.feishu.appSecret "your_app_secret"
-openclaw config set channels.feishu.enabled true
+openclaw config set channels.generic.enabled true
+openclaw config set channels.generic.connectionMode websocket
+openclaw config set channels.generic.wsPort 8080
 ```
 
 ### 配置选项
 
-```yaml
-channels:
-  feishu:
-    enabled: true
-    appId: "cli_xxxxx"
-    appSecret: "secret"
-    # 域名: "feishu" (国内) 或 "lark" (国际)
-    domain: "feishu"
-    # 连接模式: "websocket" (推荐) 或 "webhook"
-    connectionMode: "websocket"
-    # 私聊策略: "pairing" | "open" | "allowlist"
-    dmPolicy: "pairing"
-    # 群聊策略: "open" | "allowlist" | "disabled"
-    groupPolicy: "allowlist"
-    # 群聊是否需要 @机器人
-    requireMention: true
-    # 媒体文件最大大小 (MB, 默认 30)
-    mediaMaxMb: 30
-    # 回复渲染模式: "auto" | "raw" | "card"
-    renderMode: "auto"
-```
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enabled` | boolean | `false` | 启用/禁用通用频道 |
+| `connectionMode` | enum | `"websocket"` | 连接模式：`"websocket"` 或 `"webhook"` |
+| `wsPort` | number | `8080` | WebSocket 服务器端口 |
+| `wsPath` | string | `"/ws"` | WebSocket 端点路径 |
+| `webhookPath` | string | `"/generic/events"` | Webhook 端点路径 |
+| `webhookPort` | number | `3000` | Webhook 服务器端口 |
+| `webhookSecret` | string | - | 可选的 Webhook 签名密钥 |
+| `dmPolicy` | enum | `"open"` | 私聊策略：`"open"`、`"pairing"` 或 `"allowlist"` |
+| `allowFrom` | array | `[]` | 允许的发送者 ID 列表（用于 allowlist 策略） |
+| `historyLimit` | number | `10` | 群聊保留的历史消息数量 |
+| `textChunkLimit` | number | `4000` | 每条消息的最大字符数 |
 
-#### 渲染模式
+### 功能特性
 
-| 模式 | 说明 |
-|------|------|
-| `auto` | （默认）自动检测：有代码块或表格时用卡片，否则纯文本 |
-| `raw` | 始终纯文本，表格转为 ASCII |
-| `card` | 始终使用卡片，支持语法高亮、表格、链接等 |
+- **双连接模式**：支持 WebSocket 和 Webhook
+- **多客户端管理**：支持多个 WebSocket 连接同时在线
+- **私聊与群聊**：处理私聊和群组对话
+- **消息历史**：可配置的群聊历史记录
+- **访问控制**：私聊策略（开放、配对、白名单）
+- **自动心跳**：WebSocket 心跳保活机制
 
-### 功能
-
-- WebSocket 和 Webhook 连接模式
-- 私聊和群聊
-- 消息回复和引用上下文
-- **入站媒体支持**：AI 可以看到图片、读取文件（PDF、Excel 等）、处理富文本中的嵌入图片
-- 图片和文件上传（出站）
-- 输入指示器（通过表情回复实现）
-- 私聊配对审批流程
-- 用户和群组目录查询
-- **卡片渲染模式**：支持语法高亮的 Markdown 渲染
-- **通用频道**：支持 H5 页面通过 WebSocket/Webhook 接入（见[通用频道文档](./GENERIC_CHANNEL.md)）
-
-### 常见问题
-
-#### 机器人收不到消息
-
-检查以下配置：
-1. 是否配置了 **事件订阅**？（见上方事件订阅章节）
-2. 事件配置方式是否选择了 **长连接**？
-3. 是否添加了 `im.message.receive_v1` 事件？
-4. 相关权限是否已申请并审核通过？
-
-#### 返回消息时 403 错误
-
-确保已申请 `im:message:send_as_bot` 权限，并且权限已审核通过。
-
-#### 如何清理历史会话 / 开启新对话
-
-在聊天中发送 `/new` 命令即可开启新对话。
-
-#### 消息为什么不是流式输出
-
-飞书 API 有请求频率限制，流式更新消息很容易触发限流。当前采用完整回复后一次性发送的方式，以保证稳定性。
-
-#### Windows 安装报错 `spawn npm ENOENT`
-
-如果 `openclaw plugins install` 失败，可以手动安装：
-
-```bash
-# 1. 下载插件包
-curl -O https://registry.npmjs.org/@m1heng-clawd/feishu/-/feishu-0.1.3.tgz
-
-# 2. 从本地安装
-openclaw plugins install ./feishu-0.1.3.tgz
-```
-
-#### 在飞书里找不到机器人
-
-1. 确保应用已发布（至少发布到测试版本）
-2. 在飞书搜索框中搜索机器人名称
-3. 检查应用可用范围是否包含你的账号
-
-### 通用频道
-
-此插件还包含一个 **通用频道（Generic Channel）**，允许 H5 页面通过 WebSocket 或 Webhook 直接连接，无需依赖飞书、钉钉等第三方平台。
-
-#### 快速开始
+### 快速开始
 
 1. 启用通用频道：
 ```bash
@@ -350,7 +249,20 @@ openclaw config set channels.generic.wsPort 8080
 
 3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID 和名称，然后点击"连接"
 
-详细文档见[通用频道文档](./GENERIC_CHANNEL.md)。
+### 常见问题
+
+#### WebSocket 连接失败
+
+1. 检查 OpenClaw 是否正在运行
+2. 验证 `wsPort` 配置
+3. 确保没有其他服务占用相同端口
+4. 检查防火墙设置
+
+#### 消息无法接收
+
+1. 确认 `channels.generic.enabled` 设置为 `true`
+2. 检查连接 URL 中的 `chatId` 是否正确
+3. 查看 OpenClaw 日志是否有错误信息
 
 ---
 

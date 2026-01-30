@@ -8,27 +8,19 @@
 
 **方式 A：使用 OpenClaw CLI（推荐）**
 ```bash
-openclaw plugins install @m1heng-clawd/feishu
+openclaw plugins install @restry/generic-channel
 ```
 
 **方式 B：使用 npm**
 ```bash
-npm install @m1heng-clawd/feishu
-```
-
-**方式 C：手动安装**
-```bash
-# 下载插件包
-curl -O https://registry.npmjs.org/@m1heng-clawd/feishu/-/feishu-0.1.3.tgz
-# 从本地安装
-openclaw plugins install ./feishu-0.1.3.tgz
+npm install @restry/generic-channel
 ```
 
 ### 第二步：插件位置
 
 安装后，插件会自动放置在 OpenClaw 的插件目录中：
-- **Linux/macOS**: `~/.openclaw/plugins/@m1heng-clawd/feishu/`
-- **Windows**: `%USERPROFILE%\.openclaw\plugins\@m1heng-clawd\feishu\`
+- **Linux/macOS**: `~/.openclaw/plugins/@restry/generic-channel/`
+- **Windows**: `%USERPROFILE%\.openclaw\plugins\@restry\generic-channel\`
 
 你不需要手动移动任何文件 - OpenClaw 插件系统会自动处理。
 
@@ -71,8 +63,8 @@ openclaw start
 #### 方式 A：使用自带的示例客户端
 
 1. 找到示例客户端文件：
-   - 如果通过 npm 安装：`node_modules/@m1heng-clawd/feishu/examples/h5-client.html`
-   - 如果通过 OpenClaw 安装：`~/.openclaw/plugins/@m1heng-clawd/feishu/examples/h5-client.html`
+   - 如果通过 npm 安装：`node_modules/@restry/generic-channel/examples/h5-client.html`
+   - 如果通过 OpenClaw 安装：`~/.openclaw/plugins/@restry/generic-channel/examples/h5-client.html`
 
 2. 在浏览器中打开 `h5-client.html`（双击或使用 `file://` URL）
 
@@ -139,7 +131,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-#### 示例 2：Webhook 模式
+### 示例 2：Webhook 模式
 
 ```yaml
 channels:
@@ -154,7 +146,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-#### 示例 3：使用白名单（限制访问）
+### 示例 3：使用白名单（限制访问）
 
 ```yaml
 channels:
@@ -172,7 +164,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-#### 示例 4：配对模式（需要审批）
+### 示例 4：配对模式（需要审批）
 
 ```yaml
 channels:
@@ -182,29 +174,6 @@ channels:
     wsPort: 8080
     wsPath: "/ws"
     dmPolicy: "pairing"
-    historyLimit: 10
-    textChunkLimit: 4000
-```
-
-#### 示例 5：与飞书频道同时使用
-
-```yaml
-channels:
-  feishu:
-    enabled: true
-    appId: "cli_xxxxx"
-    appSecret: "你的应用密钥"
-    connectionMode: "websocket"
-    dmPolicy: "pairing"
-    groupPolicy: "allowlist"
-    requireMention: true
-    
-  generic:
-    enabled: true
-    connectionMode: "websocket"
-    wsPort: 8080
-    wsPath: "/ws"
-    dmPolicy: "open"
     historyLimit: 10
     textChunkLimit: 4000
 ```
@@ -352,7 +321,7 @@ server {
 FROM node:20
 WORKDIR /app
 RUN npm install -g openclaw
-RUN openclaw plugins install @m1heng-clawd/feishu
+RUN openclaw plugins install @restry/generic-channel
 EXPOSE 8080
 CMD ["openclaw", "start"]
 ```
@@ -370,5 +339,5 @@ docker run -p 8080:8080 -v /path/to/config.yaml:/root/.openclaw/config.yaml open
 ## 相关文档
 
 - [通用频道文档](../GENERIC_CHANNEL.md) - 完整 API 参考
-- [README](../README.md) - 概述及飞书频道配置
+- [README](../README.md) - 概述及配置说明
 - [H5 客户端示例](./h5-client.html) - 可运行的演示客户端

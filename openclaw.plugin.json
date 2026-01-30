@@ -1,6 +1,6 @@
 {
-  "id": "feishu",
-  "channels": ["feishu"],
+  "id": "generic",
+  "channels": ["generic"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

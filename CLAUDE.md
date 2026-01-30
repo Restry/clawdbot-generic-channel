@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Feishu/Lark (飞书) channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). It enables OpenClaw to send/receive messages through Feishu's enterprise messaging platform.
+This is a Generic WebSocket/Webhook channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). It enables OpenClaw to send/receive messages through WebSocket or Webhook connections, allowing H5 pages to connect directly without depending on third-party platforms.
 
 ## Development
 
@@ -23,55 +23,40 @@ npx tsc --noEmit
 ### Entry Point
 - `index.ts` - Plugin registration, exports public API
 
-### Core Modules (src/)
+### Core Modules (src/generic/)
+
+**Configuration:**
+- `config-schema.ts` - Zod schemas for channel config
+- `types.ts` - TypeScript type definitions
+- `runtime.ts` - Runtime state management
 
 **Connection & Events:**
-- `client.ts` - Feishu SDK client factory (REST + WebSocket)
-- `monitor.ts` - WebSocket event listener, dispatches incoming messages
-- `bot.ts` - Message event handler, parses content, resolves media, dispatches to agent
+- `client.ts` - WebSocket server and client manager
+- `monitor.ts` - WebSocket/Webhook event listener, dispatches incoming messages
+- `bot.ts` - Message event handler, parses content, dispatches to agent
 
 **Outbound:**
-- `send.ts` - Text messages, interactive cards, message editing
-- `media.ts` - Upload/download images and files, inbound media resolution
+- `send.ts` - Text message sending
 - `outbound.ts` - `ChannelOutboundAdapter` implementation
-- `reply-dispatcher.ts` - Streaming reply handling with render mode (raw/card/auto)
-
-**Configuration & Policy:**
-- `config-schema.ts` - Zod schemas for channel config
-- `policy.ts` - DM/group allowlist, mention requirements
-- `accounts.ts` - Credential resolution
-- `types.ts` - TypeScript type definitions
+- `reply-dispatcher.ts` - Streaming reply handling
 
 **Utilities:**
-- `targets.ts` - Normalize `user:xxx`/`chat:xxx` target formats
-- `directory.ts` - User/group lookup
-- `reactions.ts` - Emoji reactions API
-- `typing.ts` - Typing indicator (emoji-based)
-- `probe.ts` - Bot health check
+- `probe.ts` - Channel health check
 
 ### Message Flow
 
-1. `monitor.ts` starts WebSocket connection, registers event handlers
-2. On `im.message.receive_v1`, `bot.ts` parses the event
-3. For media messages, `media.ts` downloads content via `im.messageResource.get`
-4. Message is dispatched to OpenClaw agent via `reply-dispatcher.ts`
-5. Agent responses flow through `outbound.ts` → `send.ts` (text/card based on `renderMode`)
+1. `monitor.ts` starts WebSocket server, registers event handlers
+2. On `message.receive`, `bot.ts` parses the event
+3. Message is dispatched to OpenClaw agent via `reply-dispatcher.ts`
+4. Agent responses flow through `outbound.ts` → `send.ts`
 
 ### Key Configuration Options
 
 | Option | Description |
 |--------|-------------|
 | `connectionMode` | `websocket` (default) or `webhook` |
+| `wsPort` | WebSocket server port (default: 8080) |
+| `wsPath` | WebSocket endpoint path (default: "/ws") |
 | `dmPolicy` | `pairing` / `open` / `allowlist` |
-| `groupPolicy` | `open` / `allowlist` / `disabled` |
-| `requireMention` | Require @bot in groups (default: true) |
-| `renderMode` | `auto` / `raw` / `card` for markdown rendering |
-
-### Feishu SDK Usage
-
-Uses `@larksuiteoapi/node-sdk`. Key APIs:
-- `client.im.message.create/reply` - Send messages
-- `client.im.messageResource.get` - Download media from messages
-- `client.im.image.create` - Upload images
-- `client.im.file.create` - Upload files
-- `WSClient` - Long-polling WebSocket for events
+| `historyLimit` | Number of history messages for group chats |
+| `textChunkLimit` | Maximum characters per message chunk |
