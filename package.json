@@ -29,11 +29,11 @@
       "./index.ts"
     ],
     "channel": {
-      "id": "generic",
-      "label": "Generic",
+      "id": "generic-channel",
+      "label": "Generic Channel",
       "selectionLabel": "Generic Channel (WebSocket/Webhook)",
-      "docsPath": "/channels/generic",
-      "docsLabel": "generic",
+      "docsPath": "/channels/generic-channel",
+      "docsLabel": "generic-channel",
       "blurb": "Generic WebSocket/Webhook channel for H5 pages.",
       "aliases": [],
       "order": 100

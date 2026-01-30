@@ -30,7 +30,7 @@ export async function handleGenericMessage(params: {
   chatHistories?: Map<string, HistoryEntry[]>;
 }): Promise<void> {
   const { cfg, message, runtime, chatHistories } = params;
-  const genericCfg = cfg.channels?.generic as GenericChannelConfig | undefined;
+  const genericCfg = cfg.channels?.["generic-channel"] as GenericChannelConfig | undefined;
   const log = runtime?.log ?? console.log;
   const error = runtime?.error ?? console.error;
 
@@ -67,7 +67,7 @@ export async function handleGenericMessage(params: {
 
     const route = core.channel.routing.resolveAgentRoute({
       cfg,
-      channel: "generic",
+      channel: "generic-channel",
       peer: {
         kind: isGroup ? "group" : "dm",
         id: isGroup ? ctx.chatId : ctx.senderId,
@@ -138,12 +138,12 @@ export async function handleGenericMessage(params: {
       GroupSubject: isGroup ? ctx.chatId : undefined,
       SenderName: ctx.senderName ?? ctx.senderId,
       SenderId: ctx.senderId,
-      Provider: "generic" as const,
-      Surface: "generic" as const,
+      Provider: "generic-channel" as const,
+      Surface: "generic-channel" as const,
       MessageSid: ctx.messageId,
       Timestamp: message.timestamp,
       CommandAuthorized: true,
-      OriginatingChannel: "generic" as const,
+      OriginatingChannel: "generic-channel" as const,
       OriginatingTo: genericTo,
     });
 

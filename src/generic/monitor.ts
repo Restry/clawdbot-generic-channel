@@ -18,7 +18,7 @@ export async function monitorGenericProvider(opts: MonitorGenericOpts = {}): Pro
     throw new Error("Config is required for Generic monitor");
   }
 
-  const genericCfg = cfg.channels?.generic as GenericChannelConfig | undefined;
+  const genericCfg = cfg.channels?.["generic-channel"] as GenericChannelConfig | undefined;
   if (!genericCfg?.enabled) {
     throw new Error("Generic channel not enabled");
   }

@@ -10,8 +10,8 @@ export { probeGeneric } from "./src/generic/probe.js";
 export { genericPlugin } from "./src/generic/channel.js";
 
 const plugin = {
-  id: "generic",
-  name: "Generic",
+  id: "generic-channel",
+  name: "Generic Channel",
   description: "Generic WebSocket/Webhook channel plugin for OpenClaw",
   configSchema: emptyPluginConfigSchema(),
   register(api: OpenClawPluginApi) {

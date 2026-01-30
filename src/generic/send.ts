@@ -23,7 +23,7 @@ function normalizeTarget(to: string): { chatId: string; type: "user" | "chat" } 
 
 export async function sendMessageGeneric(params: SendGenericMessageParams): Promise<GenericSendResult> {
   const { cfg, to, text, replyToMessageId, contentType = "text" } = params;
-  const genericCfg = cfg.channels?.generic as GenericChannelConfig | undefined;
+  const genericCfg = cfg.channels?.["generic-channel"] as GenericChannelConfig | undefined;
 
   if (!genericCfg) {
     throw new Error("Generic channel not configured");

@@ -9,7 +9,7 @@ export const genericOutbound: ChannelOutboundAdapter = {
   textChunkLimit: 4000,
   sendText: async ({ cfg, to, text }) => {
     const result = await sendMessageGeneric({ cfg, to, text });
-    return { channel: "generic", ...result };
+    return { channel: "generic-channel", ...result };
   },
   sendMedia: async ({ cfg, to, text, mediaUrl }) => {
     // For now, just send media URL as text since we don't have media upload implemented
@@ -19,6 +19,6 @@ export const genericOutbound: ChannelOutboundAdapter = {
     }
 
     const result = await sendMessageGeneric({ cfg, to, text: fullText });
-    return { channel: "generic", ...result };
+    return { channel: "generic-channel", ...result };
   },
 };

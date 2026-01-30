@@ -1,6 +1,6 @@
 {
-  "id": "generic",
-  "channels": ["generic"],
+  "id": "generic-channel",
+  "channels": ["generic-channel"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
