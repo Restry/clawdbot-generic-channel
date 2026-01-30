@@ -2,7 +2,7 @@ import {
   createReplyPrefixContext,
   createTypingCallbacks,
   logTypingFailure,
-  type ClawdbotConfig,
+  type OpenClawConfig,
   type RuntimeEnv,
   type ReplyPayload,
 } from "openclaw/plugin-sdk";
@@ -11,7 +11,7 @@ import { sendMessageGeneric } from "./send.js";
 import type { GenericChannelConfig } from "./types.js";
 
 export type CreateGenericReplyDispatcherParams = {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   agentId: string;
   runtime: RuntimeEnv;
   chatId: string;

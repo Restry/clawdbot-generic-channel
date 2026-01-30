@@ -1,10 +1,10 @@
-import type { ClawdbotConfig, RuntimeEnv, HistoryEntry } from "openclaw/plugin-sdk";
+import type { OpenClawConfig, RuntimeEnv, HistoryEntry } from "openclaw/plugin-sdk";
 import type { GenericChannelConfig, InboundMessage } from "./types.js";
 import { createGenericWSManager, destroyGenericWSManager } from "./client.js";
 import { handleGenericMessage } from "./bot.js";
 
 export type MonitorGenericOpts = {
-  config?: ClawdbotConfig;
+  config?: OpenClawConfig;
   runtime?: RuntimeEnv;
   abortSignal?: AbortSignal;
   accountId?: string;
@@ -36,7 +36,7 @@ export async function monitorGenericProvider(opts: MonitorGenericOpts = {}): Pro
 }
 
 async function monitorWebSocket(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   genericCfg: GenericChannelConfig;
   runtime?: RuntimeEnv;
   abortSignal?: AbortSignal;

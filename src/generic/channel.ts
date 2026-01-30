@@ -1,4 +1,4 @@
-import type { ChannelPlugin, ClawdbotConfig } from "openclaw/plugin-sdk";
+import type { ChannelPlugin, OpenClawConfig } from "openclaw/plugin-sdk";
 import { DEFAULT_ACCOUNT_ID, PAIRING_APPROVED_MESSAGE } from "openclaw/plugin-sdk";
 import type { ResolvedGenericAccount, GenericChannelConfig } from "./types.js";
 import { genericOutbound } from "./outbound.js";
@@ -16,7 +16,7 @@ const meta = {
   order: 100,
 } as const;
 
-function resolveGenericAccount(params: { cfg: ClawdbotConfig }): ResolvedGenericAccount {
+function resolveGenericAccount(params: { cfg: OpenClawConfig }): ResolvedGenericAccount {
   const { cfg } = params;
   const genericCfg = cfg.channels?.generic as GenericChannelConfig | undefined;
 
@@ -92,7 +92,7 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
       },
     }),
     deleteAccount: ({ cfg }) => {
-      const next = { ...cfg } as ClawdbotConfig;
+      const next = { ...cfg } as OpenClawConfig;
       const nextChannels = { ...cfg.channels };
       delete (nextChannels as Record<string, unknown>).generic;
       if (Object.keys(nextChannels).length > 0) {

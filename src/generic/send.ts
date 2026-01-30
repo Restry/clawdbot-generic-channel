@@ -1,9 +1,9 @@
-import type { ClawdbotConfig } from "openclaw/plugin-sdk";
+import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import type { GenericChannelConfig, GenericSendResult, OutboundMessage } from "./types.js";
 import { getGenericWSManager } from "./client.js";
 
 export type SendGenericMessageParams = {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   to: string;
   text: string;
   replyToMessageId?: string;

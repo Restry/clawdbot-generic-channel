@@ -1,4 +1,4 @@
-import type { ClawdbotConfig, RuntimeEnv } from "openclaw/plugin-sdk";
+import type { OpenClawConfig, RuntimeEnv } from "openclaw/plugin-sdk";
 import {
   buildPendingHistoryContextFromMap,
   recordPendingHistoryEntryIfEnabled,
@@ -24,7 +24,7 @@ export function parseGenericMessage(message: InboundMessage): GenericMessageCont
 }
 
 export async function handleGenericMessage(params: {
-  cfg: ClawdbotConfig;
+  cfg: OpenClawConfig;
   message: InboundMessage;
   runtime?: RuntimeEnv;
   chatHistories?: Map<string, HistoryEntry[]>;
