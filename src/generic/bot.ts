@@ -9,6 +9,7 @@ import {
 import type { GenericChannelConfig, GenericMessageContext, InboundMessage } from "./types.js";
 import { getGenericRuntime } from "./runtime.js";
 import { createGenericReplyDispatcher } from "./reply-dispatcher.js";
+import { resolveGenericMediaList, buildMediaPayload } from "./media.js";
 
 export function parseGenericMessage(message: InboundMessage): GenericMessageContext {
   return {
@@ -88,11 +89,20 @@ export async function handleGenericMessage(params: {
 
     const envelopeOptions = core.channel.reply.resolveEnvelopeFormatOptions(cfg);
 
+    // Download and resolve media from message
+    const mediaMaxBytes = (genericCfg?.mediaMaxMb ?? 30) * 1024 * 1024;
+    const mediaList = await resolveGenericMediaList({
+      message,
+      maxBytes: mediaMaxBytes,
+      log: (msg: string) => log(msg),
+    });
+    const mediaPayload = buildMediaPayload(mediaList);
+
     // Build message body with sender name
     const speaker = ctx.senderName ?? ctx.senderId;
     let messageBody = `${speaker}: ${ctx.content}`;
 
-    // Handle media messages - include media URL in the message body for agent context
+    // Handle media messages - include media info in the message body for agent context
     if (ctx.mediaUrl && (ctx.contentType === "image" || ctx.contentType === "voice" || ctx.contentType === "audio")) {
       let mediaLabel = "🔊 Audio";
       if (ctx.contentType === "image") {
@@ -100,7 +110,12 @@ export async function handleGenericMessage(params: {
       } else if (ctx.contentType === "voice") {
         mediaLabel = "🎤 Voice";
       }
-      messageBody = `${speaker}: [${mediaLabel}] ${ctx.content || "(no caption)"}\nMedia URL: ${ctx.mediaUrl}`;
+      messageBody = `${speaker}: [${mediaLabel}] ${ctx.content || "(no caption)"}`;
+      // If media was successfully downloaded, it's available via mediaPayload
+      // Otherwise include URL as fallback
+      if (mediaList.length === 0 && ctx.mediaUrl) {
+        messageBody += `\nMedia URL: ${ctx.mediaUrl}`;
+      }
     }
 
     // Handle quoted/reply messages
@@ -158,6 +173,7 @@ export async function handleGenericMessage(params: {
       CommandAuthorized: true,
       OriginatingChannel: "generic-channel" as const,
       OriginatingTo: genericTo,
+      ...mediaPayload, // Add MediaPath, MediaType, MediaUrl, MediaPaths, etc.
     });
 
     const { dispatcher, replyOptions, markDispatchIdle } = createGenericReplyDispatcher({

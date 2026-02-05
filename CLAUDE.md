@@ -34,6 +34,7 @@ npx tsc --noEmit
 - `client.ts` - WebSocket server and client manager
 - `monitor.ts` - WebSocket/Webhook event listener, dispatches incoming messages
 - `bot.ts` - Message event handler, parses content, dispatches to agent
+- `media.ts` - Media download, processing, and payload building
 
 **Outbound:**
 - `send.ts` - Text message sending
@@ -47,8 +48,9 @@ npx tsc --noEmit
 
 1. `monitor.ts` starts WebSocket server, registers event handlers
 2. On `message.receive`, `bot.ts` parses the event
-3. Message is dispatched to OpenClaw agent via `reply-dispatcher.ts`
-4. Agent responses flow through `outbound.ts` → `send.ts`
+3. If message contains media URL, `media.ts` downloads and saves it locally
+4. Message (with media file paths) is dispatched to OpenClaw agent via `reply-dispatcher.ts`
+5. Agent responses flow through `outbound.ts` → `send.ts`
 
 ### Key Configuration Options
 
@@ -60,3 +62,4 @@ npx tsc --noEmit
 | `dmPolicy` | `pairing` / `open` / `allowlist` |
 | `historyLimit` | Number of history messages for group chats |
 | `textChunkLimit` | Maximum characters per message chunk |
+| `mediaMaxMb` | Maximum media file size in MB (default: 30) |
