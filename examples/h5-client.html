@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generic Channel - H5 Chat Client</title>
+    <title>Generic Channel - 增强版 H5 客户端</title>
     <style>
         * {
             margin: 0;
@@ -12,52 +12,107 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            padding: 10px;
         }
 
         .chat-container {
-            width: 90%;
-            max-width: 600px;
-            height: 90vh;
+            width: 100%;
+            max-width: 700px;
+            height: 95vh;
             background: white;
-            border-radius: 12px;
+            border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
+        /* Header */
         .chat-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 16px 20px;
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
         }
 
         .chat-header h1 {
             font-size: 18px;
             font-weight: 600;
+            margin-bottom: 4px;
         }
 
         .connection-status {
             font-size: 12px;
-            margin-top: 4px;
             opacity: 0.9;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        .connection-status.connected {
-            color: #4ade80;
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
         }
 
-        .connection-status.disconnected {
-            color: #f87171;
+        .connection-status.connected .status-indicator {
+            background: #4ade80;
+            box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
         }
 
+        .connection-status.disconnected .status-indicator {
+            background: #f87171;
+        }
+
+        .connection-status.reconnecting .status-indicator {
+            background: #fbbf24;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn-header {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.2s;
+        }
+
+        .icon-btn-header:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* Messages */
         .messages-container {
             flex: 1;
             padding: 16px;
@@ -69,6 +124,18 @@
             margin-bottom: 12px;
             display: flex;
             flex-direction: column;
+            animation: slideIn 0.2s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .message.sent {
@@ -81,8 +148,8 @@
 
         .message-bubble {
             max-width: 75%;
-            padding: 10px 14px;
-            border-radius: 16px;
+            padding: 12px 16px;
+            border-radius: 18px;
             word-wrap: break-word;
             white-space: pre-wrap;
         }
@@ -95,24 +162,24 @@
         .message.received .message-bubble {
             background: white;
             color: #1f2937;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
         }
 
         .message-time {
-            font-size: 10px;
+            font-size: 11px;
             color: #9ca3af;
-            margin-top: 3px;
-            padding: 0 4px;
+            margin-top: 4px;
+            padding: 0 6px;
         }
 
         /* Thinking indicator */
         .thinking-indicator {
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 10px 14px;
+            gap: 10px;
+            padding: 12px 16px;
             background: #f3f4f6;
-            border-radius: 16px;
+            border-radius: 18px;
             color: #6b7280;
             font-size: 13px;
             max-width: 200px;
@@ -124,8 +191,8 @@
         }
 
         .thinking-dots span {
-            width: 6px;
-            height: 6px;
+            width: 7px;
+            height: 7px;
             background: #9ca3af;
             border-radius: 50%;
             animation: thinking 1.4s infinite ease-in-out both;
@@ -143,19 +210,24 @@
         /* Media messages */
         .message-image {
             max-width: 100%;
-            max-height: 200px;
-            border-radius: 8px;
+            max-height: 250px;
+            border-radius: 12px;
             cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .message-image:hover {
+            transform: scale(1.02);
         }
 
         .message-audio {
             width: 100%;
-            max-width: 250px;
+            max-width: 280px;
         }
 
         .media-caption {
             font-size: 13px;
-            margin-top: 6px;
+            margin-top: 8px;
             opacity: 0.9;
         }
 
@@ -166,7 +238,7 @@
             border-top: 1px solid #e5e7eb;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
         }
 
         .input-row {
@@ -177,36 +249,37 @@
 
         .input-container input[type="text"] {
             flex: 1;
-            padding: 10px 14px;
+            padding: 12px 16px;
             border: 1px solid #e5e7eb;
-            border-radius: 20px;
+            border-radius: 24px;
             font-size: 14px;
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
 
         .input-container input[type="text"]:focus {
             border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .btn {
-            padding: 10px 16px;
+            padding: 12px 18px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 20px;
-            font-size: 13px;
+            border-radius: 24px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
         }
 
         .btn:hover {
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
         }
 
         .btn:active {
@@ -233,25 +306,20 @@
             animation: pulse 1.5s infinite;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
         .media-buttons {
             display: flex;
             gap: 6px;
         }
 
         .icon-btn {
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
             padding: 0;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
+            font-size: 18px;
         }
 
         /* Hidden file inputs */
@@ -259,82 +327,264 @@
             display: none;
         }
 
-        /* Config form */
-        .config-form {
-            padding: 20px;
-            background: white;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .config-form input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .config-form button {
-            width: 100%;
-            padding: 10px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
         .hidden {
             display: none !important;
         }
 
-        /* Image preview modal */
-        .modal {
+        /* Config/Settings Modal */
+        .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.6);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
+            animation: fadeIn 0.2s;
         }
 
-        .modal img {
-            max-width: 90%;
-            max-height: 90%;
-            border-radius: 8px;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 0;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
         }
 
         .modal-close {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            color: white;
-            font-size: 30px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: none;
+            background: #f3f4f6;
+            color: #6b7280;
+            font-size: 20px;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .server-history {
+            margin-top: 10px;
+        }
+
+        .server-history-item {
+            padding: 10px 12px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .server-history-item:hover {
+            background: #f3f4f6;
+            border-color: #667eea;
+        }
+
+        .server-history-item-info {
+            flex: 1;
+        }
+
+        .server-history-item-url {
+            font-size: 13px;
+            color: #1f2937;
+            font-weight: 500;
+        }
+
+        .server-history-item-meta {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 2px;
+        }
+
+        .server-history-item-delete {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: #ef4444;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .server-history-item-delete:hover {
+            background: #fee2e2;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Help/Guide Modal */
+        .guide-section {
+            margin-bottom: 24px;
+        }
+
+        .guide-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 12px;
+        }
+
+        .guide-section p {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .guide-section ul,
+        .guide-section ol {
+            font-size: 14px;
+            color: #4b5563;
+            line-height: 1.8;
+            padding-left: 24px;
+        }
+
+        .guide-section li {
+            margin-bottom: 6px;
+        }
+
+        .guide-section code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: #e0e7ff;
+            color: #4f46e5;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 6px;
         }
 
         /* Preview before send */
         .preview-container {
-            padding: 8px;
+            padding: 10px 12px;
             background: #f9fafb;
-            border-radius: 8px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            border: 1px solid #e5e7eb;
         }
 
         .preview-image {
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             object-fit: cover;
-            border-radius: 6px;
+            border-radius: 8px;
         }
 
         .preview-audio {
@@ -344,22 +594,143 @@
         .preview-remove {
             color: #ef4444;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 20px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .preview-remove:hover {
+            background: #fee2e2;
+        }
+
+        /* Image modal for viewing full-size images */
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .image-modal img {
+            max-width: 95%;
+            max-height: 95%;
+            border-radius: 8px;
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .image-modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 3000;
+            animation: slideInRight 0.3s ease-out;
+            max-width: 300px;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .notification-success {
+            border-left: 4px solid #4ade80;
+        }
+
+        .notification-error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .notification-info {
+            border-left: 4px solid #3b82f6;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .notification-message {
+            font-size: 13px;
+            color: #6b7280;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .chat-container {
+                height: 100vh;
+                max-width: 100%;
+                border-radius: 0;
+            }
+
+            .modal {
+                width: 100%;
+                max-width: 100%;
+                height: 100%;
+                max-height: 100%;
+                border-radius: 0;
+            }
         }
     </style>
 </head>
 <body>
     <div class="chat-container">
         <div class="chat-header">
-            <h1>🤖 Generic Channel Chat</h1>
-            <div class="connection-status disconnected" id="status">Disconnected</div>
-        </div>
-
-        <div class="config-form" id="configForm">
-            <input type="text" id="serverUrl" placeholder="WebSocket Server URL (e.g., ws://localhost:8080/ws)" value="ws://localhost:8080/ws">
-            <input type="text" id="chatId" placeholder="Your Chat ID (e.g., user-123)" value="user-demo">
-            <input type="text" id="userName" placeholder="Your Name" value="Demo User">
-            <button onclick="connect()">Connect</button>
+            <div class="header-left">
+                <h1>🤖 Generic Channel Chat</h1>
+                <div class="connection-status disconnected" id="status">
+                    <span class="status-indicator"></span>
+                    <span id="statusText">未连接</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn-header" id="helpBtn" onclick="showHelp()" title="使用帮助">❓</button>
+                <button class="icon-btn-header" id="settingsBtn" onclick="showSettings()" title="设置">⚙️</button>
+                <button class="icon-btn-header hidden" id="disconnectBtn" onclick="disconnect()" title="断开连接">🔌</button>
+            </div>
         </div>
 
         <div class="messages-container" id="messages"></div>
@@ -374,79 +745,406 @@
         <div class="input-container">
             <div class="input-row">
                 <div class="media-buttons">
-                    <button class="btn btn-secondary icon-btn" id="imageBtn" onclick="document.getElementById('imageInput').click()" disabled title="Send Image">
+                    <button class="btn btn-secondary icon-btn" id="imageBtn" onclick="document.getElementById('imageInput').click()" disabled title="发送图片">
                         🖼️
                     </button>
-                    <button class="btn btn-secondary icon-btn" id="voiceBtn" onclick="toggleRecording()" disabled title="Record Voice">
+                    <button class="btn btn-secondary icon-btn" id="voiceBtn" onclick="toggleRecording()" disabled title="录音">
                         🎤
                     </button>
                 </div>
-                <input type="text" id="messageInput" placeholder="Type a message..." disabled>
-                <button class="btn" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+                <input type="text" id="messageInput" placeholder="输入消息..." disabled>
+                <button class="btn" id="sendBtn" onclick="sendMessage()" disabled>发送</button>
             </div>
         </div>
 
         <!-- Hidden file inputs -->
         <input type="file" class="hidden-input" id="imageInput" accept="image/*" onchange="handleImageSelect(event)">
-        <input type="file" class="hidden-input" id="audioInput" accept="audio/*" onchange="handleAudioSelect(event)">
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay hidden" id="settingsModal" onclick="closeSettingsIfBackground(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>连接设置</h2>
+                <button class="modal-close" onclick="closeSettings()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>WebSocket 服务器地址</label>
+                    <input type="text" id="serverUrl" placeholder="ws://localhost:8080/ws">
+                    <small>例如: ws://localhost:8080/ws 或 wss://your-server.com/ws</small>
+                </div>
+                <div class="form-group">
+                    <label>聊天 ID</label>
+                    <input type="text" id="chatId" placeholder="user-123">
+                    <small>唯一标识您的聊天会话</small>
+                </div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="userName" placeholder="Demo User">
+                    <small>显示给 AI 的名称</small>
+                </div>
+
+                <div class="server-history" id="serverHistory">
+                    <label style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; display: block;">历史连接</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
+                <button class="btn" onclick="connectFromSettings()">连接</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay hidden" id="helpModal" onclick="closeHelpIfBackground(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>使用指南</h2>
+                <button class="modal-close" onclick="closeHelp()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="guide-section">
+                    <h3>快速开始</h3>
+                    <ol>
+                        <li>点击右上角 <strong>⚙️ 设置</strong> 按钮</li>
+                        <li>输入 WebSocket 服务器地址（例如：<code>ws://localhost:8080/ws</code>）</li>
+                        <li>填写您的聊天 ID 和用户名</li>
+                        <li>点击 <strong>连接</strong> 按钮</li>
+                        <li>连接成功后即可开始聊天</li>
+                    </ol>
+                </div>
+
+                <div class="guide-section">
+                    <h3>功能说明</h3>
+                    <p><span class="badge">文本消息</span> 在输入框输入文字，按回车或点击发送按钮</p>
+                    <p><span class="badge">图片消息</span> 点击 🖼️ 按钮选择图片，支持预览后发送</p>
+                    <p><span class="badge">语音消息</span> 点击 🎤 按钮开始录音，再次点击停止，支持预览后发送</p>
+                    <p><span class="badge">自动重连</span> 连接断开后会自动尝试重新连接</p>
+                    <p><span class="badge">历史记录</span> 自动保存最近的连接配置，方便快速切换</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>服务器配置</h3>
+                    <p>确保您的 OpenClaw 服务已启动并配置了 Generic Channel：</p>
+                    <pre style="background: #f3f4f6; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px;">
+openclaw config set channels.generic.enabled true
+openclaw config set channels.generic.connectionMode websocket
+openclaw config set channels.generic.wsPort 8080</pre>
+                </div>
+
+                <div class="guide-section">
+                    <h3>消息协议</h3>
+                    <p>本客户端遵循 Generic Channel 消息协议，支持：</p>
+                    <ul>
+                        <li><strong>文本消息</strong>：<code>messageType: "text"</code></li>
+                        <li><strong>图片消息</strong>：<code>messageType: "image"</code>，通过 Data URL 传输</li>
+                        <li><strong>语音消息</strong>：<code>messageType: "voice"</code>，WebM 格式</li>
+                        <li><strong>思考状态</strong>：实时显示 AI 思考过程</li>
+                    </ul>
+                </div>
+
+                <div class="guide-section">
+                    <h3>常见问题</h3>
+                    <p><strong>Q: 连接失败怎么办？</strong></p>
+                    <p>A: 请检查服务器地址是否正确，确保 OpenClaw 服务正在运行，检查防火墙设置。</p>
+
+                    <p style="margin-top: 12px;"><strong>Q: 支持哪些浏览器？</strong></p>
+                    <p>A: 现代浏览器均支持，推荐使用 Chrome、Firefox、Safari 或 Edge 最新版本。</p>
+                </div>
+
+                <div class="guide-section" style="background: #fef3c7; padding: 12px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                    <p style="margin: 0; color: #92400e; font-size: 13px;">
+                        <strong>💡 提示：</strong> 首次使用建议阅读完整使用指南。连接配置会自动保存到浏览器本地存储中。
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-full" onclick="closeHelp()">知道了</button>
+            </div>
+        </div>
     </div>
 
     <!-- Image modal for viewing full-size images -->
-    <div class="modal hidden" id="imageModal" onclick="handleModalClick(event)">
-        <span class="modal-close">&times;</span>
+    <div class="image-modal hidden" id="imageModal" onclick="closeImageModal()">
+        <button class="image-modal-close" onclick="closeImageModal()">✕</button>
         <img id="modalImage" src="" alt="Full size image" onclick="event.stopPropagation()">
     </div>
 
     <script>
+        // Configuration and state management
+        const CONFIG_KEY = 'genericChannelConfig';
+        const HISTORY_KEY = 'genericChannelHistory';
+        const MAX_HISTORY = 5;
+
         let ws = null;
         let chatId = '';
         let userName = '';
+        let serverUrl = '';
         let messageCounter = 0;
         let isRecording = false;
         let mediaRecorder = null;
         let audioChunks = [];
-        let pendingMedia = null; // { type: 'image'|'voice', dataUrl: string, mimeType: string }
+        let pendingMedia = null;
         let thinkingElement = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+        let reconnectTimeout = null;
 
-        function connect() {
-            const serverUrl = document.getElementById('serverUrl').value;
-            chatId = document.getElementById('chatId').value;
-            userName = document.getElementById('userName').value;
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            loadServerHistory();
 
-            if (!serverUrl || !chatId || !userName) {
-                alert('Please fill in all fields');
+            // Show settings if no saved config
+            const config = getSavedConfig();
+            if (!config || !config.serverUrl) {
+                showSettings();
+            }
+        });
+
+        // Configuration management
+        function getSavedConfig() {
+            try {
+                const saved = localStorage.getItem(CONFIG_KEY);
+                return saved ? JSON.parse(saved) : null;
+            } catch (e) {
+                console.error('Failed to load config:', e);
+                return null;
+            }
+        }
+
+        function saveConfig(config) {
+            try {
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+            } catch (e) {
+                console.error('Failed to save config:', e);
+            }
+        }
+
+        function loadConfig() {
+            const config = getSavedConfig();
+            if (config) {
+                document.getElementById('serverUrl').value = config.serverUrl || 'ws://localhost:8080/ws';
+                document.getElementById('chatId').value = config.chatId || '';
+                document.getElementById('userName').value = config.userName || '';
+            } else {
+                document.getElementById('serverUrl').value = 'ws://localhost:8080/ws';
+                document.getElementById('chatId').value = 'user-' + Date.now();
+                document.getElementById('userName').value = 'Demo User';
+            }
+        }
+
+        // Server history management
+        function getServerHistory() {
+            try {
+                const saved = localStorage.getItem(HISTORY_KEY);
+                return saved ? JSON.parse(saved) : [];
+            } catch (e) {
+                console.error('Failed to load history:', e);
+                return [];
+            }
+        }
+
+        function saveServerHistory(history) {
+            try {
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            } catch (e) {
+                console.error('Failed to save history:', e);
+            }
+        }
+
+        function addToHistory(config) {
+            let history = getServerHistory();
+
+            // Remove duplicates
+            history = history.filter(item =>
+                item.serverUrl !== config.serverUrl ||
+                item.chatId !== config.chatId
+            );
+
+            // Add to beginning
+            history.unshift({
+                serverUrl: config.serverUrl,
+                chatId: config.chatId,
+                userName: config.userName,
+                timestamp: Date.now()
+            });
+
+            // Keep only last MAX_HISTORY items
+            history = history.slice(0, MAX_HISTORY);
+
+            saveServerHistory(history);
+        }
+
+        function loadServerHistory() {
+            const history = getServerHistory();
+            const container = document.getElementById('serverHistory');
+
+            if (history.length === 0) {
                 return;
             }
 
-            const url = `${serverUrl}?chatId=${encodeURIComponent(chatId)}`;
-            ws = new WebSocket(url);
+            const historyHTML = history.map((item, index) => {
+                const date = new Date(item.timestamp);
+                const timeStr = date.toLocaleString('zh-CN', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
 
+                return `
+                    <div class="server-history-item" onclick="useHistoryItem(${index})">
+                        <div class="server-history-item-info">
+                            <div class="server-history-item-url">${escapeHtml(item.userName)} @ ${escapeHtml(item.chatId)}</div>
+                            <div class="server-history-item-meta">${escapeHtml(item.serverUrl)} · ${timeStr}</div>
+                        </div>
+                        <button class="server-history-item-delete" onclick="deleteHistoryItem(event, ${index})" title="删除">✕</button>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <label style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; display: block;">历史连接</label>
+                ${historyHTML}
+            `;
+        }
+
+        function useHistoryItem(index) {
+            const history = getServerHistory();
+            if (history[index]) {
+                const item = history[index];
+                document.getElementById('serverUrl').value = item.serverUrl;
+                document.getElementById('chatId').value = item.chatId;
+                document.getElementById('userName').value = item.userName;
+            }
+        }
+
+        function deleteHistoryItem(event, index) {
+            event.stopPropagation();
+            let history = getServerHistory();
+            history.splice(index, 1);
+            saveServerHistory(history);
+            loadServerHistory();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Connection management
+        function connect() {
+            serverUrl = document.getElementById('serverUrl').value.trim();
+            chatId = document.getElementById('chatId').value.trim();
+            userName = document.getElementById('userName').value.trim();
+
+            if (!serverUrl || !chatId || !userName) {
+                showNotification('请填写所有字段', 'error');
+                return;
+            }
+
+            // Save config
+            const config = { serverUrl, chatId, userName };
+            saveConfig(config);
+            addToHistory(config);
+
+            // Connect to WebSocket
+            const url = `${serverUrl}?chatId=${encodeURIComponent(chatId)}`;
+
+            try {
+                ws = new WebSocket(url);
+                setupWebSocketHandlers();
+            } catch (error) {
+                console.error('Failed to create WebSocket:', error);
+                showNotification('连接失败: ' + error.message, 'error');
+                updateStatus('disconnected');
+            }
+        }
+
+        function connectFromSettings() {
+            closeSettings();
+            connect();
+        }
+
+        function setupWebSocketHandlers() {
             ws.onopen = () => {
                 console.log('WebSocket connected');
                 updateStatus('connected');
-                document.getElementById('configForm').classList.add('hidden');
-                document.getElementById('messageInput').disabled = false;
-                document.getElementById('sendBtn').disabled = false;
-                document.getElementById('imageBtn').disabled = false;
-                document.getElementById('voiceBtn').disabled = false;
+                reconnectAttempts = 0;
+                enableInputs();
+                document.getElementById('disconnectBtn').classList.remove('hidden');
+                showNotification('已连接到服务器', 'success');
             };
 
             ws.onmessage = (event) => {
                 console.log('Message received:', event.data);
-                const message = JSON.parse(event.data);
-                handleIncomingMessage(message);
+                try {
+                    const message = JSON.parse(event.data);
+                    handleIncomingMessage(message);
+                } catch (error) {
+                    console.error('Failed to parse message:', error);
+                }
             };
 
-            ws.onclose = () => {
-                console.log('WebSocket disconnected');
+            ws.onclose = (event) => {
+                console.log('WebSocket disconnected', event.code, event.reason);
                 updateStatus('disconnected');
                 disableInputs();
+                document.getElementById('disconnectBtn').classList.add('hidden');
+
+                // Auto-reconnect if not manually disconnected
+                if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+                    scheduleReconnect();
+                } else if (reconnectAttempts >= maxReconnectAttempts) {
+                    showNotification('连接失败次数过多，请手动重新连接', 'error');
+                }
             };
 
             ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
-                updateStatus('error');
+                showNotification('连接错误', 'error');
             };
+        }
+
+        function scheduleReconnect() {
+            reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+
+            updateStatus('reconnecting');
+            showNotification(`${reconnectAttempts}/${maxReconnectAttempts} 尝试重新连接...`, 'info');
+
+            reconnectTimeout = setTimeout(() => {
+                console.log('Attempting to reconnect...');
+                connect();
+            }, delay);
+        }
+
+        function disconnect() {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+
+            if (ws) {
+                reconnectAttempts = maxReconnectAttempts; // Prevent auto-reconnect
+                ws.close(1000, 'User disconnected');
+                ws = null;
+            }
+
+            updateStatus('disconnected');
+            disableInputs();
+            document.getElementById('disconnectBtn').classList.add('hidden');
+            showNotification('已断开连接', 'info');
+        }
+
+        function enableInputs() {
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('imageBtn').disabled = false;
+            document.getElementById('voiceBtn').disabled = false;
         }
 
         function disableInputs() {
@@ -454,7 +1152,7 @@
             document.getElementById('sendBtn').disabled = true;
             document.getElementById('imageBtn').disabled = true;
             document.getElementById('voiceBtn').disabled = true;
-            // Stop recording if active when disconnecting
+
             if (isRecording) {
                 stopRecording();
             }
@@ -462,18 +1160,20 @@
 
         function updateStatus(status) {
             const statusEl = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+
+            statusEl.className = `connection-status ${status}`;
+
             if (status === 'connected') {
-                statusEl.textContent = '🟢 Connected';
-                statusEl.className = 'connection-status connected';
-            } else if (status === 'error') {
-                statusEl.textContent = '⚠️ Error';
-                statusEl.className = 'connection-status disconnected';
+                statusText.textContent = '已连接';
+            } else if (status === 'reconnecting') {
+                statusText.textContent = '重新连接中...';
             } else {
-                statusEl.textContent = '🔴 Disconnected';
-                statusEl.className = 'connection-status disconnected';
+                statusText.textContent = '未连接';
             }
         }
 
+        // Message handling
         function sendMessage() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
@@ -507,8 +1207,6 @@
             };
 
             ws.send(JSON.stringify(message));
-            
-            // Display sent message
             addTextMessage(text, 'sent');
             input.value = '';
         }
@@ -534,8 +1232,7 @@
             };
 
             ws.send(JSON.stringify(message));
-            
-            // Display sent media
+
             if (mediaType === 'image') {
                 addImageMessage(dataUrl, caption, 'sent');
             } else if (mediaType === 'voice' || mediaType === 'audio') {
@@ -565,9 +1262,9 @@
 
         function handleMessageSend(msg) {
             hideThinkingIndicator();
-            
+
             const contentType = msg.contentType || 'text';
-            
+
             if (contentType === 'image' && msg.mediaUrl) {
                 addImageMessage(msg.mediaUrl, msg.content, 'received', msg.timestamp);
             } else if ((contentType === 'voice' || contentType === 'audio') && msg.mediaUrl) {
@@ -577,10 +1274,10 @@
             }
         }
 
-        // Thinking indicator functions
+        // Thinking indicator
         function showThinkingIndicator() {
             if (thinkingElement) return;
-            
+
             const messagesContainer = document.getElementById('messages');
             thinkingElement = document.createElement('div');
             thinkingElement.className = 'message received';
@@ -592,7 +1289,7 @@
                         <span></span>
                         <span></span>
                     </div>
-                    <span>Thinking...</span>
+                    <span>思考中...</span>
                 </div>
             `;
             messagesContainer.appendChild(thinkingElement);
@@ -615,7 +1312,7 @@
             }
         }
 
-        // Message display functions
+        // Message display
         function addTextMessage(text, type, timestamp) {
             const messagesContainer = document.getElementById('messages');
             const messageDiv = document.createElement('div');
@@ -628,7 +1325,7 @@
             const timeDiv = document.createElement('div');
             timeDiv.className = 'message-time';
             const time = timestamp ? new Date(timestamp) : new Date();
-            timeDiv.textContent = time.toLocaleTimeString();
+            timeDiv.textContent = time.toLocaleTimeString('zh-CN');
 
             messageDiv.appendChild(bubbleDiv);
             messageDiv.appendChild(timeDiv);
@@ -643,7 +1340,7 @@
 
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            
+
             const img = document.createElement('img');
             img.className = 'message-image';
             img.src = src;
@@ -661,7 +1358,7 @@
             const timeDiv = document.createElement('div');
             timeDiv.className = 'message-time';
             const time = timestamp ? new Date(timestamp) : new Date();
-            timeDiv.textContent = time.toLocaleTimeString();
+            timeDiv.textContent = time.toLocaleTimeString('zh-CN');
 
             messageDiv.appendChild(bubbleDiv);
             messageDiv.appendChild(timeDiv);
@@ -676,7 +1373,7 @@
 
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
-            
+
             const audio = document.createElement('audio');
             audio.className = 'message-audio';
             audio.controls = true;
@@ -693,7 +1390,7 @@
             const timeDiv = document.createElement('div');
             timeDiv.className = 'message-time';
             const time = timestamp ? new Date(timestamp) : new Date();
-            timeDiv.textContent = time.toLocaleTimeString();
+            timeDiv.textContent = time.toLocaleTimeString('zh-CN');
 
             messageDiv.appendChild(bubbleDiv);
             messageDiv.appendChild(timeDiv);
@@ -701,10 +1398,16 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Image handling
+        // Media handling
         function handleImageSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
+
+            if (file.size > 10 * 1024 * 1024) {
+                showNotification('图片大小不能超过 10MB', 'error');
+                event.target.value = '';
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -712,10 +1415,9 @@
                 showMediaPreview('image', dataUrl, file.type);
             };
             reader.readAsDataURL(file);
-            event.target.value = ''; // Reset input
+            event.target.value = '';
         }
 
-        // Audio/Voice recording
         async function toggleRecording() {
             if (isRecording) {
                 stopRecording();
@@ -741,20 +1443,19 @@
                         showMediaPreview('voice', e.target.result, 'audio/webm');
                     };
                     reader.readAsDataURL(audioBlob);
-                    
-                    // Stop all tracks
+
                     stream.getTracks().forEach(track => track.stop());
                 };
 
                 mediaRecorder.start();
                 isRecording = true;
-                
+
                 const voiceBtn = document.getElementById('voiceBtn');
                 voiceBtn.textContent = '⏹️';
                 voiceBtn.classList.add('btn-recording');
             } catch (err) {
                 console.error('Failed to start recording:', err);
-                alert('Could not access microphone. Please check permissions.');
+                showNotification('无法访问麦克风，请检查权限设置', 'error');
             }
         }
 
@@ -763,36 +1464,21 @@
                 mediaRecorder.stop();
             }
             isRecording = false;
-            
+
             const voiceBtn = document.getElementById('voiceBtn');
             voiceBtn.textContent = '🎤';
             voiceBtn.classList.remove('btn-recording');
         }
 
-        // Audio file selection (alternative to recording)
-        function handleAudioSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const dataUrl = e.target.result;
-                showMediaPreview('audio', dataUrl, file.type);
-            };
-            reader.readAsDataURL(file);
-            event.target.value = '';
-        }
-
-        // Media preview
         function showMediaPreview(type, dataUrl, mimeType) {
             pendingMedia = { type, dataUrl, mimeType };
-            
+
             const container = document.getElementById('mediaPreview');
             const imageEl = document.getElementById('previewImage');
             const audioEl = document.getElementById('previewAudio');
-            
+
             container.classList.remove('hidden');
-            
+
             if (type === 'image') {
                 imageEl.src = dataUrl;
                 imageEl.classList.remove('hidden');
@@ -820,29 +1506,76 @@
             modal.classList.remove('hidden');
         }
 
-        function handleModalClick(event) {
-            // Only close if clicking on the modal background, not the image
-            if (event.target === document.getElementById('imageModal') || 
-                event.target.classList.contains('modal-close')) {
-                closeImageModal();
-            }
-        }
-
         function closeImageModal() {
             document.getElementById('imageModal').classList.add('hidden');
         }
 
-        // Allow sending message with Enter key
+        // Settings modal
+        function showSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+            loadServerHistory();
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function closeSettingsIfBackground(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeSettings();
+            }
+        }
+
+        // Help modal
+        function showHelp() {
+            document.getElementById('helpModal').classList.remove('hidden');
+        }
+
+        function closeHelp() {
+            document.getElementById('helpModal').classList.add('hidden');
+        }
+
+        function closeHelpIfBackground(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeHelp();
+            }
+        }
+
+        // Notifications
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+
+            let title = '提示';
+            if (type === 'success') title = '成功';
+            if (type === 'error') title = '错误';
+
+            notification.innerHTML = `
+                <div class="notification-title">${title}</div>
+                <div class="notification-message">${escapeHtml(message)}</div>
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Keyboard shortcuts
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 sendMessage();
             }
         });
 
-        // Escape to close modal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeImageModal();
+                closeSettings();
+                closeHelp();
             }
         });
     </script>

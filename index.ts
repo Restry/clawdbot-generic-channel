@@ -8,6 +8,13 @@ export { monitorGenericProvider } from "./src/generic/monitor.js";
 export { sendMessageGeneric, sendMediaGeneric, sendThinkingIndicator } from "./src/generic/send.js";
 export { probeGeneric } from "./src/generic/probe.js";
 export { genericPlugin } from "./src/generic/channel.js";
+export {
+  downloadMediaFromUrl,
+  resolveGenericMediaList,
+  buildMediaPayload,
+  inferMediaTypeFromMime,
+  type MediaInfo,
+} from "./src/generic/media.js";
 
 const plugin = {
   id: "generic-channel",

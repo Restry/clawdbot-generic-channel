@@ -27,5 +27,8 @@ export const GenericChannelConfigSchema = z
     // Message limits
     historyLimit: z.number().int().min(0).optional().default(10),
     textChunkLimit: z.number().int().min(1).optional().default(4000),
+
+    // Media handling
+    mediaMaxMb: z.number().positive().optional().default(30),
   })
   .strict();
