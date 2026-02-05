@@ -10,14 +10,18 @@ A flexible channel plugin that allows H5 pages to connect directly via WebSocket
 
 ## ✨ What's New
 
-- 🎨 **全新设计的 H5 聊天界面**：现代化 UI 设计，更优秀的用户体验
+- 🎬 **Matrix 黑客帝国主题界面**：全新的赛博朋克风格，数字雨背景，终端美学
+- 🎨 **现代化 H5 聊天界面**：清新的 UI 设计，更优秀的用户体验
 - 📝 **完整的 Markdown 支持**：支持标题、列表、代码块、表格等丰富的展示方式
 - 🌓 **深色模式**：护眼的深色主题，一键切换
 - 👥 **群组聊天**：完整的群组对话支持
 - 💻 **代码高亮**：支持多种编程语言的语法高亮显示
 - 📱 **响应式设计**：完美适配桌面端和移动端
 
-查看新版聊天界面：[public/h5-chat.html](public/h5-chat.html) | [详细文档](public/README.md)
+### 可用界面
+- 🎬 **Matrix 主题**：[public/matrix-chat.html](public/matrix-chat.html) - 黑客帝国风格 | [文档](public/MATRIX_THEME.md)
+- 🎨 **现代主题**：[public/h5-chat.html](public/h5-chat.html) - 现代化设计 | [文档](public/README.md)
+- 📱 **经典主题**：[examples/h5-client.html](examples/h5-client.html) - 原始版本
 
 ---
 
@@ -96,8 +100,9 @@ openclaw config set channels.generic.wsPort 8080
 ```
 
 2. Open the H5 client in your browser:
-   - **New Enhanced UI**: `public/h5-chat.html` (Recommended - with Markdown support, dark mode, and modern design)
-   - **Classic UI**: `examples/h5-client.html` (Original version)
+   - **Matrix Theme** 🎬: `public/matrix-chat.html` (Cyberpunk style with digital rain effect)
+   - **Modern Theme** 🎨: `public/h5-chat.html` (Recommended - with Markdown, dark mode, modern design)
+   - **Classic Theme** 📱: `examples/h5-client.html` (Original version)
 
 3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, and name, then click "Connect"
 
@@ -276,8 +281,9 @@ openclaw config set channels.generic.wsPort 8080
 ```
 
 2. 在浏览器中打开 H5 客户端：
-   - **增强版界面**：`public/h5-chat.html`（推荐 - 支持 Markdown、深色模式、现代化设计）
-   - **经典版界面**：`examples/h5-client.html`（原始版本）
+   - **Matrix 主题** 🎬：`public/matrix-chat.html`（黑客帝国风格，数字雨效果）
+   - **现代主题** 🎨：`public/h5-chat.html`（推荐 - 支持 Markdown、深色模式、现代化设计）
+   - **经典主题** 📱：`examples/h5-client.html`（原始版本）
 
 3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID 和名称，然后点击"连接"
 
