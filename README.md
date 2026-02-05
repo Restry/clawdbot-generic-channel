@@ -8,6 +8,23 @@ A flexible channel plugin that allows H5 pages to connect directly via WebSocket
 
 ---
 
+## ✨ What's New
+
+- 🎬 **Matrix 黑客帝国主题界面**：全新的赛博朋克风格，数字雨背景，终端美学
+- 🎨 **现代化 H5 聊天界面**：清新的 UI 设计，更优秀的用户体验
+- 📝 **完整的 Markdown 支持**：支持标题、列表、代码块、表格等丰富的展示方式
+- 🌓 **深色模式**：护眼的深色主题，一键切换
+- 👥 **群组聊天**：完整的群组对话支持
+- 💻 **代码高亮**：支持多种编程语言的语法高亮显示
+- 📱 **响应式设计**：完美适配桌面端和移动端
+
+### 可用界面
+- 🎬 **Matrix 主题**：[public/matrix-chat.html](public/matrix-chat.html) - 黑客帝国风格 | [文档](public/MATRIX_THEME.md)
+- 🎨 **现代主题**：[public/h5-chat.html](public/h5-chat.html) - 现代化设计 | [文档](public/README.md)
+- 📱 **经典主题**：[examples/h5-client.html](examples/h5-client.html) - 原始版本
+
+---
+
 ## English
 
 ### Installation
@@ -65,7 +82,10 @@ openclaw config set channels.generic.wsPort 8080
 - **Dual Connection Modes**: WebSocket and Webhook support
 - **Multi-Client Management**: Support for multiple simultaneous WebSocket connections
 - **Direct Message & Group Chat**: Handle both DM and group conversations
+- **Proactive DM Support**: OpenClaw can send messages without receiving a message first ([docs](docs/PROACTIVE_DM.md))
 - **Rich Media Support**: Send and receive images, voice messages, and audio files
+- **Markdown Support**: Full markdown rendering with syntax highlighting (in new UI)
+- **Dark Mode**: Beautiful dark theme for comfortable viewing (in new UI)
 - **Thinking Indicators**: Real-time "AI is thinking" status updates
 - **Message History**: Configurable history tracking for group chats
 - **Access Control**: DM policy (open, pairing, allowlist)
@@ -80,7 +100,10 @@ openclaw config set channels.generic.connectionMode websocket
 openclaw config set channels.generic.wsPort 8080
 ```
 
-2. Open `examples/h5-client.html` in your browser to test the connection
+2. Open the H5 client in your browser:
+   - **Matrix Theme** 🎬: `public/matrix-chat.html` (Cyberpunk style with digital rain effect)
+   - **Modern Theme** 🎨: `public/h5-chat.html` (Recommended - with Markdown, dark mode, modern design)
+   - **Classic Theme** 📱: `examples/h5-client.html` (Original version)
 
 3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, and name, then click "Connect"
 
@@ -241,7 +264,10 @@ openclaw config set channels.generic.wsPort 8080
 - **双连接模式**：支持 WebSocket 和 Webhook
 - **多客户端管理**：支持多个 WebSocket 连接同时在线
 - **私聊与群聊**：处理私聊和群组对话
+- **主动 DM 支持**：OpenClaw 可以主动发送消息，无需先接收消息（[文档](docs/PROACTIVE_DM.md)）
 - **富媒体支持**：发送和接收图片、语音消息、音频文件
+- **Markdown 支持**：完整的 Markdown 渲染和代码高亮（新版界面）
+- **深色模式**：护眼的深色主题（新版界面）
 - **思考指示器**：实时显示"AI 正在思考"状态
 - **消息历史**：可配置的群聊历史记录
 - **访问控制**：私聊策略（开放、配对、白名单）
@@ -256,7 +282,10 @@ openclaw config set channels.generic.connectionMode websocket
 openclaw config set channels.generic.wsPort 8080
 ```
 
-2. 在浏览器中打开 `examples/h5-client.html` 测试连接
+2. 在浏览器中打开 H5 客户端：
+   - **Matrix 主题** 🎬：`public/matrix-chat.html`（黑客帝国风格，数字雨效果）
+   - **现代主题** 🎨：`public/h5-chat.html`（推荐 - 支持 Markdown、深色模式、现代化设计）
+   - **经典主题** 📱：`examples/h5-client.html`（原始版本）
 
 3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID 和名称，然后点击"连接"
 
