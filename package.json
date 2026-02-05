@@ -7,9 +7,11 @@
   "files": [
     "index.ts",
     "src",
+    "public",
     "examples",
     "openclaw.plugin.json",
-    "GENERIC_CHANNEL.md"
+    "GENERIC_CHANNEL.md",
+    "DIRECTORY_STRUCTURE.md"
   ],
   "repository": {
     "type": "git",

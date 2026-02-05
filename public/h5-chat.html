@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generic Channel - 增强版聊天界面</title>
+
+    <!-- Markdown rendering libraries -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.5.1/github-markdown.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.2.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/python.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/typescript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/json.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/languages/bash.min.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --secondary-color: #8b5cf6;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-tertiary: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #818cf8;
+            --primary-dark: #6366f1;
+            --primary-light: #a5b4fc;
+            --secondary-color: #a78bfa;
+            --success-color: #34d399;
+            --error-color: #f87171;
+            --warning-color: #fbbf24;
+            --bg-primary: #1f2937;
+            --bg-secondary: #111827;
+            --bg-tertiary: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --border-color: #374151;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .chat-item {
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .chat-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .chat-item.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .chat-item-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .chat-item-preview {
+            font-size: 13px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .chat-item.active .chat-item-preview {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .chat-item-badge {
+            display: inline-block;
+            background: var(--primary-color);
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        /* Main chat area */
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+        }
+
+        .chat-header {
+            background: var(--bg-primary);
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-header-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .chat-header-text h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .connection-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+        }
+
+        .status-dot.connected {
+            background: var(--success-color);
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+
+        .status-dot.reconnecting {
+            background: var(--warning-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--border-color);
+            transform: scale(1.05);
+        }
+
+        /* Messages area */
+        .messages-container {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.sent {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message.sent .message-content {
+            align-items: flex-end;
+        }
+
+        .message-sender {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            padding: 0 8px;
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 16px;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message.received .message-bubble {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-top-left-radius: 4px;
+        }
+
+        .message.sent .message-bubble {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-top-right-radius: 4px;
+        }
+
+        /* Markdown content styling */
+        .message-bubble .markdown-body {
+            background: transparent !important;
+            color: inherit !important;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .message.sent .markdown-body {
+            color: white !important;
+        }
+
+        .message.sent .markdown-body code {
+            background: rgba(255, 255, 255, 0.2) !important;
+            color: white !important;
+        }
+
+        .message.sent .markdown-body pre {
+            background: rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .message.sent .markdown-body a {
+            color: white !important;
+            text-decoration: underline;
+        }
+
+        .message-bubble .markdown-body pre {
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .message-bubble .markdown-body table {
+            display: block;
+            overflow-x: auto;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            padding: 0 8px;
+        }
+
+        .message.sent .message-time {
+            text-align: right;
+        }
+
+        /* Thinking indicator */
+        .thinking-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            color: var(--text-secondary);
+            max-width: 200px;
+        }
+
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .thinking-dots span {
+            width: 8px;
+            height: 8px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: thinking 1.4s infinite ease-in-out both;
+        }
+
+        .thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+        .thinking-dots span:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes thinking {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Media messages */
+        .message-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .message-image:hover {
+            transform: scale(1.02);
+        }
+
+        .message-audio {
+            width: 100%;
+            max-width: 300px;
+        }
+
+        /* Input area */
+        .input-container {
+            padding: 16px 24px;
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .input-box {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 14px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            resize: none;
+            min-height: 50px;
+            max-height: 150px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .input-toolbar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--border-color);
+        }
+
+        .btn-icon {
+            padding: 10px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-recording {
+            background: linear-gradient(135deg, var(--error-color), #dc2626);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.2s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+            box-shadow: var(--shadow-xl);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-primary);
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-xl);
+            z-index: 3000;
+            animation: slideInRight 0.3s ease-out;
+            max-width: 300px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .notification.success {
+            border-left-color: var(--success-color);
+        }
+
+        .notification.error {
+            border-left-color: var(--error-color);
+        }
+
+        .notification-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .notification-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Theme toggle */
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            font-size: 20px;
+            transition: all 0.3s;
+            z-index: 999;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 100;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .message-content {
+                max-width: 85%;
+            }
+        }
+
+        /* Code copy button */
+        .code-block-wrapper {
+            position: relative;
+        }
+
+        .copy-code-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 8px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .code-block-wrapper:hover .copy-code-btn {
+            opacity: 1;
+        }
+
+        .copy-code-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>💬 对话列表</h2>
+                <div class="sidebar-actions">
+                    <button class="btn btn-secondary btn-icon" onclick="showSettings()" title="设置">⚙️</button>
+                    <button class="btn btn-secondary btn-icon" onclick="toggleTheme()" title="切换主题">🌓</button>
+                </div>
+            </div>
+            <div class="chat-list" id="chatList">
+                <!-- Chat items will be added dynamically -->
+            </div>
+        </aside>
+
+        <!-- Main chat area -->
+        <main class="chat-main">
+            <div class="chat-header">
+                <div class="chat-header-info">
+                    <div class="chat-avatar">🤖</div>
+                    <div class="chat-header-text">
+                        <h3 id="chatTitle">Generic Channel</h3>
+                        <div class="connection-status" id="connectionStatus">
+                            <span class="status-dot" id="statusDot"></span>
+                            <span id="statusText">未连接</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-header-actions">
+                    <button class="icon-btn" onclick="showHelp()" title="帮助">❓</button>
+                    <button class="icon-btn hidden" id="disconnectBtn" onclick="disconnect()" title="断开连接">🔌</button>
+                </div>
+            </div>
+
+            <div class="messages-container" id="messages">
+                <!-- Messages will be added here -->
+            </div>
+
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <div class="input-actions">
+                        <button class="btn btn-secondary btn-icon" onclick="document.getElementById('imageInput').click()" disabled id="imageBtn" title="发送图片">🖼️</button>
+                        <button class="btn btn-secondary btn-icon" onclick="toggleRecording()" disabled id="voiceBtn" title="录音">🎤</button>
+                    </div>
+                    <div class="input-box">
+                        <textarea class="input-field" id="messageInput" placeholder="输入消息... (支持 Markdown 格式)" disabled rows="1"></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendMessage()" disabled id="sendBtn">发送 ➤</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay hidden" id="settingsModal" onclick="closeSettingsIfBackground(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>连接设置</h2>
+                <button class="icon-btn" onclick="closeSettings()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>WebSocket 服务器地址</label>
+                    <input type="text" id="serverUrl" placeholder="ws://localhost:8080/ws">
+                    <small>例如: ws://localhost:8080/ws</small>
+                </div>
+                <div class="form-group">
+                    <label>聊天类型</label>
+                    <select id="chatType">
+                        <option value="direct">私聊 (Direct)</option>
+                        <option value="group">群聊 (Group)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>聊天 ID</label>
+                    <input type="text" id="chatId" placeholder="user-123">
+                    <small>唯一标识您的聊天会话</small>
+                </div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="userName" placeholder="Demo User">
+                    <small>显示的名称</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettings()">取消</button>
+                <button class="btn btn-primary" onclick="connectFromSettings()">连接</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay hidden" id="helpModal" onclick="closeHelpIfBackground(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>使用帮助</h2>
+                <button class="icon-btn" onclick="closeHelp()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>快速开始</label>
+                    <small>1. 点击设置按钮配置连接信息<br>
+                    2. 选择聊天类型（私聊或群聊）<br>
+                    3. 输入服务器地址、聊天ID和用户名<br>
+                    4. 点击连接按钮开始对话</small>
+                </div>
+                <div class="form-group">
+                    <label>支持的功能</label>
+                    <small>
+                    • 📝 <strong>Markdown 格式</strong>：支持标题、列表、代码块、表格等<br>
+                    • 🖼️ <strong>图片消息</strong>：点击图片按钮发送图片<br>
+                    • 🎤 <strong>语音消息</strong>：点击麦克风按钮录音<br>
+                    • 👥 <strong>群聊支持</strong>：支持多人群组对话<br>
+                    • 🌓 <strong>深色模式</strong>：点击主题按钮切换
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>Markdown 示例</label>
+                    <small>
+                    <pre style="background: var(--bg-tertiary); padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 12px;">
+# 标题
+## 二级标题
+
+**粗体** *斜体* `代码`
+
+- 列表项 1
+- 列表项 2
+
+```javascript
+// 代码块
+console.log('Hello World');
+```
+
+| 表头1 | 表头2 |
+|-------|-------|
+| 内容1 | 内容2 |</pre>
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeHelp()">知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" class="hidden" id="imageInput" accept="image/*" onchange="handleImageSelect(event)">
+
+    <script>
+        // Configure marked for markdown rendering
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        // App state
+        const CONFIG_KEY = 'genericChannelConfig';
+        let ws = null;
+        let chatId = '';
+        let userName = '';
+        let chatType = 'direct';
+        let serverUrl = '';
+        let messageCounter = 0;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let thinkingElement = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            loadConfig();
+            initTheme();
+
+            const config = getSavedConfig();
+            if (!config || !config.serverUrl) {
+                showSettings();
+            }
+
+            // Auto-resize textarea
+            const input = document.getElementById('messageInput');
+            input.addEventListener('input', autoResize);
+        });
+
+        function autoResize() {
+            const input = document.getElementById('messageInput');
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 150) + 'px';
+        }
+
+        // Configuration management
+        function getSavedConfig() {
+            try {
+                const saved = localStorage.getItem(CONFIG_KEY);
+                return saved ? JSON.parse(saved) : null;
+            } catch (e) {
+                console.error('Failed to load config:', e);
+                return null;
+            }
+        }
+
+        function saveConfig(config) {
+            try {
+                localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+            } catch (e) {
+                console.error('Failed to save config:', e);
+            }
+        }
+
+        function loadConfig() {
+            const config = getSavedConfig();
+            if (config) {
+                document.getElementById('serverUrl').value = config.serverUrl || 'ws://localhost:8080/ws';
+                document.getElementById('chatId').value = config.chatId || '';
+                document.getElementById('userName').value = config.userName || '';
+                document.getElementById('chatType').value = config.chatType || 'direct';
+            } else {
+                document.getElementById('serverUrl').value = 'ws://localhost:8080/ws';
+                document.getElementById('chatId').value = 'user-' + Date.now();
+                document.getElementById('userName').value = 'Demo User';
+                document.getElementById('chatType').value = 'direct';
+            }
+        }
+
+        // Theme management
+        function initTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+            }
+        }
+
+        function toggleTheme() {
+            const current = document.body.getAttribute('data-theme');
+            const newTheme = current === 'dark' ? 'light' : 'dark';
+
+            if (newTheme === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+            } else {
+                document.body.removeAttribute('data-theme');
+            }
+
+            localStorage.setItem('theme', newTheme);
+            showNotification('已切换到' + (newTheme === 'dark' ? '深色' : '浅色') + '模式', 'success');
+        }
+
+        // Connection management
+        function connect() {
+            serverUrl = document.getElementById('serverUrl').value.trim();
+            chatId = document.getElementById('chatId').value.trim();
+            userName = document.getElementById('userName').value.trim();
+            chatType = document.getElementById('chatType').value;
+
+            if (!serverUrl || !chatId || !userName) {
+                showNotification('请填写所有字段', 'error');
+                return;
+            }
+
+            const config = { serverUrl, chatId, userName, chatType };
+            saveConfig(config);
+
+            const url = `${serverUrl}?chatId=${encodeURIComponent(chatId)}`;
+
+            try {
+                ws = new WebSocket(url);
+                setupWebSocketHandlers();
+            } catch (error) {
+                console.error('Failed to create WebSocket:', error);
+                showNotification('连接失败: ' + error.message, 'error');
+                updateStatus('disconnected');
+            }
+        }
+
+        function connectFromSettings() {
+            closeSettings();
+            connect();
+        }
+
+        function setupWebSocketHandlers() {
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                updateStatus('connected');
+                reconnectAttempts = 0;
+                enableInputs();
+                document.getElementById('disconnectBtn').classList.remove('hidden');
+                document.getElementById('chatTitle').textContent = (chatType === 'group' ? '群聊: ' : '私聊: ') + chatId;
+                showNotification('已连接到服务器', 'success');
+            };
+
+            ws.onmessage = (event) => {
+                console.log('Message received:', event.data);
+                try {
+                    const message = JSON.parse(event.data);
+                    handleIncomingMessage(message);
+                } catch (error) {
+                    console.error('Failed to parse message:', error);
+                }
+            };
+
+            ws.onclose = (event) => {
+                console.log('WebSocket disconnected', event.code);
+                updateStatus('disconnected');
+                disableInputs();
+                document.getElementById('disconnectBtn').classList.add('hidden');
+
+                if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+                    scheduleReconnect();
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                showNotification('连接错误', 'error');
+            };
+        }
+
+        function scheduleReconnect() {
+            reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+
+            updateStatus('reconnecting');
+            showNotification(`正在重新连接 (${reconnectAttempts}/${maxReconnectAttempts})...`, 'info');
+
+            setTimeout(() => {
+                console.log('Attempting to reconnect...');
+                connect();
+            }, delay);
+        }
+
+        function disconnect() {
+            if (ws) {
+                reconnectAttempts = maxReconnectAttempts;
+                ws.close(1000, 'User disconnected');
+                ws = null;
+            }
+
+            updateStatus('disconnected');
+            disableInputs();
+            document.getElementById('disconnectBtn').classList.add('hidden');
+            showNotification('已断开连接', 'info');
+        }
+
+        function updateStatus(status) {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            statusDot.className = 'status-dot';
+
+            if (status === 'connected') {
+                statusDot.classList.add('connected');
+                statusText.textContent = '已连接';
+            } else if (status === 'reconnecting') {
+                statusDot.classList.add('reconnecting');
+                statusText.textContent = '重新连接中...';
+            } else {
+                statusText.textContent = '未连接';
+            }
+        }
+
+        function enableInputs() {
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('imageBtn').disabled = false;
+            document.getElementById('voiceBtn').disabled = false;
+        }
+
+        function disableInputs() {
+            document.getElementById('messageInput').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('imageBtn').disabled = true;
+            document.getElementById('voiceBtn').disabled = true;
+        }
+
+        // Message handling
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+
+            if (!text || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            messageCounter++;
+            const message = {
+                type: 'message.receive',
+                data: {
+                    messageId: `msg-${Date.now()}-${messageCounter}`,
+                    chatId: chatId,
+                    chatType: chatType,
+                    senderId: chatId,
+                    senderName: userName,
+                    messageType: 'text',
+                    content: text,
+                    timestamp: Date.now()
+                }
+            };
+
+            ws.send(JSON.stringify(message));
+            addTextMessage(text, 'sent', userName);
+            input.value = '';
+            input.style.height = 'auto';
+        }
+
+        function handleIncomingMessage(event) {
+            switch (event.type) {
+                case 'message.send':
+                    handleMessageSend(event.data);
+                    break;
+                case 'thinking.start':
+                    showThinkingIndicator();
+                    break;
+                case 'thinking.update':
+                    updateThinkingIndicator(event.data?.content);
+                    break;
+                case 'thinking.end':
+                    hideThinkingIndicator();
+                    break;
+            }
+        }
+
+        function handleMessageSend(msg) {
+            hideThinkingIndicator();
+
+            const contentType = msg.contentType || 'text';
+
+            if (contentType === 'markdown' || contentType === 'text') {
+                addTextMessage(msg.content, 'received', 'AI', contentType === 'markdown');
+            } else if (contentType === 'image' && msg.mediaUrl) {
+                addImageMessage(msg.mediaUrl, msg.content, 'received');
+            } else if ((contentType === 'voice' || contentType === 'audio') && msg.mediaUrl) {
+                addAudioMessage(msg.mediaUrl, msg.content, 'received');
+            }
+        }
+
+        // Thinking indicator
+        function showThinkingIndicator() {
+            if (thinkingElement) return;
+
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message received';
+            messageDiv.id = 'thinking';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'thinking-indicator';
+            thinkingDiv.innerHTML = `
+                <div class="thinking-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <span>思考中...</span>
+            `;
+
+            contentDiv.appendChild(thinkingDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            thinkingElement = messageDiv;
+        }
+
+        function updateThinkingIndicator(content) {
+            if (thinkingElement && content) {
+                const textSpan = thinkingElement.querySelector('.thinking-indicator span:last-child');
+                if (textSpan) {
+                    textSpan.textContent = content;
+                }
+            }
+        }
+
+        function hideThinkingIndicator() {
+            if (thinkingElement) {
+                thinkingElement.remove();
+                thinkingElement = null;
+            }
+        }
+
+        // Message display
+        function addTextMessage(text, type, sender = '', isMarkdown = false) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            if (sender && type === 'received') {
+                const senderDiv = document.createElement('div');
+                senderDiv.className = 'message-sender';
+                senderDiv.textContent = sender;
+                contentDiv.appendChild(senderDiv);
+            }
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+
+            if (isMarkdown) {
+                const markdownDiv = document.createElement('div');
+                markdownDiv.className = 'markdown-body';
+                markdownDiv.innerHTML = marked.parse(text);
+
+                // Add copy buttons to code blocks
+                markdownDiv.querySelectorAll('pre code').forEach((block) => {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'code-block-wrapper';
+                    block.parentNode.parentNode.insertBefore(wrapper, block.parentNode);
+                    wrapper.appendChild(block.parentNode);
+
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'copy-code-btn';
+                    copyBtn.textContent = '复制';
+                    copyBtn.onclick = () => copyCode(block, copyBtn);
+                    wrapper.appendChild(copyBtn);
+                });
+
+                bubbleDiv.appendChild(markdownDiv);
+            } else {
+                bubbleDiv.textContent = text;
+            }
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = new Date().toLocaleTimeString('zh-CN');
+
+            contentDiv.appendChild(bubbleDiv);
+            contentDiv.appendChild(timeDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function copyCode(codeBlock, button) {
+            const code = codeBlock.textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                button.textContent = '已复制!';
+                setTimeout(() => {
+                    button.textContent = '复制';
+                }, 2000);
+            });
+        }
+
+        function addImageMessage(src, caption, type) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+
+            const img = document.createElement('img');
+            img.className = 'message-image';
+            img.src = src;
+            img.alt = 'Image';
+            bubbleDiv.appendChild(img);
+
+            if (caption) {
+                const captionDiv = document.createElement('div');
+                captionDiv.textContent = caption;
+                captionDiv.style.marginTop = '8px';
+                bubbleDiv.appendChild(captionDiv);
+            }
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = new Date().toLocaleTimeString('zh-CN');
+
+            contentDiv.appendChild(bubbleDiv);
+            contentDiv.appendChild(timeDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addAudioMessage(src, caption, type) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+
+            const audio = document.createElement('audio');
+            audio.className = 'message-audio';
+            audio.controls = true;
+            audio.src = src;
+            bubbleDiv.appendChild(audio);
+
+            if (caption) {
+                const captionDiv = document.createElement('div');
+                captionDiv.textContent = caption;
+                captionDiv.style.marginTop = '8px';
+                bubbleDiv.appendChild(captionDiv);
+            }
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            timeDiv.textContent = new Date().toLocaleTimeString('zh-CN');
+
+            contentDiv.appendChild(bubbleDiv);
+            contentDiv.appendChild(timeDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Media handling
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 10 * 1024 * 1024) {
+                showNotification('图片大小不能超过 10MB', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                sendMediaMessage('image', e.target.result, file.type);
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        sendMediaMessage('voice', e.target.result, 'audio/webm');
+                    };
+                    reader.readAsDataURL(audioBlob);
+
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+
+                const voiceBtn = document.getElementById('voiceBtn');
+                voiceBtn.textContent = '⏹️';
+                voiceBtn.classList.add('btn-recording');
+            } catch (err) {
+                console.error('Failed to start recording:', err);
+                showNotification('无法访问麦克风', 'error');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+
+            const voiceBtn = document.getElementById('voiceBtn');
+            voiceBtn.textContent = '🎤';
+            voiceBtn.classList.remove('btn-recording');
+        }
+
+        function sendMediaMessage(mediaType, dataUrl, mimeType) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+            messageCounter++;
+            const message = {
+                type: 'message.receive',
+                data: {
+                    messageId: `msg-${Date.now()}-${messageCounter}`,
+                    chatId: chatId,
+                    chatType: chatType,
+                    senderId: chatId,
+                    senderName: userName,
+                    messageType: mediaType,
+                    content: '',
+                    mediaUrl: dataUrl,
+                    mimeType: mimeType,
+                    timestamp: Date.now()
+                }
+            };
+
+            ws.send(JSON.stringify(message));
+
+            if (mediaType === 'image') {
+                addImageMessage(dataUrl, '', 'sent');
+            } else if (mediaType === 'voice') {
+                addAudioMessage(dataUrl, '', 'sent');
+            }
+        }
+
+        // Modal management
+        function showSettings() {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function closeSettingsIfBackground(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeSettings();
+            }
+        }
+
+        function showHelp() {
+            document.getElementById('helpModal').classList.remove('hidden');
+        }
+
+        function closeHelp() {
+            document.getElementById('helpModal').classList.add('hidden');
+        }
+
+        function closeHelpIfBackground(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeHelp();
+            }
+        }
+
+        // Notifications
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+
+            let title = '提示';
+            if (type === 'success') title = '成功';
+            if (type === 'error') title = '错误';
+
+            notification.innerHTML = `
+                <div class="notification-title">${title}</div>
+                <div class="notification-message">${escapeHtml(message)}</div>
+            `;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('messageInput');
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeSettings();
+                    closeHelp();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
