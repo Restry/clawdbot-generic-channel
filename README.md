@@ -65,6 +65,7 @@ openclaw config set channels.generic.wsPort 8080
 - **Dual Connection Modes**: WebSocket and Webhook support
 - **Multi-Client Management**: Support for multiple simultaneous WebSocket connections
 - **Direct Message & Group Chat**: Handle both DM and group conversations
+- **Proactive DM Support**: OpenClaw can send messages without receiving a message first ([docs](docs/PROACTIVE_DM.md))
 - **Rich Media Support**: Send and receive images, voice messages, and audio files
 - **Thinking Indicators**: Real-time "AI is thinking" status updates
 - **Message History**: Configurable history tracking for group chats
@@ -241,6 +242,7 @@ openclaw config set channels.generic.wsPort 8080
 - **双连接模式**：支持 WebSocket 和 Webhook
 - **多客户端管理**：支持多个 WebSocket 连接同时在线
 - **私聊与群聊**：处理私聊和群组对话
+- **主动 DM 支持**：OpenClaw 可以主动发送消息，无需先接收消息（[文档](docs/PROACTIVE_DM.md)）
 - **富媒体支持**：发送和接收图片、语音消息、音频文件
 - **思考指示器**：实时显示"AI 正在思考"状态
 - **消息历史**：可配置的群聊历史记录
