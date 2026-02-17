@@ -73,12 +73,25 @@ export type GenericProbeResult = {
 export type WSEventType =
   | "message.receive"
   | "message.send"
+  | "message.edit"
+  | "message.delete"
+  | "message.forward"
+  | "message.pin"
+  | "message.unpin"
   | "connection.open"
   | "connection.close"
   | "typing"
   | "thinking.start"
   | "thinking.update"
-  | "thinking.end";
+  | "thinking.end"
+  | "reaction.add"
+  | "reaction.remove"
+  | "status.read"
+  | "status.delivered"
+  | "user.status"
+  | "file.progress"
+  | "file.transfer"
+  | "group.action";
 
 export type WSEvent = {
   type: WSEventType;

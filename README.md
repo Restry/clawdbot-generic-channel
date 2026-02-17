@@ -62,6 +62,7 @@ openclaw config set channels.generic.wsPort 8080
 
 ### Features
 
+#### Core Features
 - **Dual Connection Modes**: WebSocket and Webhook support
 - **Multi-Client Management**: Support for multiple simultaneous WebSocket connections
 - **Direct Message & Group Chat**: Handle both DM and group conversations
@@ -71,6 +72,20 @@ openclaw config set channels.generic.wsPort 8080
 - **Message History**: Configurable history tracking for group chats
 - **Access Control**: DM policy (open, pairing, allowlist)
 - **Auto Heartbeat**: WebSocket heartbeat for connection health monitoring
+
+#### Advanced WhatsApp-like Features
+- **Message Reactions**: Add emoji reactions to messages
+- **Message Editing & Deletion**: Edit or delete sent messages with history tracking
+- **Read Receipts & Delivery Status**: Track message delivery and read status
+- **Enhanced Typing Indicators**: Real-time typing status with auto-timeout
+- **Message Forwarding**: Forward messages to other chats (single or multiple)
+- **User Status/Presence**: Online/offline/away/busy status with last seen tracking
+- **File Sharing with Progress**: File uploads/downloads with real-time progress tracking
+- **Message Search**: Full-text search by content, sender, date, and more
+- **Group Administration**: Full group management with roles, permissions, and settings
+- **Message Pinning & Starring**: Pin important messages (max 3) and bookmark favorites
+
+📖 **See [WHATSAPP_FEATURES.md](WHATSAPP_FEATURES.md) for complete documentation of advanced features.**
 
 ### Quick Start
 
@@ -239,6 +254,7 @@ openclaw config set channels.generic.wsPort 8080
 
 ### 功能特性
 
+#### 核心功能
 - **双连接模式**：支持 WebSocket 和 Webhook
 - **多客户端管理**：支持多个 WebSocket 连接同时在线
 - **私聊与群聊**：处理私聊和群组对话
@@ -248,6 +264,20 @@ openclaw config set channels.generic.wsPort 8080
 - **消息历史**：可配置的群聊历史记录
 - **访问控制**：私聊策略（开放、配对、白名单）
 - **自动心跳**：WebSocket 心跳保活机制
+
+#### WhatsApp 风格高级功能
+- **消息表情反应**：为消息添加表情符号反应
+- **消息编辑与删除**：编辑或删除已发送消息，支持历史记录追踪
+- **已读回执与送达状态**：追踪消息送达和已读状态
+- **增强型输入指示器**：实时输入状态显示，自动超时
+- **消息转发**：转发消息到其他聊天（单条或多条）
+- **用户状态/在线状态**：在线/离线/离开/忙碌状态，支持最后在线追踪
+- **文件分享与进度追踪**：文件上传/下载，实时进度显示
+- **消息搜索**：全文搜索，支持按内容、发送者、日期等筛选
+- **群组管理**：完整的群组管理，支持角色、权限和设置
+- **消息置顶与收藏**：置顶重要消息（最多 3 条）和收藏喜欢的消息
+
+📖 **查看 [功能增强总结.md](功能增强总结.md) 了解完整的高级功能文档。**
 
 ### 快速开始
 
