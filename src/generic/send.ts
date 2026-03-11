@@ -1,6 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import type { GenericChannelConfig, GenericSendResult, OutboundMessage, WSEventType } from "./types.js";
 import { getGenericWSManager } from "./client.js";
+import { updateMessageStatus } from "./message-status.js";
 
 export type SendGenericMessageParams = {
   cfg: OpenClawConfig;
@@ -54,9 +55,34 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
         data: outboundMessage,
       });
 
-      if (!sent) {
-        console.warn(`[generic] Client ${target.chatId} not connected, message queued`);
+      if (sent) {
+        // Mark as sent
+        updateMessageStatus({
+          cfg,
+          messageId,
+          chatId: target.chatId,
+          status: "sent",
+        });
+      } else {
+        // Mark as failed if client not connected
+        console.warn(`[generic] Client ${target.chatId} not connected, message failed`);
+        updateMessageStatus({
+          cfg,
+          messageId,
+          chatId: target.chatId,
+          status: "failed",
+          error: "Client not connected",
+        });
       }
+    } else {
+      // No WebSocket manager - mark as failed
+      updateMessageStatus({
+        cfg,
+        messageId,
+        chatId: target.chatId,
+        status: "failed",
+        error: "WebSocket manager not available",
+      });
     }
   }
 
