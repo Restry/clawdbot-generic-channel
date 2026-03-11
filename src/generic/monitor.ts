@@ -2,6 +2,8 @@ import type { OpenClawConfig, RuntimeEnv, HistoryEntry } from "openclaw/plugin-s
 import type { GenericChannelConfig, InboundMessage } from "./types.js";
 import { createGenericWSManager, destroyGenericWSManager } from "./client.js";
 import { handleGenericMessage } from "./bot.js";
+import { handleStatusUpdate } from "./message-status.js";
+import { handleMessageEdit, handleMessageDelete } from "./message-management.js";
 
 export type MonitorGenericOpts = {
   config?: OpenClawConfig;
@@ -64,6 +66,62 @@ async function monitorWebSocket(params: {
     } catch (err) {
       error(`generic: error handling message: ${String(err)}`);
     }
+  };
+
+  // Set up status update handler
+  wsManager.onStatusUpdate = async (data) => {
+    try {
+      await handleStatusUpdate({
+        cfg,
+        messageId: data.messageId,
+        chatId: data.chatId,
+        status: data.status as any,
+      });
+    } catch (err) {
+      error(`generic: error handling status update: ${String(err)}`);
+    }
+  };
+
+  // Set up message edit handler
+  wsManager.onMessageEdit = async (data) => {
+    try {
+      await handleMessageEdit({
+        cfg,
+        edit: {
+          messageId: data.messageId,
+          chatId: data.chatId,
+          senderId: data.senderId,
+          newContent: data.newContent,
+          editedAt: Date.now(),
+        },
+      });
+    } catch (err) {
+      error(`generic: error handling message edit: ${String(err)}`);
+    }
+  };
+
+  // Set up message delete handler
+  wsManager.onMessageDelete = async (data) => {
+    try {
+      await handleMessageDelete({
+        cfg,
+        deletion: {
+          messageId: data.messageId,
+          chatId: data.chatId,
+          senderId: data.senderId,
+          deleteType: data.deleteType ?? "soft",
+          deletedAt: Date.now(),
+        },
+      });
+    } catch (err) {
+      error(`generic: error handling message delete: ${String(err)}`);
+    }
+  };
+
+  // Set up typing indicator handler
+  wsManager.onTypingIndicator = async (data) => {
+    log(`generic: ${data.senderId} is ${data.isTyping ? "typing" : "stopped typing"} in ${data.chatId}`);
+    // Could broadcast to other clients in the chat if needed
   };
 
   // Start the WebSocket server

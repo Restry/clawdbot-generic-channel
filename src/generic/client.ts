@@ -8,6 +8,10 @@ export class GenericWSManager {
   private clients: Map<string, WebSocket> = new Map();
   private httpServer: HTTPServer | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private reconnectTimers: Map<string, NodeJS.Timeout> = new Map();
+  private reconnectAttempts: Map<string, number> = new Map();
+  private readonly maxReconnectAttempts = 10;
+  private readonly baseReconnectDelay = 1000; // 1 second
 
   constructor(private config: GenericChannelConfig) {}
 
@@ -40,11 +44,17 @@ export class GenericWSManager {
         console.log(`[generic] WebSocket client disconnected: ${chatId}`);
         if (chatId) {
           this.clients.delete(chatId);
+          // Reset reconnect attempts on clean disconnect
+          this.reconnectAttempts.delete(chatId);
+          this.onClientDisconnect?.(chatId);
         }
       });
 
       ws.on("error", (err) => {
         console.error(`[generic] WebSocket error for ${chatId}:`, err);
+        // Track failed connections for potential reconnect
+        const attempts = this.reconnectAttempts.get(chatId) || 0;
+        this.reconnectAttempts.set(chatId, attempts + 1);
       });
 
       // Send connection confirmation
@@ -65,6 +75,13 @@ export class GenericWSManager {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
+
+    // Clear all reconnect timers
+    for (const timer of this.reconnectTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.reconnectTimers.clear();
+    this.reconnectAttempts.clear();
 
     if (this.wss) {
       this.wss.close();
@@ -87,8 +104,17 @@ export class GenericWSManager {
         // Forward to message handler
         this.onMessageReceive?.(message.data as InboundMessage);
       } else if (message.type === "typing") {
-        // Handle typing indicator (optional)
-        console.log(`[generic] Typing indicator from ${chatId}`);
+        // Handle typing indicator
+        this.onTypingIndicator?.(message.data as any);
+      } else if (message.type === "status.delivered" || message.type === "status.read") {
+        // Handle status updates from client
+        this.onStatusUpdate?.(message.data as any);
+      } else if (message.type === "message.edit") {
+        // Handle message edit
+        this.onMessageEdit?.(message.data as any);
+      } else if (message.type === "message.delete") {
+        // Handle message deletion
+        this.onMessageDelete?.(message.data as any);
       }
     } catch (err) {
       console.error(`[generic] Failed to parse message from ${chatId}:`, err);
@@ -115,6 +141,11 @@ export class GenericWSManager {
 
   // Public API
   onMessageReceive?: (message: InboundMessage) => void;
+  onStatusUpdate?: (data: { messageId: string; chatId: string; status: string }) => void;
+  onClientDisconnect?: (chatId: string) => void;
+  onTypingIndicator?: (data: { chatId: string; senderId: string; isTyping: boolean }) => void;
+  onMessageEdit?: (data: { messageId: string; chatId: string; senderId: string; newContent: string }) => void;
+  onMessageDelete?: (data: { messageId: string; chatId: string; senderId: string; deleteType?: "soft" | "hard" }) => void;
 
   sendToClient(chatId: string, event: WSEvent): boolean {
     const ws = this.clients.get(chatId);
