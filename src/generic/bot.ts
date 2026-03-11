@@ -68,6 +68,10 @@ export async function handleGenericMessage(params: {
     const genericFrom = `generic:${ctx.senderId}`;
     const genericTo = isGroup ? `chat:${ctx.chatId}` : `user:${ctx.senderId}`;
 
+    // Detect slash commands - check if message starts with /
+    const isSlashCommand = ctx.content.trim().startsWith("/");
+    const commandBody = isSlashCommand ? ctx.content.trim() : ctx.content;
+
     const route = core.channel.routing.resolveAgentRoute({
       cfg,
       channel: "generic-channel",
@@ -157,7 +161,7 @@ export async function handleGenericMessage(params: {
     const ctxPayload = core.channel.reply.finalizeInboundContext({
       Body: combinedBody,
       RawBody: ctx.content,
-      CommandBody: ctx.content,
+      CommandBody: commandBody,
       From: genericFrom,
       To: genericTo,
       SessionKey: route.sessionKey,
@@ -170,7 +174,7 @@ export async function handleGenericMessage(params: {
       Surface: "generic-channel" as const,
       MessageSid: ctx.messageId,
       Timestamp: message.timestamp,
-      CommandAuthorized: true,
+      CommandAuthorized: isSlashCommand,
       OriginatingChannel: "generic-channel" as const,
       OriginatingTo: genericTo,
       ...mediaPayload, // Add MediaPath, MediaType, MediaUrl, MediaPaths, etc.
