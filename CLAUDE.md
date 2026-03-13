@@ -48,9 +48,23 @@ npx tsc --noEmit
 
 1. `monitor.ts` starts WebSocket server, registers event handlers
 2. On `message.receive`, `bot.ts` parses the event
-3. If message contains media URL, `media.ts` downloads and saves it locally
-4. Message (with media file paths) is dispatched to OpenClaw agent via `reply-dispatcher.ts`
-5. Agent responses flow through `outbound.ts` → `send.ts`
+3. `bot.ts` detects slash commands (messages starting with `/`)
+4. If message contains media URL, `media.ts` downloads and saves it locally
+5. Message (with media file paths and command status) is dispatched to OpenClaw agent via `reply-dispatcher.ts`
+6. Agent responses flow through `outbound.ts` → `send.ts`
+
+### Slash Command Support
+
+The Generic Channel supports OpenClaw slash commands. Messages starting with `/` are automatically detected and flagged as commands:
+
+- **Detection**: `bot.ts` checks if message content starts with `/`
+- **CommandBody**: Set to the trimmed message content
+- **CommandAuthorized**: Set to `true` for slash commands, `false` otherwise
+
+Examples:
+- `/help` - Will be processed as a slash command
+- `/status` - Will be processed as a slash command
+- `hello world` - Will be processed as a regular message
 
 ### Key Configuration Options
 
