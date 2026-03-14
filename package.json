@@ -4,6 +4,10 @@
   "type": "module",
   "description": "Generic WebSocket/Webhook channel plugin for OpenClaw",
   "license": "MIT",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "pack:dist": "mkdir -p dist && npm pack --pack-destination dist"
+  },
   "files": [
     "index.ts",
     "src",
