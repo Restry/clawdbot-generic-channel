@@ -8,6 +8,8 @@
 2. 客户端用 WebSocket 连接 `ws://host:port/ws?chatId=会话ID`
 3. 客户端按协议发送 `message.receive` 事件
 
+这份接入指南只覆盖当前真实可用且已完成 E2E 的 `websocket` 路径。
+
 ## 1. 服务端最小配置
 
 当前真实频道 ID 是 `generic-channel`，不是 `generic`。
@@ -22,6 +24,13 @@ channels:
     dmPolicy: "open"
     historyLimit: 20
     mediaMaxMb: 30
+```
+
+建议同时补上：
+
+```yaml
+session:
+  dmScope: "per-account-channel-peer"
 ```
 
 推荐同时保证 OpenClaw 会话粒度是按「频道 + 用户 / 会话」隔离的。多用户并发时，建议把 `session.dmScope` 设为 `per-account-channel-peer`，否则不同窗口或不同用户可能串到同一个 DM 会话。
@@ -83,6 +92,7 @@ channels:
 - H5 示例页为了最简化，默认把 `senderId` 直接写成了 `chatId`
 - 真实 App 接入时，不要机械照搬这个简化写法
 - 如果“用户 ID”和“会话 ID”不是一个东西，就必须分开传
+- `serverUrl` 应该只是 WebSocket 端点本身，`chatId` 要在建立连接时按当前会话动态拼到查询参数里
 
 推荐映射方式:
 
@@ -247,6 +257,7 @@ type InboundMessage = {
 - `messageType = "voice"` 时，推荐 `audio/webm`
 - `messageType = "audio"` 时，推荐真实音频 MIME，例如 `audio/mpeg`、`audio/mp4`
 - 现在 GPT-5.2 这类模型支持 image 输入，插件会把图片媒体保留下来传给 agent
+- `mediaUrl` 指向的资源必须能被 gateway 主机访问；前端本地 `blob:` URL 或只在浏览器里可见的对象 URL 不能直接给插件下载
 
 ## 7. 插件 -> 前端: 收消息协议
 
@@ -510,6 +521,10 @@ channels:
 2. `mimeType` 是不是 `image/*`
 3. `mediaUrl` 是不是有效的 Data URL 或 HTTPS URL
 4. 你当前所选模型本身是否支持图像输入
+
+### 直接把 `blob:` URL 发给插件
+
+浏览器里的 `blob:` URL 只在当前页面上下文有效。前端要么转成 Data URL，要么先上传到你自己的存储，再把可访问的 HTTPS URL 发给插件。
 
 ## 13. 参考实现
 

@@ -10,6 +10,8 @@
 
 Generic Channel 已经支持 OpenClaw 主动发送 DM 消息。这意味着 OpenClaw 可以在没有收到用户消息的情况下，主动向已连接的客户端发送消息。
 
+这里的主前提仍然是当前接入走 `websocket`，并且目标客户端处于在线连接状态。
+
 ### 工作原理
 
 Generic Channel 通过以下机制支持主动 DM：
@@ -170,6 +172,7 @@ async function broadcastToAllUsers(cfg: OpenClawConfig, userIds: string[], messa
 
 1. **客户端必须已连接**：只有当客户端的 WebSocket 连接处于活跃状态时，消息才能送达
 2. **正确的 chatId**：使用客户端连接时使用的相同 `chatId`
+   - 如果你的业务里 `senderId` 和 `chatId` 不是一回事，主动 DM 时优先使用会话对应的 `chatId`
 3. **DM 策略配置**：
    - `dmPolicy: "open"` - 允许任何人（推荐用于主动消息）
    - `dmPolicy: "pairing"` - 需要配对审批

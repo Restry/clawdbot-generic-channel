@@ -2,7 +2,7 @@
 
 Generic WebSocket/Webhook channel plugin for [OpenClaw](https://github.com/openclaw/openclaw).
 
-A flexible channel plugin that allows H5 pages to connect directly via WebSocket or Webhook without depending on third-party platforms.
+A flexible channel plugin that allows H5 pages to connect directly without depending on third-party platforms. The current recommended and E2E-verified access path is `websocket`.
 
 [English](#english) | [中文](#中文)
 
@@ -63,12 +63,13 @@ openclaw config set channels.generic-channel.wsPort 8080
 | `allowFrom` | array | `[]` | Allowed sender IDs (for allowlist policy) |
 | `historyLimit` | number | `10` | Number of history messages to keep for group chats |
 | `textChunkLimit` | number | `4000` | Maximum characters per message chunk |
+| `mediaMaxMb` | number | `30` | Maximum inbound media size in MB |
 | `transcription` | object | - | Automatic voice/audio transcription settings |
 
 ### Features
 
 #### Core Features
-- **Dual Connection Modes**: WebSocket and Webhook support
+- **Primary Access Path**: WebSocket is the current recommended and E2E-verified access mode
 - **Multi-Client Management**: Support for multiple simultaneous WebSocket connections
 - **Direct Message & Group Chat**: Handle both DM and group conversations
 - **Proactive DM Support**: OpenClaw can send messages without receiving a message first ([docs](docs/PROACTIVE_DM.md))
@@ -106,6 +107,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, and name, then click "Connect"
 
 4. For direct H5 / App / WeChat Mini Program integration, see `docs/INTEGRATION_GUIDE.md`
+5. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html`
 
 ### Message Protocol
 
@@ -329,12 +331,13 @@ openclaw config set channels.generic-channel.wsPort 8080
 | `allowFrom` | array | `[]` | 允许的发送者 ID 列表（用于 allowlist 策略） |
 | `historyLimit` | number | `10` | 群聊保留的历史消息数量 |
 | `textChunkLimit` | number | `4000` | 每条消息的最大字符数 |
+| `mediaMaxMb` | number | `30` | 入站媒体最大大小，单位 MB |
 | `transcription` | object | - | 自动语音/音频转写配置 |
 
 ### 功能特性
 
 #### 核心功能
-- **双连接模式**：支持 WebSocket 和 Webhook
+- **主接入路径**：当前推荐且已完成 E2E 验证的是 WebSocket
 - **多客户端管理**：支持多个 WebSocket 连接同时在线
 - **私聊与群聊**：处理私聊和群组对话
 - **主动 DM 支持**：OpenClaw 可以主动发送消息，无需先接收消息（[文档](docs/PROACTIVE_DM.md)）
@@ -372,6 +375,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID 和名称，然后点击"连接"
 
 4. H5 / 聊天 App / 微信小程序的真实接入方式见 `docs/INTEGRATION_GUIDE.md`
+5. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html` 的顺序阅读
 
 ### 接入说明
 
@@ -380,6 +384,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 - 客户端统一通过 `ws://host:port/ws?chatId=会话ID` 建连
 - 客户端发消息时统一发送 `type: "message.receive"`
 - 图片、音频、语音都通过 `mediaUrl + mimeType + messageType` 传入
+- 多用户并发场景建议把 `session.dmScope` 设为 `per-account-channel-peer`
 
 ### 自动语音/音频转写
 

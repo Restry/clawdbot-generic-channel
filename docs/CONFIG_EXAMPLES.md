@@ -36,10 +36,18 @@ channels:
     wsPort: 8080
     wsPath: "/ws"
     dmPolicy: "open"
+    mediaMaxMb: 30
     transcription:
       enabled: true
       pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
       model: "tiny"
+```
+
+Recommended global session isolation for multi-user access:
+
+```yaml
+session:
+  dmScope: "per-account-channel-peer"
 ```
 
 Or use the CLI:
@@ -139,6 +147,8 @@ channels:
 
 ### Example 2: Webhook Mode
 
+This example is kept only for configuration completeness. The current recommended and E2E-verified access path is still `websocket`.
+
 ```yaml
 channels:
   generic-channel:
@@ -208,6 +218,26 @@ Notes:
 - The Python runtime above must have `faster-whisper` installed
 - When enabled, inbound `voice` and `audio` messages are transcribed and injected into agent context automatically
 
+### Recommended Production Baseline
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    dmPolicy: "allowlist"
+    mediaMaxMb: 30
+session:
+  dmScope: "per-account-channel-peer"
+```
+
+Why this baseline:
+- `websocket` is the current primary access path
+- `dmScope` avoids different users sharing one DM thread
+- `mediaMaxMb` keeps image / audio uploads bounded
+
 ## Testing Your Configuration
 
 1. Save your config to `~/.openclaw/config.yaml` or your OpenClaw config location
@@ -227,7 +257,7 @@ Notes:
 ### Development
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -237,16 +267,17 @@ channels:
 ### Production
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
-    connectionMode: "webhook"
-    webhookPath: "/generic/events"
-    webhookPort: 3000
-    webhookSecret: "${GENERIC_WEBHOOK_SECRET}"
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
     dmPolicy: "allowlist"
     allowFrom:
       - "${APPROVED_USER_1}"
       - "${APPROVED_USER_2}"
+session:
+  dmScope: "per-account-channel-peer"
 ```
 
 ## Troubleshooting
@@ -275,7 +306,7 @@ channels:
 For local development, use WebSocket mode with default settings:
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -293,12 +324,12 @@ For production, consider these factors:
    - H5 clients connect via `wss://your-domain.com/ws`
 
 2. **Firewall Configuration**
-   - Open the WebSocket port (default: 8080) or webhook port (default: 3000)
+   - Open the WebSocket port (default: 8080)
    - For cloud servers, update security groups accordingly
 
-3. **Use Webhook Mode for Serverless**
-   - If your hosting doesn't support long-running WebSocket connections, use webhook mode
-   - Configure a webhook secret for security
+3. **Session Isolation**
+   - For multiple users / multiple H5 windows, set `session.dmScope` to `per-account-channel-peer`
+   - This prevents different users from falling into the same DM thread
 
 ### Reverse Proxy Example (nginx)
 

@@ -36,10 +36,18 @@ channels:
     wsPort: 8080
     wsPath: "/ws"
     dmPolicy: "open"
+    mediaMaxMb: 30
     transcription:
       enabled: true
       pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
       model: "tiny"
+```
+
+多用户接入时，建议同时加上全局会话隔离配置：
+
+```yaml
+session:
+  dmScope: "per-account-channel-peer"
 ```
 
 或使用命令行配置：
@@ -139,6 +147,8 @@ channels:
 
 ### 示例 2：Webhook 模式
 
+这里保留 `webhook` 配置字段只是为了完整性说明；当前推荐且已经完成 E2E 验证的接入主路径仍然是 `websocket`。
+
 ```yaml
 channels:
   generic-channel:
@@ -208,6 +218,26 @@ channels:
 - 上面配置的 Python 运行时里需要先安装 `faster-whisper`
 - 开启后，传入的 `voice` 和 `audio` 会自动先转写，再把文本注入给 agent
 
+### 推荐生产基线
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    dmPolicy: "allowlist"
+    mediaMaxMb: 30
+session:
+  dmScope: "per-account-channel-peer"
+```
+
+原因：
+- `websocket` 是当前主接入路径
+- `dmScope` 可以防止不同用户串到同一条 DM 线程
+- `mediaMaxMb` 用来限制图片 / 音频入站大小
+
 ---
 
 ## 配置选项说明
@@ -225,6 +255,7 @@ channels:
 | `allowFrom` | array | `[]` | 允许的发送者 ID（用于 allowlist 策略） |
 | `historyLimit` | number | `10` | 群聊保留的历史消息数量 |
 | `textChunkLimit` | number | `4000` | 每条消息的最大字符数 |
+| `mediaMaxMb` | number | `30` | 入站媒体最大大小，单位 MB |
 
 ---
 
@@ -249,7 +280,7 @@ channels:
 ### 开发环境
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -259,16 +290,17 @@ channels:
 ### 生产环境
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
-    connectionMode: "webhook"
-    webhookPath: "/generic/events"
-    webhookPort: 3000
-    webhookSecret: "${GENERIC_WEBHOOK_SECRET}"
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
     dmPolicy: "allowlist"
     allowFrom:
       - "${APPROVED_USER_1}"
       - "${APPROVED_USER_2}"
+session:
+  dmScope: "per-account-channel-peer"
 ```
 
 ---
@@ -299,7 +331,7 @@ channels:
 本地开发时，使用 WebSocket 模式和默认配置：
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -317,12 +349,12 @@ H5 客户端连接到 `ws://localhost:8080/ws`。
    - H5 客户端通过 `wss://your-domain.com/ws` 连接
 
 2. **防火墙配置**
-   - 开放 WebSocket 端口（默认：8080）或 Webhook 端口（默认：3000）
+   - 开放 WebSocket 端口（默认：8080）
    - 云服务器需要更新安全组规则
 
-3. **无服务器环境使用 Webhook 模式**
-   - 如果你的托管环境不支持长连接 WebSocket，使用 webhook 模式
-   - 配置 webhook 密钥以增强安全性
+3. **会话隔离**
+   - 多用户 / 多 H5 窗口场景建议把 `session.dmScope` 设为 `per-account-channel-peer`
+   - 这样可以避免不同用户误落到同一条 DM 线程
 
 ### 反向代理示例（nginx）
 
