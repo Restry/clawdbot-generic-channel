@@ -3,6 +3,20 @@ export { z };
 
 const DmPolicySchema = z.enum(["open", "pairing", "allowlist"]);
 const GenericConnectionModeSchema = z.enum(["websocket", "webhook"]);
+const GenericTranscriptionConfigSchema = z
+  .object({
+    enabled: z.boolean().optional().default(false),
+    provider: z.literal("faster-whisper").optional().default("faster-whisper"),
+    applyToVoice: z.boolean().optional().default(true),
+    applyToAudio: z.boolean().optional().default(true),
+    pythonPath: z.string().optional(),
+    model: z.string().optional().default("tiny"),
+    language: z.string().optional(),
+    device: z.string().optional().default("cpu"),
+    computeType: z.string().optional().default("int8"),
+    timeoutMs: z.number().int().positive().optional().default(120000),
+  })
+  .strict();
 
 export const GenericChannelConfigSchema = z
   .object({
@@ -30,5 +44,6 @@ export const GenericChannelConfigSchema = z
 
     // Media handling
     mediaMaxMb: z.number().positive().optional().default(30),
+    transcription: GenericTranscriptionConfigSchema.optional(),
   })
   .strict();

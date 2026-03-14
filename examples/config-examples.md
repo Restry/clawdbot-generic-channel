@@ -30,19 +30,23 @@ Edit your OpenClaw config file at `~/.openclaw/config.yaml` (or the path shown b
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
     wsPath: "/ws"
     dmPolicy: "open"
+    transcription:
+      enabled: true
+      pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
+      model: "tiny"
 ```
 
 Or use the CLI:
 ```bash
-openclaw config set channels.generic.enabled true
-openclaw config set channels.generic.connectionMode websocket
-openclaw config set channels.generic.wsPort 8080
+openclaw config set channels.generic-channel.enabled true
+openclaw config set channels.generic-channel.connectionMode websocket
+openclaw config set channels.generic-channel.wsPort 8080
 ```
 
 ### Step 4: Start OpenClaw
@@ -74,6 +78,8 @@ There are two ways to connect:
    - **Your Name**: Your display name
 
 4. Click **Connect** and start chatting!
+
+For real H5 / App / WeChat Mini Program access, read `examples/INTEGRATION_GUIDE.md` next.
 
 #### Option B: Integrate into Your Own H5 Page
 
@@ -121,7 +127,7 @@ ws.onmessage = (event) => {
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -135,7 +141,7 @@ channels:
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "webhook"
     webhookPath: "/generic/events"
@@ -150,7 +156,7 @@ channels:
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -168,7 +174,7 @@ channels:
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -177,6 +183,30 @@ channels:
     historyLimit: 10
     textChunkLimit: 4000
 ```
+
+### Example 5: Auto-transcribe voice/audio with faster-whisper
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    transcription:
+      enabled: true
+      provider: "faster-whisper"
+      pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
+      model: "tiny"
+      device: "cpu"
+      computeType: "int8"
+      timeoutMs: 120000
+```
+
+Notes:
+- `ffmpeg` is required on the gateway host
+- The Python runtime above must have `faster-whisper` installed
+- When enabled, inbound `voice` and `audio` messages are transcribed and injected into agent context automatically
 
 ## Testing Your Configuration
 

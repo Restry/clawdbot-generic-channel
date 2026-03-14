@@ -14,6 +14,10 @@ import { getGenericRuntime } from "./runtime.js";
 import { createGenericReplyDispatcher } from "./reply-dispatcher.js";
 import { resolveGenericMediaList, buildMediaPayload } from "./media.js";
 import { sendMessageGeneric } from "./send.js";
+import {
+  formatGenericTranscriptionBlock,
+  maybeTranscribeGenericAudio,
+} from "./transcription.js";
 
 const GENERIC_CHANNEL_ID = "generic-channel";
 
@@ -216,6 +220,14 @@ export async function handleGenericMessage(params: {
       maxBytes: mediaMaxBytes,
       log: (msg: string) => log(msg),
     });
+    const transcriptionBlock = formatGenericTranscriptionBlock(
+      await maybeTranscribeGenericAudio({
+        cfg: genericCfg,
+        messageType: ctx.contentType,
+        mediaList,
+        log: (msg: string) => log(msg),
+      }),
+    );
     const mediaPayload = buildMediaPayload(mediaList);
 
     const hasMediaAttachment =
@@ -228,7 +240,10 @@ export async function handleGenericMessage(params: {
       ? mediaList.map((media) => media.placeholder).filter(Boolean).join("\n") ||
         buildGenericMediaPlaceholder(ctx.contentType)
       : "";
-    const normalizedRawBody = [ctx.content.trim(), mediaPlaceholder].filter(Boolean).join("\n").trim();
+    const normalizedRawBody = [ctx.content.trim(), transcriptionBlock, mediaPlaceholder]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
 
     // Build message body with sender name
     const speaker = ctx.senderName ?? ctx.senderId;

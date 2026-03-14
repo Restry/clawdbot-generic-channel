@@ -30,19 +30,23 @@ npm install @restry/generic-channel
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
     wsPath: "/ws"
     dmPolicy: "open"
+    transcription:
+      enabled: true
+      pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
+      model: "tiny"
 ```
 
 或使用命令行配置：
 ```bash
-openclaw config set channels.generic.enabled true
-openclaw config set channels.generic.connectionMode websocket
-openclaw config set channels.generic.wsPort 8080
+openclaw config set channels.generic-channel.enabled true
+openclaw config set channels.generic-channel.connectionMode websocket
+openclaw config set channels.generic-channel.wsPort 8080
 ```
 
 ### 第四步：启动 OpenClaw
@@ -74,6 +78,8 @@ openclaw start
    - **Your Name**: 你的显示名称
 
 4. 点击 **Connect** 开始聊天！
+
+如果你要把自己的 H5 / 聊天 App / 微信小程序直接接进来，下一步直接看 `examples/INTEGRATION_GUIDE.md`。
 
 #### 方式 B：集成到你自己的 H5 页面
 
@@ -121,7 +127,7 @@ ws.onmessage = (event) => {
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -135,7 +141,7 @@ channels:
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "webhook"
     webhookPath: "/generic/events"
@@ -150,7 +156,7 @@ channels:
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -168,7 +174,7 @@ channels:
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"
     wsPort: 8080
@@ -177,6 +183,30 @@ channels:
     historyLimit: 10
     textChunkLimit: 4000
 ```
+
+### 示例 5：使用 faster-whisper 自动转写语音/音频
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    transcription:
+      enabled: true
+      provider: "faster-whisper"
+      pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
+      model: "tiny"
+      device: "cpu"
+      computeType: "int8"
+      timeoutMs: 120000
+```
+
+说明：
+- gateway 主机需要先安装 `ffmpeg`
+- 上面配置的 Python 运行时里需要先安装 `faster-whisper`
+- 开启后，传入的 `voice` 和 `audio` 会自动先转写，再把文本注入给 agent
 
 ---
 

@@ -26,7 +26,7 @@ npm install @restry/generic-channel
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"  # or "webhook"
     wsPort: 8080
@@ -34,14 +34,18 @@ channels:
     dmPolicy: "open"
     historyLimit: 10
     textChunkLimit: 4000
+    transcription:
+      enabled: true
+      pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
+      model: "tiny"
 ```
 
 Or via CLI:
 
 ```bash
-openclaw config set channels.generic.enabled true
-openclaw config set channels.generic.connectionMode websocket
-openclaw config set channels.generic.wsPort 8080
+openclaw config set channels.generic-channel.enabled true
+openclaw config set channels.generic-channel.connectionMode websocket
+openclaw config set channels.generic-channel.wsPort 8080
 ```
 
 ### Configuration Options
@@ -59,6 +63,7 @@ openclaw config set channels.generic.wsPort 8080
 | `allowFrom` | array | `[]` | Allowed sender IDs (for allowlist policy) |
 | `historyLimit` | number | `10` | Number of history messages to keep for group chats |
 | `textChunkLimit` | number | `4000` | Maximum characters per message chunk |
+| `transcription` | object | - | Automatic voice/audio transcription settings |
 
 ### Features
 
@@ -91,14 +96,16 @@ openclaw config set channels.generic.wsPort 8080
 
 1. Enable the Generic Channel:
 ```bash
-openclaw config set channels.generic.enabled true
-openclaw config set channels.generic.connectionMode websocket
-openclaw config set channels.generic.wsPort 8080
+openclaw config set channels.generic-channel.enabled true
+openclaw config set channels.generic-channel.connectionMode websocket
+openclaw config set channels.generic-channel.wsPort 8080
 ```
 
 2. Open `examples/h5-client.html` in your browser to test the connection
 
 3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, and name, then click "Connect"
+
+4. For direct H5 / App / WeChat Mini Program integration, see `examples/INTEGRATION_GUIDE.md`
 
 ### Message Protocol
 
@@ -119,6 +126,39 @@ openclaw config set channels.generic.wsPort 8080
   parentId?: string;      // Optional parent message ID for replies
 }
 ```
+
+### Automatic Voice/Audio Transcription
+
+The plugin can automatically transcribe inbound `voice` and `audio` messages before they are sent to the agent.
+
+Requirements:
+- `ffmpeg` must be installed on the gateway host
+- The selected Python runtime must have `faster-whisper` installed
+
+Example:
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    transcription:
+      enabled: true
+      provider: "faster-whisper"
+      pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
+      model: "tiny"
+      device: "cpu"
+      computeType: "int8"
+      timeoutMs: 120000
+```
+
+Behavior:
+- `voice` messages are auto-transcribed by default when transcription is enabled
+- `audio` messages are also auto-transcribed by default
+- The transcript is injected into the agent context as `[Voice transcript]` or `[Audio transcript]`
+- If transcription fails, the original media placeholder is still delivered and the message does not fail
 
 #### Outbound Message (Server → H5)
 
@@ -194,9 +234,43 @@ ws.onmessage = (event) => {
 
 #### Messages are not received
 
-1. Verify `channels.generic.enabled` is set to `true`
+1. Verify `channels.generic-channel.enabled` is set to `true`
 2. Check the `chatId` in the connection URL matches your setup
 3. Review OpenClaw logs for error messages
+
+#### Chat cannot use `sudo` or install software
+
+If the Linux account already has `sudo` rights but chat commands are still blocked, the restriction is usually from OpenClaw exec policy rather than the OS user.
+
+Add the following to `~/.openclaw/openclaw.json` on the gateway host:
+
+```json
+{
+  "tools": {
+    "elevated": {
+      "enabled": true,
+      "allowFrom": {
+        "generic-channel": ["*"]
+      }
+    },
+    "exec": {
+      "host": "gateway",
+      "security": "full",
+      "ask": "off"
+    }
+  }
+}
+```
+
+Then restart the gateway and enable elevated mode in the chat session:
+
+```bash
+openclaw gateway restart
+```
+
+```text
+/elevated full
+```
 
 ---
 
@@ -218,7 +292,7 @@ npm install @restry/generic-channel
 
 ```yaml
 channels:
-  generic:
+  generic-channel:
     enabled: true
     connectionMode: "websocket"  # 或 "webhook"
     wsPort: 8080
@@ -226,14 +300,18 @@ channels:
     dmPolicy: "open"
     historyLimit: 10
     textChunkLimit: 4000
+    transcription:
+      enabled: true
+      pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
+      model: "tiny"
 ```
 
 或通过命令行：
 
 ```bash
-openclaw config set channels.generic.enabled true
-openclaw config set channels.generic.connectionMode websocket
-openclaw config set channels.generic.wsPort 8080
+openclaw config set channels.generic-channel.enabled true
+openclaw config set channels.generic-channel.connectionMode websocket
+openclaw config set channels.generic-channel.wsPort 8080
 ```
 
 ### 配置选项
@@ -251,6 +329,7 @@ openclaw config set channels.generic.wsPort 8080
 | `allowFrom` | array | `[]` | 允许的发送者 ID 列表（用于 allowlist 策略） |
 | `historyLimit` | number | `10` | 群聊保留的历史消息数量 |
 | `textChunkLimit` | number | `4000` | 每条消息的最大字符数 |
+| `transcription` | object | - | 自动语音/音频转写配置 |
 
 ### 功能特性
 
@@ -283,14 +362,57 @@ openclaw config set channels.generic.wsPort 8080
 
 1. 启用通用频道：
 ```bash
-openclaw config set channels.generic.enabled true
-openclaw config set channels.generic.connectionMode websocket
-openclaw config set channels.generic.wsPort 8080
+openclaw config set channels.generic-channel.enabled true
+openclaw config set channels.generic-channel.connectionMode websocket
+openclaw config set channels.generic-channel.wsPort 8080
 ```
 
 2. 在浏览器中打开 `examples/h5-client.html` 测试连接
 
 3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID 和名称，然后点击"连接"
+
+4. H5 / 聊天 App / 微信小程序的真实接入方式见 `examples/INTEGRATION_GUIDE.md`
+
+### 接入说明
+
+- 当前真实配置键是 `channels.generic-channel`
+- 当前 H5 参考实现只有 `examples/h5-client.html`
+- 客户端统一通过 `ws://host:port/ws?chatId=会话ID` 建连
+- 客户端发消息时统一发送 `type: "message.receive"`
+- 图片、音频、语音都通过 `mediaUrl + mimeType + messageType` 传入
+
+### 自动语音/音频转写
+
+插件可以在把消息交给 agent 之前，自动把传入的 `voice` / `audio` 媒体先转成文本。
+
+前置条件：
+- gateway 主机已安装 `ffmpeg`
+- 所配置的 Python 运行时里已安装 `faster-whisper`
+
+示例配置：
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    transcription:
+      enabled: true
+      provider: "faster-whisper"
+      pythonPath: "/home/restry/.openclaw/workspace/.venv/bin/python"
+      model: "tiny"
+      device: "cpu"
+      computeType: "int8"
+      timeoutMs: 120000
+```
+
+行为说明：
+- 开启后默认自动转写 `voice`
+- 开启后默认也会自动转写 `audio`
+- 转写文本会以 `[Voice transcript]` 或 `[Audio transcript]` 注入给 agent
+- 如果转写失败，消息不会失败，插件仍会继续把原始媒体占位符传给 agent
 
 ### 常见问题
 
@@ -303,9 +425,43 @@ openclaw config set channels.generic.wsPort 8080
 
 #### 消息无法接收
 
-1. 确认 `channels.generic.enabled` 设置为 `true`
+1. 确认 `channels.generic-channel.enabled` 设置为 `true`
 2. 检查连接 URL 中的 `chatId` 是否正确
 3. 查看 OpenClaw 日志是否有错误信息
+
+#### 聊天里无法使用 `sudo` 或安装软件
+
+如果 Linux 账户本身已经有 `sudo` 权限，但聊天里执行命令仍然被拒，通常不是系统权限问题，而是 OpenClaw 的 exec / elevated 策略没有放开。
+
+在 gateway 主机的 `~/.openclaw/openclaw.json` 中加入：
+
+```json
+{
+  "tools": {
+    "elevated": {
+      "enabled": true,
+      "allowFrom": {
+        "generic-channel": ["*"]
+      }
+    },
+    "exec": {
+      "host": "gateway",
+      "security": "full",
+      "ask": "off"
+    }
+  }
+}
+```
+
+然后重启 gateway，并在聊天会话里打开提权：
+
+```bash
+openclaw gateway restart
+```
+
+```text
+/elevated full
+```
 
 ---
 
