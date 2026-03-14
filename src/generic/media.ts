@@ -75,10 +75,19 @@ export async function resolveGenericMediaList(params: {
 
     const core = getGenericRuntime();
 
-    // Detect MIME type if not provided
-    let finalContentType = contentType || message.mimeType;
+    // Preserve the declared audio/image intent when container sniffing is ambiguous.
+    let finalContentType = normalizeInboundMimeType({
+      messageType: message.messageType,
+      detectedContentType: contentType,
+      declaredContentType: message.mimeType,
+    });
     if (!finalContentType) {
       finalContentType = await core.media.detectMime({ buffer });
+      finalContentType = normalizeInboundMimeType({
+        messageType: message.messageType,
+        detectedContentType: finalContentType,
+        declaredContentType: message.mimeType,
+      });
     }
 
     log?.(`generic: detected content type: ${finalContentType}, size: ${buffer.length} bytes`);
@@ -99,6 +108,40 @@ export async function resolveGenericMediaList(params: {
     log?.(`generic: failed to download media: ${String(err)}`);
     return [];
   }
+}
+
+function normalizeInboundMimeType(params: {
+  messageType: InboundMessage["messageType"];
+  detectedContentType?: string;
+  declaredContentType?: string;
+}): string | undefined {
+  const { messageType, detectedContentType, declaredContentType } = params;
+  const detected = detectedContentType?.toLowerCase();
+  const declared = declaredContentType?.toLowerCase();
+
+  if (messageType === "voice" || messageType === "audio") {
+    if (declared?.startsWith("audio/")) {
+      return declared;
+    }
+    if (detected?.startsWith("audio/")) {
+      return detected;
+    }
+    if (declared === "video/webm" || detected === "video/webm") {
+      return "audio/webm";
+    }
+    return detectedContentType ?? declaredContentType ?? "audio/webm";
+  }
+
+  if (messageType === "image") {
+    if (declared?.startsWith("image/")) {
+      return declared;
+    }
+    if (detected?.startsWith("image/")) {
+      return detected;
+    }
+  }
+
+  return detectedContentType ?? declaredContentType;
 }
 
 /**

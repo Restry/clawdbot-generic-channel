@@ -25,8 +25,9 @@ export function updateUserStatus(params: {
   userName?: string;
   status: UserStatus;
   statusMessage?: string;
+  cfg?: OpenClawConfig;
 }): UserPresence {
-  const { userId, userName, status, statusMessage } = params;
+  const { userId, userName, status, statusMessage, cfg } = params;
 
   const presence: UserPresence = {
     userId,
@@ -43,17 +44,25 @@ export function updateUserStatus(params: {
   const existingHeartbeat = userHeartbeats.get(userId);
   if (existingHeartbeat) {
     clearTimeout(existingHeartbeat);
+    userHeartbeats.delete(userId);
   }
 
   // If user is online, set up heartbeat timeout
   if (status === "online") {
     const heartbeat = setTimeout(() => {
-      // Auto-set to offline after 30 seconds of inactivity
-      updateUserStatus({
+      // Auto-set to offline after 30 seconds of inactivity and notify listeners.
+      const offlinePresence = updateUserStatus({
         userId,
         userName,
         status: "offline",
       });
+
+      if (cfg) {
+        broadcastUserStatus({
+          cfg,
+          presence: offlinePresence,
+        });
+      }
     }, 30000);
 
     userHeartbeats.set(userId, heartbeat);
@@ -180,7 +189,10 @@ export async function handleUserStatusUpdate(params: {
 }): Promise<void> {
   const { cfg, status } = params;
 
-  const updated = updateUserStatus(status);
+  const updated = updateUserStatus({
+    ...status,
+    cfg,
+  });
 
   // Broadcast to all connected clients
   broadcastUserStatus({
@@ -203,6 +215,7 @@ export function handleUserConnect(params: {
     userId,
     userName,
     status: "online",
+    cfg,
   });
 
   broadcastUserStatus({

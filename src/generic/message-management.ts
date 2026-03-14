@@ -1,6 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import type { GenericChannelConfig } from "./types.js";
 import { getGenericWSManager } from "./client.js";
+import { removeHistoryMessage, updateHistoryMessage } from "./history.js";
 
 export type MessageEdit = {
   messageId: string;
@@ -169,6 +170,12 @@ export async function handleMessageEdit(params: {
   // Validate the edit (e.g., check if sender owns the message)
   // For now, we'll allow any edit
   const updatedEdit = editMessage(edit);
+  updateHistoryMessage({
+    chatId: edit.chatId,
+    messageId: edit.messageId,
+    content: updatedEdit.newContent,
+    timestamp: updatedEdit.editedAt,
+  });
 
   // Broadcast to all clients in the chat
   broadcastMessageEdit({
@@ -189,6 +196,10 @@ export async function handleMessageDelete(params: {
 
   // Validate the deletion (e.g., check if sender owns the message)
   const processedDeletion = deleteMessage(deletion);
+  removeHistoryMessage({
+    chatId: deletion.chatId,
+    messageId: deletion.messageId,
+  });
 
   // Broadcast to all clients in the chat
   broadcastMessageDelete({

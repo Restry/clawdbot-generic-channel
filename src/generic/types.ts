@@ -73,6 +73,7 @@ export type GenericProbeResult = {
 export type WSEventType =
   | "message.receive"
   | "message.send"
+  | "history.sync"
   | "message.edit"
   | "message.delete"
   | "message.forward"
@@ -86,8 +87,10 @@ export type WSEventType =
   | "thinking.end"
   | "reaction.add"
   | "reaction.remove"
+  | "status.sent"
   | "status.read"
   | "status.delivered"
+  | "status.failed"
   | "user.status"
   | "file.progress"
   | "file.transfer"

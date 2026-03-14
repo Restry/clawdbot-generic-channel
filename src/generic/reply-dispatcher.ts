@@ -6,9 +6,9 @@ import {
   type RuntimeEnv,
   type ReplyPayload,
 } from "openclaw/plugin-sdk";
+import type { GenericChannelConfig } from "./types.js";
 import { getGenericRuntime } from "./runtime.js";
 import { sendMessageGeneric, sendThinkingIndicator } from "./send.js";
-import type { GenericChannelConfig } from "./types.js";
 
 export type CreateGenericReplyDispatcherParams = {
   cfg: OpenClawConfig;
@@ -26,6 +26,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
     cfg,
     agentId,
   });
+  const genericCfg = cfg.channels?.["generic-channel"] as GenericChannelConfig | undefined;
 
   // Generic channel typing/thinking indicator
   const typingCallbacks = createTypingCallbacks({
@@ -65,11 +66,15 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
     },
   });
 
-  const textChunkLimit = core.channel.text.resolveTextChunkLimit({
-    cfg,
-    channel: "generic-channel",
-    defaultLimit: 4000,
-  });
+  const textChunkLimit = Math.max(
+    1,
+    genericCfg?.textChunkLimit ??
+      core.channel.text.resolveTextChunkLimit({
+        cfg,
+        channel: "generic-channel",
+        defaultLimit: 4000,
+      }),
+  );
 
   const { dispatcher, replyOptions, markDispatchIdle } =
     core.channel.reply.createReplyDispatcherWithTyping({
@@ -102,6 +107,7 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
         params.runtime.log?.(`generic: sent ${chunks.length} message chunk(s)`);
       },
       onReplyEnd: typingCallbacks.onReplyEnd,
+      onIdle: typingCallbacks.onIdle,
     });
 
   return {

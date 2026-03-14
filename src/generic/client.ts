@@ -1,11 +1,80 @@
 import { WebSocketServer, WebSocket, type RawData } from "ws";
 import type { Server as HTTPServer } from "http";
 import type { GenericChannelConfig, WSEvent, InboundMessage } from "./types.js";
+import type { ForwardedMessage } from "./forwarding.js";
+import type { GroupAction } from "./groups.js";
+import type { UserPresence } from "./presence.js";
+import type { ReactionEvent } from "./reactions.js";
+import type { MessageStatusUpdate } from "./status.js";
+
+export type TypingIndicatorData = {
+  chatId: string;
+  senderId: string;
+  senderName?: string;
+  isTyping: boolean;
+  timestamp?: number;
+};
+
+export type MessageEditData = {
+  messageId: string;
+  chatId: string;
+  senderId: string;
+  newContent: string;
+  oldContent?: string;
+  editedAt?: number;
+};
+
+export type MessageDeleteData = {
+  messageId: string;
+  chatId: string;
+  senderId: string;
+  deleteType?: "soft" | "hard";
+  deletedAt?: number;
+};
+
+export type FileTransferData = {
+  fileId: string;
+  chatId: string;
+  senderId: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  mimeType: string;
+  status: "pending" | "uploading" | "uploaded" | "downloading" | "completed" | "failed";
+  progress?: number;
+  uploadedBytes?: number;
+  url?: string;
+  error?: string;
+  timestamp?: number;
+};
+
+export type FileProgressData = {
+  fileId: string;
+  chatId: string;
+  progress: number;
+  uploadedBytes?: number;
+  totalBytes?: number;
+  status?: "uploading" | "downloading" | "completed";
+  timestamp?: number;
+};
+
+export type PinMessageData = {
+  messageId: string;
+  chatId: string;
+  pinnedBy: string;
+  pinnedAt?: number;
+  expiresAt?: number;
+};
+
+export type UnpinMessageData = {
+  messageId: string;
+  chatId: string;
+};
 
 // Client connection manager
 export class GenericWSManager {
   private wss: WebSocketServer | null = null;
-  private clients: Map<string, WebSocket> = new Map();
+  private clients: Map<string, Set<WebSocket>> = new Map();
   private httpServer: HTTPServer | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private reconnectTimers: Map<string, NodeJS.Timeout> = new Map();
@@ -33,7 +102,7 @@ export class GenericWSManager {
       console.log(`[generic] WebSocket client connected: ${chatId}`);
 
       if (chatId) {
-        this.clients.set(chatId, ws);
+        this.addClient(chatId, ws);
       }
 
       ws.on("message", (data: RawData) => {
@@ -43,7 +112,7 @@ export class GenericWSManager {
       ws.on("close", () => {
         console.log(`[generic] WebSocket client disconnected: ${chatId}`);
         if (chatId) {
-          this.clients.delete(chatId);
+          this.removeClient(chatId, ws);
           // Reset reconnect attempts on clean disconnect
           this.reconnectAttempts.delete(chatId);
           this.onClientDisconnect?.(chatId);
@@ -62,6 +131,10 @@ export class GenericWSManager {
         type: "connection.open",
         data: { chatId, timestamp: Date.now() },
       });
+
+      if (chatId) {
+        this.onClientConnect?.({ chatId, ws });
+      }
     });
 
     // Start heartbeat
@@ -100,24 +173,68 @@ export class GenericWSManager {
     try {
       const message = JSON.parse(data.toString()) as WSEvent;
 
-      if (message.type === "message.receive") {
-        // Forward to message handler
-        this.onMessageReceive?.(message.data as InboundMessage);
-      } else if (message.type === "typing") {
-        // Handle typing indicator
-        this.onTypingIndicator?.(message.data as any);
-      } else if (message.type === "status.delivered" || message.type === "status.read") {
-        // Handle status updates from client
-        this.onStatusUpdate?.(message.data as any);
-      } else if (message.type === "message.edit") {
-        // Handle message edit
-        this.onMessageEdit?.(message.data as any);
-      } else if (message.type === "message.delete") {
-        // Handle message deletion
-        this.onMessageDelete?.(message.data as any);
+      switch (message.type) {
+        case "message.receive":
+          this.onMessageReceive?.(message.data as InboundMessage);
+          break;
+        case "typing":
+          this.onTypingIndicator?.(message.data as TypingIndicatorData);
+          break;
+        case "status.delivered":
+        case "status.read":
+          this.onStatusUpdate?.(message.data as MessageStatusUpdate);
+          break;
+        case "message.edit":
+          this.onMessageEdit?.(message.data as MessageEditData);
+          break;
+        case "message.delete":
+          this.onMessageDelete?.(message.data as MessageDeleteData);
+          break;
+        case "reaction.add":
+        case "reaction.remove":
+          this.onReactionEvent?.(message as ReactionEvent);
+          break;
+        case "message.forward":
+          this.onMessageForward?.(message.data as ForwardedMessage);
+          break;
+        case "user.status":
+          this.onUserStatusUpdate?.(message.data as UserPresence);
+          break;
+        case "file.transfer":
+          this.onFileTransfer?.(message.data as FileTransferData);
+          break;
+        case "file.progress":
+          this.onFileProgress?.(message.data as FileProgressData);
+          break;
+        case "group.action":
+          this.onGroupAction?.(message.data as GroupAction);
+          break;
+        case "message.pin":
+          this.onPinMessage?.(message.data as PinMessageData);
+          break;
+        case "message.unpin":
+          this.onUnpinMessage?.(message.data as UnpinMessageData);
+          break;
       }
     } catch (err) {
       console.error(`[generic] Failed to parse message from ${chatId}:`, err);
+    }
+  }
+
+  private addClient(chatId: string, ws: WebSocket): void {
+    const clients = this.clients.get(chatId) ?? new Set<WebSocket>();
+    clients.add(ws);
+    this.clients.set(chatId, clients);
+  }
+
+  private removeClient(chatId: string, ws: WebSocket): void {
+    const clients = this.clients.get(chatId);
+    if (!clients) {
+      return;
+    }
+    clients.delete(ws);
+    if (clients.size === 0) {
+      this.clients.delete(chatId);
     }
   }
 
@@ -129,10 +246,17 @@ export class GenericWSManager {
 
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
-      this.clients.forEach((ws, chatId) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.ping();
-        } else {
+      this.clients.forEach((clients, chatId) => {
+        for (const ws of clients) {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.ping();
+            continue;
+          }
+
+          clients.delete(ws);
+        }
+
+        if (clients.size === 0) {
           this.clients.delete(chatId);
         }
       });
@@ -141,30 +265,61 @@ export class GenericWSManager {
 
   // Public API
   onMessageReceive?: (message: InboundMessage) => void;
-  onStatusUpdate?: (data: { messageId: string; chatId: string; status: string }) => void;
+  onStatusUpdate?: (data: MessageStatusUpdate) => void;
+  onClientConnect?: (params: { chatId: string; ws: WebSocket }) => void;
   onClientDisconnect?: (chatId: string) => void;
-  onTypingIndicator?: (data: { chatId: string; senderId: string; isTyping: boolean }) => void;
-  onMessageEdit?: (data: { messageId: string; chatId: string; senderId: string; newContent: string }) => void;
-  onMessageDelete?: (data: { messageId: string; chatId: string; senderId: string; deleteType?: "soft" | "hard" }) => void;
+  onTypingIndicator?: (data: TypingIndicatorData) => void;
+  onMessageEdit?: (data: MessageEditData) => void;
+  onMessageDelete?: (data: MessageDeleteData) => void;
+  onReactionEvent?: (event: ReactionEvent) => void;
+  onMessageForward?: (data: ForwardedMessage) => void;
+  onUserStatusUpdate?: (data: UserPresence) => void;
+  onFileTransfer?: (data: FileTransferData) => void;
+  onFileProgress?: (data: FileProgressData) => void;
+  onGroupAction?: (data: GroupAction) => void;
+  onPinMessage?: (data: PinMessageData) => void;
+  onUnpinMessage?: (data: UnpinMessageData) => void;
 
   sendToClient(chatId: string, event: WSEvent): boolean {
-    const ws = this.clients.get(chatId);
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      this.sendEvent(ws, event);
-      return true;
+    const clients = this.clients.get(chatId);
+    if (!clients || clients.size === 0) {
+      return false;
     }
-    return false;
+
+    let sent = false;
+    for (const ws of clients) {
+      if (ws.readyState === WebSocket.OPEN) {
+        this.sendEvent(ws, event);
+        sent = true;
+      }
+    }
+
+    return sent;
+  }
+
+  sendDirect(ws: WebSocket, event: WSEvent): void {
+    this.sendEvent(ws, event);
   }
 
   broadcast(event: WSEvent): void {
-    this.clients.forEach((ws) => {
-      this.sendEvent(ws, event);
+    this.clients.forEach((clients) => {
+      clients.forEach((ws) => {
+        this.sendEvent(ws, event);
+      });
     });
   }
 
   isClientConnected(chatId: string): boolean {
-    const ws = this.clients.get(chatId);
-    return ws !== undefined && ws.readyState === WebSocket.OPEN;
+    const clients = this.clients.get(chatId);
+    if (!clients) {
+      return false;
+    }
+    for (const ws of clients) {
+      if (ws.readyState === WebSocket.OPEN) {
+        return true;
+      }
+    }
+    return false;
   }
 
   getConnectedClients(): string[] {

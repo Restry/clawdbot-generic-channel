@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { OpenClawConfig, RuntimeEnv } from "openclaw/plugin-sdk";
 import {
   buildPendingHistoryContextFromMap,
@@ -7,9 +9,73 @@ import {
   type HistoryEntry,
 } from "openclaw/plugin-sdk";
 import type { GenericChannelConfig, GenericMessageContext, InboundMessage } from "./types.js";
+import { appendInboundHistoryMessage } from "./history.js";
 import { getGenericRuntime } from "./runtime.js";
 import { createGenericReplyDispatcher } from "./reply-dispatcher.js";
 import { resolveGenericMediaList, buildMediaPayload } from "./media.js";
+import { sendMessageGeneric } from "./send.js";
+
+const GENERIC_CHANNEL_ID = "generic-channel";
+
+function normalizeAllowEntry(entry: string): string {
+  return entry
+    .trim()
+    .toLowerCase()
+    .replace(/^(generic|user):/i, "");
+}
+
+function isSenderAllowed(params: {
+  allowFrom: string[];
+  senderId: string;
+  senderName?: string;
+}): boolean {
+  const normalizedAllowFrom = params.allowFrom.map(normalizeAllowEntry).filter(Boolean);
+  if (normalizedAllowFrom.includes("*")) {
+    return true;
+  }
+
+  const candidates = [params.senderId, params.senderName]
+    .filter((value): value is string => Boolean(value))
+    .map(normalizeAllowEntry);
+
+  return normalizedAllowFrom.some((entry) => candidates.includes(entry));
+}
+
+async function readPairingAllowFromStore(params: {
+  runtimeCore: ReturnType<typeof getGenericRuntime>;
+  log: (message: string) => void;
+}): Promise<string[]> {
+  const storeAllowFrom = await params.runtimeCore.channel.pairing
+    .readAllowFromStore(GENERIC_CHANNEL_ID)
+    .catch(() => []);
+
+  if (storeAllowFrom.length > 0) {
+    return storeAllowFrom.map(String);
+  }
+
+  const homeDir = process.env.HOME;
+  if (!homeDir) {
+    return [];
+  }
+
+  const fallbackPath = join(
+    homeDir,
+    ".openclaw",
+    "credentials",
+    `${GENERIC_CHANNEL_ID}-default-allowFrom.json`,
+  );
+
+  try {
+    const raw = JSON.parse(await readFile(fallbackPath, "utf8")) as { allowFrom?: unknown };
+    if (Array.isArray(raw.allowFrom)) {
+      return raw.allowFrom.map(String);
+    }
+  } catch {
+    params.log(`generic: pairing allowFrom fallback unavailable at ${fallbackPath}`);
+  }
+
+  return [];
+}
 
 export function parseGenericMessage(message: InboundMessage): GenericMessageContext {
   return {
@@ -47,23 +113,58 @@ export async function handleGenericMessage(params: {
     genericCfg?.historyLimit ?? cfg.messages?.groupChat?.historyLimit ?? DEFAULT_GROUP_HISTORY_LIMIT,
   );
 
+  const core = getGenericRuntime();
+
   // Check DM policy
   if (!isGroup) {
     const dmPolicy = genericCfg?.dmPolicy ?? "open";
-    const allowFrom = genericCfg?.allowFrom ?? [];
+    const configAllowFrom = (genericCfg?.allowFrom ?? []).map(String);
+    const storeAllowFrom =
+      dmPolicy !== "open"
+        ? await readPairingAllowFromStore({
+            runtimeCore: core,
+            log,
+          })
+        : [];
+    const effectiveAllowFrom = [...configAllowFrom, ...storeAllowFrom];
 
-    if (dmPolicy === "allowlist" && allowFrom.length > 0) {
-      const allowed = allowFrom.includes(ctx.senderId);
+    if (dmPolicy !== "open") {
+      const allowed = isSenderAllowed({
+        allowFrom: effectiveAllowFrom,
+        senderId: ctx.senderId,
+        senderName: ctx.senderName,
+      });
+
       if (!allowed) {
-        log(`generic: sender ${ctx.senderId} not in DM allowlist`);
+        if (dmPolicy === "pairing") {
+          const { code, created } = await core.channel.pairing.upsertPairingRequest({
+            channel: GENERIC_CHANNEL_ID,
+            id: ctx.senderId,
+            meta: { name: ctx.senderName || undefined },
+          });
+
+          if (created) {
+            await sendMessageGeneric({
+              cfg,
+              to: `chat:${ctx.chatId}`,
+              text: core.channel.pairing.buildPairingReply({
+                channel: GENERIC_CHANNEL_ID,
+                idLine: `Your Generic user id: ${ctx.senderId}`,
+                code,
+              }),
+            });
+          }
+        } else {
+          log(`generic: sender ${ctx.senderId} not in DM allowlist`);
+        }
         return;
       }
     }
   }
 
-  try {
-    const core = getGenericRuntime();
+  appendInboundHistoryMessage(message);
 
+  try {
     // Build target identifiers
     const genericFrom = `generic:${ctx.senderId}`;
     const genericTo = isGroup ? `chat:${ctx.chatId}` : `user:${ctx.senderId}`;

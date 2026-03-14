@@ -91,14 +91,22 @@ export async function forwardMessage(params: {
       text: forwardedContent,
       contentType: "text",
     });
-  } else {
+  } else if (messageType === "image" || messageType === "voice" || messageType === "audio") {
     await sendMediaGeneric({
       cfg,
       to: `chat:${targetChatId}`,
-      mediaUrl: mediaUrl!,
-      mediaType: messageType as "image" | "voice" | "audio",
+      mediaUrl: mediaUrl ?? "",
+      mediaType: messageType,
       mimeType,
       caption: forwardedContent,
+    });
+  } else {
+    const fileText = mediaUrl ? `${forwardedContent}\n\nFile URL: ${mediaUrl}` : forwardedContent;
+    await sendMessageGeneric({
+      cfg,
+      to: `chat:${targetChatId}`,
+      text: fileText,
+      contentType: "text",
     });
   }
 

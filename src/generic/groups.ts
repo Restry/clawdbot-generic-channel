@@ -33,6 +33,7 @@ export type GroupSettings = {
 
 export type GroupAction = {
   type:
+    | "group.create"
     | "member.add"
     | "member.remove"
     | "member.promote"
@@ -314,20 +315,12 @@ export function broadcastGroupAction(params: {
     return;
   }
 
-  const group = groups.get(action.groupId);
-  if (!group) {
-    return;
-  }
-
   const wsManager = getGenericWSManager();
   if (wsManager) {
-    // Broadcast to all group members
-    for (const memberId of group.members.keys()) {
-      wsManager.sendToClient(memberId, {
-        type: "group.action",
-        data: action,
-      });
-    }
+    wsManager.sendToClient(action.groupId, {
+      type: "group.action",
+      data: action,
+    });
   }
 }
 
@@ -341,12 +334,22 @@ export async function handleGroupAction(params: {
   const { cfg, action } = params;
   const { type, groupId, actorId, targetUserId } = action;
 
-  // Verify actor has admin privileges
-  if (!isGroupAdmin({ groupId, userId: actorId })) {
+  if (type !== "group.create" && !isGroupAdmin({ groupId, userId: actorId })) {
     throw new Error("User does not have admin privileges");
   }
 
   switch (type) {
+    case "group.create":
+      createGroup({
+        groupId,
+        groupName: (action.data as { groupName?: string } | undefined)?.groupName || groupId,
+        description: (action.data as { description?: string } | undefined)?.description,
+        avatar: (action.data as { avatar?: string } | undefined)?.avatar,
+        createdBy: actorId,
+        settings: (action.data as { settings?: Partial<GroupSettings> } | undefined)?.settings,
+      });
+      break;
+
     case "member.add":
       if (targetUserId) {
         addGroupMember({

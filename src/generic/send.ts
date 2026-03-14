@@ -1,6 +1,7 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
 import type { GenericChannelConfig, GenericSendResult, OutboundMessage, WSEventType } from "./types.js";
 import { getGenericWSManager } from "./client.js";
+import { appendOutboundHistoryMessage } from "./history.js";
 import { updateMessageStatus } from "./message-status.js";
 
 export type SendGenericMessageParams = {
@@ -56,6 +57,7 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
       });
 
       if (sent) {
+        appendOutboundHistoryMessage(outboundMessage);
         // Mark as sent
         updateMessageStatus({
           cfg,
@@ -84,6 +86,10 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
         error: "WebSocket manager not available",
       });
     }
+  }
+
+  if (genericCfg.connectionMode !== "websocket") {
+    appendOutboundHistoryMessage(outboundMessage);
   }
 
   // In webhook mode, messages are sent synchronously as HTTP responses
