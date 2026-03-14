@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generic Channel - 增强版 H5 客户端</title>
+    <title>Generic Channel - H5 客户端</title>
     <style>
         * {
             margin: 0;
@@ -223,6 +223,36 @@
         .message-audio {
             width: 100%;
             max-width: 280px;
+            margin-top: 8px;
+        }
+
+        .attachment-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.18);
+            color: inherit;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .message.received .attachment-label {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .attachment-hint {
+            margin-top: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+            opacity: 0.85;
+        }
+
+        .attachment-link {
+            color: inherit;
+            text-decoration: underline;
         }
 
         .media-caption {
@@ -322,9 +352,10 @@
             font-size: 18px;
         }
 
-        /* Hidden file inputs */
-        .hidden-input {
-            display: none;
+        .icon-btn.is-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
         }
 
         .hidden {
@@ -745,20 +776,20 @@
         <div class="input-container">
             <div class="input-row">
                 <div class="media-buttons">
-                    <button class="btn btn-secondary icon-btn" id="imageBtn" onclick="document.getElementById('imageInput').click()" disabled title="发送图片">
+                    <button class="btn btn-secondary icon-btn is-disabled" id="imageBtn" onclick="triggerImagePicker()" disabled title="发送图片" type="button">
                         🖼️
                     </button>
-                    <button class="btn btn-secondary icon-btn" id="voiceBtn" onclick="toggleRecording()" disabled title="录音">
+                    <button class="btn btn-secondary icon-btn is-disabled" id="voiceBtn" onclick="toggleRecording()" disabled title="录音" type="button">
                         🎤
                     </button>
                 </div>
                 <input type="text" id="messageInput" placeholder="输入消息..." disabled>
-                <button class="btn" id="sendBtn" onclick="sendMessage()" disabled>发送</button>
+                <button class="btn" id="sendBtn" onclick="sendMessage()" disabled type="button">发送</button>
             </div>
         </div>
 
         <!-- Hidden file inputs -->
-        <input type="file" class="hidden-input" id="imageInput" accept="image/*" onchange="handleImageSelect(event)">
+        <input type="file" class="hidden" id="imageInput" accept="image/*" onchange="handleImageSelect(event)" tabindex="-1" aria-hidden="true">
     </div>
 
     <!-- Settings Modal -->
@@ -890,6 +921,8 @@ openclaw config set channels.generic.wsPort 8080</pre>
         let reconnectAttempts = 0;
         let maxReconnectAttempts = 5;
         let reconnectTimeout = null;
+        let isManualDisconnect = false;
+        let wsConnectionToken = 0;
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', () => {
@@ -1055,8 +1088,13 @@ openclaw config set channels.generic.wsPort 8080</pre>
             const url = `${serverUrl}?chatId=${encodeURIComponent(chatId)}`;
 
             try {
-                ws = new WebSocket(url);
-                setupWebSocketHandlers();
+                clearReconnectTimer();
+                replaceActiveSocket();
+                isManualDisconnect = false;
+                const socket = new WebSocket(url);
+                ws = socket;
+                wsConnectionToken++;
+                setupWebSocketHandlers(socket, wsConnectionToken);
             } catch (error) {
                 console.error('Failed to create WebSocket:', error);
                 showNotification('连接失败: ' + error.message, 'error');
@@ -1069,8 +1107,11 @@ openclaw config set channels.generic.wsPort 8080</pre>
             connect();
         }
 
-        function setupWebSocketHandlers() {
-            ws.onopen = () => {
+        function setupWebSocketHandlers(socket, connectionToken) {
+            socket.onopen = () => {
+                if (!isCurrentSocket(socket, connectionToken)) {
+                    return;
+                }
                 console.log('WebSocket connected');
                 updateStatus('connected');
                 reconnectAttempts = 0;
@@ -1079,7 +1120,10 @@ openclaw config set channels.generic.wsPort 8080</pre>
                 showNotification('已连接到服务器', 'success');
             };
 
-            ws.onmessage = (event) => {
+            socket.onmessage = (event) => {
+                if (!isCurrentSocket(socket, connectionToken)) {
+                    return;
+                }
                 console.log('Message received:', event.data);
                 try {
                     const message = JSON.parse(event.data);
@@ -1089,49 +1133,92 @@ openclaw config set channels.generic.wsPort 8080</pre>
                 }
             };
 
-            ws.onclose = (event) => {
+            socket.onclose = (event) => {
+                if (!isCurrentSocket(socket, connectionToken)) {
+                    return;
+                }
                 console.log('WebSocket disconnected', event.code, event.reason);
                 updateStatus('disconnected');
                 disableInputs();
                 document.getElementById('disconnectBtn').classList.add('hidden');
+                ws = null;
 
                 // Auto-reconnect if not manually disconnected
-                if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
-                    scheduleReconnect();
-                } else if (reconnectAttempts >= maxReconnectAttempts) {
+                if (!isManualDisconnect && event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+                    scheduleReconnect(connectionToken);
+                } else if (!isManualDisconnect && reconnectAttempts >= maxReconnectAttempts) {
                     showNotification('连接失败次数过多，请手动重新连接', 'error');
                 }
             };
 
-            ws.onerror = (error) => {
+            socket.onerror = (error) => {
+                if (!isCurrentSocket(socket, connectionToken)) {
+                    return;
+                }
                 console.error('WebSocket error:', error);
                 showNotification('连接错误', 'error');
             };
         }
 
-        function scheduleReconnect() {
+        function isCurrentSocket(socket, connectionToken) {
+            return ws === socket && wsConnectionToken === connectionToken;
+        }
+
+        function clearReconnectTimer() {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+                reconnectTimeout = null;
+            }
+        }
+
+        function replaceActiveSocket() {
+            if (!ws) {
+                return;
+            }
+
+            const socket = ws;
+            ws = null;
+            socket.onopen = null;
+            socket.onmessage = null;
+            socket.onclose = null;
+            socket.onerror = null;
+
+            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                socket.close(1000, 'Connection replaced');
+            }
+        }
+
+        function scheduleReconnect(connectionToken) {
             reconnectAttempts++;
             const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
 
             updateStatus('reconnecting');
             showNotification(`${reconnectAttempts}/${maxReconnectAttempts} 尝试重新连接...`, 'info');
 
+            clearReconnectTimer();
             reconnectTimeout = setTimeout(() => {
+                reconnectTimeout = null;
+                if (connectionToken !== wsConnectionToken || ws) {
+                    return;
+                }
                 console.log('Attempting to reconnect...');
                 connect();
             }, delay);
         }
 
         function disconnect() {
-            if (reconnectTimeout) {
-                clearTimeout(reconnectTimeout);
-                reconnectTimeout = null;
-            }
+            clearReconnectTimer();
 
             if (ws) {
-                reconnectAttempts = maxReconnectAttempts; // Prevent auto-reconnect
-                ws.close(1000, 'User disconnected');
+                isManualDisconnect = true;
+                reconnectAttempts = 0;
+                const socket = ws;
                 ws = null;
+                socket.onopen = null;
+                socket.onmessage = null;
+                socket.onclose = null;
+                socket.onerror = null;
+                socket.close(1000, 'User disconnected');
             }
 
             updateStatus('disconnected');
@@ -1145,6 +1232,8 @@ openclaw config set channels.generic.wsPort 8080</pre>
             document.getElementById('sendBtn').disabled = false;
             document.getElementById('imageBtn').disabled = false;
             document.getElementById('voiceBtn').disabled = false;
+            document.getElementById('imageBtn').classList.remove('is-disabled');
+            document.getElementById('voiceBtn').classList.remove('is-disabled');
         }
 
         function disableInputs() {
@@ -1152,10 +1241,30 @@ openclaw config set channels.generic.wsPort 8080</pre>
             document.getElementById('sendBtn').disabled = true;
             document.getElementById('imageBtn').disabled = true;
             document.getElementById('voiceBtn').disabled = true;
+            document.getElementById('imageBtn').classList.add('is-disabled');
+            document.getElementById('voiceBtn').classList.add('is-disabled');
 
             if (isRecording) {
                 stopRecording();
             }
+        }
+
+        function triggerImagePicker() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            const input = document.getElementById('imageInput');
+            if (typeof input.showPicker === 'function') {
+                try {
+                    input.showPicker();
+                    return;
+                } catch (error) {
+                    console.warn('showPicker failed, fallback to click()', error);
+                }
+            }
+
+            input.click();
         }
 
         function updateStatus(status) {
@@ -1236,7 +1345,7 @@ openclaw config set channels.generic.wsPort 8080</pre>
             if (mediaType === 'image') {
                 addImageMessage(dataUrl, caption, 'sent');
             } else if (mediaType === 'voice' || mediaType === 'audio') {
-                addAudioMessage(dataUrl, caption, 'sent');
+                addAudioMessage(dataUrl, caption, 'sent', undefined, mimeType);
             }
         }
 
@@ -1244,6 +1353,9 @@ openclaw config set channels.generic.wsPort 8080</pre>
             switch (event.type) {
                 case 'message.send':
                     handleMessageSend(event.data);
+                    break;
+                case 'history.sync':
+                    handleHistorySync(event.data);
                     break;
                 case 'connection.open':
                     console.log('Connection confirmed:', event.data);
@@ -1268,10 +1380,51 @@ openclaw config set channels.generic.wsPort 8080</pre>
             if (contentType === 'image' && msg.mediaUrl) {
                 addImageMessage(msg.mediaUrl, msg.content, 'received', msg.timestamp);
             } else if ((contentType === 'voice' || contentType === 'audio') && msg.mediaUrl) {
-                addAudioMessage(msg.mediaUrl, msg.content, 'received', msg.timestamp);
+                addAudioMessage(msg.mediaUrl, msg.content, 'received', msg.timestamp, msg.mimeType);
             } else {
                 addTextMessage(msg.content, 'received', msg.timestamp);
             }
+        }
+
+        function handleHistorySync(payload) {
+            if (!payload?.messages || !Array.isArray(payload.messages) || payload.chatId !== chatId) {
+                return;
+            }
+
+            hideThinkingIndicator();
+
+            const messagesContainer = document.getElementById('messages');
+            messagesContainer.innerHTML = '';
+
+            for (const entry of payload.messages) {
+                try {
+                    renderHistoryMessage(entry);
+                } catch (error) {
+                    console.error('Failed to render history message:', error, entry);
+                }
+            }
+
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function renderHistoryMessage(entry) {
+            const type = entry.direction === 'sent' ? 'sent' : 'received';
+            const contentType = entry.contentType || 'text';
+
+            if (contentType === 'image' && entry.mediaUrl) {
+                addImageMessage(entry.mediaUrl, entry.content, type, entry.timestamp);
+                return;
+            }
+
+            if ((contentType === 'voice' || contentType === 'audio') && entry.mediaUrl) {
+                addAudioMessage(entry.mediaUrl, entry.content, type, entry.timestamp, entry.mimeType);
+                return;
+            }
+
+            const text = contentType === 'file'
+                ? (entry.content || '[文件消息]')
+                : (entry.content || '');
+            addTextMessage(text, type, entry.timestamp);
         }
 
         // Thinking indicator
@@ -1366,7 +1519,14 @@ openclaw config set channels.generic.wsPort 8080</pre>
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        function addAudioMessage(src, caption, type, timestamp) {
+        function createAttachmentLabel(icon, text) {
+            const label = document.createElement('div');
+            label.className = 'attachment-label';
+            label.textContent = `${icon} ${text}`;
+            return label;
+        }
+
+        function addAudioMessage(src, caption, type, timestamp, mimeType = 'audio/webm') {
             const messagesContainer = document.getElementById('messages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
@@ -1374,11 +1534,32 @@ openclaw config set channels.generic.wsPort 8080</pre>
             const bubbleDiv = document.createElement('div');
             bubbleDiv.className = 'message-bubble';
 
+            bubbleDiv.appendChild(createAttachmentLabel('🎵', '音频消息'));
+
             const audio = document.createElement('audio');
             audio.className = 'message-audio';
             audio.controls = true;
+            audio.preload = 'metadata';
             audio.src = src;
-            bubbleDiv.appendChild(audio);
+
+            const canPlay = !mimeType || audio.canPlayType(mimeType) !== '';
+            if (canPlay) {
+                bubbleDiv.appendChild(audio);
+            } else {
+                const hint = document.createElement('div');
+                hint.className = 'attachment-hint';
+                hint.innerHTML = `当前浏览器可能不支持 <strong>${escapeHtml(mimeType)}</strong>，可尝试下载后播放。`;
+
+                const link = document.createElement('a');
+                link.className = 'attachment-link';
+                link.href = src;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = '打开音频';
+                hint.appendChild(document.createTextNode(' '));
+                hint.appendChild(link);
+                bubbleDiv.appendChild(hint);
+            }
 
             if (caption) {
                 const captionDiv = document.createElement('div');
