@@ -82,6 +82,7 @@
 
 - `thinking.end` 不结束问题已修复
 - `history.sync` 历史消息回放链路已打通
+- 历史消息已持久化到 `~/.openclaw/generic-channel-history.json`
 - `dmPolicy = pairing` 已补齐
 - `presence` 30s 自动离线已修复
 - `textChunkLimit` 已生效
@@ -98,6 +99,7 @@
   - 不再依赖上游显式传入 `mediaType`
   - 本地文件路径会在下发前转换为 Data URL，H5 可直接预览/播放
 - H5 页面错误地址切回正确地址后，旧重连不会再干扰当前连接
+- gateway 重启后，同一 `chatId` 重新连接仍可回放最近历史消息
 - 远端插件已重装成功，`18080` 正常监听，协议级 `connection.open` / `history.sync` 已验证
 - 图片识别问题最终确认不是 `generic-channel` 插件收图错误：
   - 插件已正确收图、落盘、注入 `MediaPath/MediaUrl`
@@ -229,6 +231,7 @@ function normalizeInboundMimeType(params: {
 - 语音消息发送 / 接收播放
 - 音频消息发送 / 接收播放
 - 语音/音频内容进入 Agent 上下文
+- gateway 重启后历史回放
 - 手动断开与再次连接
 - 错误地址切回正确地址后旧重连不干扰当前连接
 - 真实图片问答回归：

@@ -1,3 +1,6 @@
+import { mkdirSync, readFileSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type { InboundMessage, OutboundMessage } from "./types.js";
 
 export type HistoryMessageDirection = "sent" | "received";
@@ -18,6 +21,95 @@ export type HistoryMessageRecord = {
 
 const MAX_STORED_HISTORY_PER_CHAT = 200;
 const chatHistoryStore = new Map<string, HistoryMessageRecord[]>();
+const HISTORY_STORE_VERSION = 1;
+const historyPersistPath = resolveHistoryPersistPath();
+
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let persistChain = Promise.resolve();
+
+type PersistedHistoryStore = {
+  version: number;
+  chats: Record<string, HistoryMessageRecord[]>;
+};
+
+loadPersistedHistory();
+
+function resolveHistoryPersistPath(): string | null {
+  const homeDir = process.env.HOME;
+  if (!homeDir) {
+    return null;
+  }
+
+  return join(homeDir, ".openclaw", "generic-channel-history.json");
+}
+
+function loadPersistedHistory(): void {
+  if (!historyPersistPath) {
+    return;
+  }
+
+  try {
+    const raw = readFileSync(historyPersistPath, "utf8");
+    if (!raw.trim()) {
+      return;
+    }
+
+    const parsed = JSON.parse(raw) as PersistedHistoryStore;
+    if (!parsed || typeof parsed !== "object" || parsed.version !== HISTORY_STORE_VERSION) {
+      return;
+    }
+
+    for (const [chatId, records] of Object.entries(parsed.chats ?? {})) {
+      if (!Array.isArray(records) || !chatId) {
+        continue;
+      }
+
+      const normalized = records
+        .filter((record): record is HistoryMessageRecord => Boolean(record?.messageId && record?.chatId))
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(-MAX_STORED_HISTORY_PER_CHAT);
+
+      if (normalized.length > 0) {
+        chatHistoryStore.set(chatId, normalized);
+      }
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return;
+    }
+    console.error(`generic: failed to load persisted history: ${String(error)}`);
+  }
+}
+
+function schedulePersistHistory(): void {
+  if (!historyPersistPath) {
+    return;
+  }
+
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+  }
+
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    const snapshot = serializeHistoryStore();
+    persistChain = persistChain
+      .then(async () => {
+        mkdirSync(dirname(historyPersistPath), { recursive: true });
+        await writeFile(historyPersistPath, JSON.stringify(snapshot), "utf8");
+      })
+      .catch((error) => {
+        console.error(`generic: failed to persist history: ${String(error)}`);
+      });
+  }, 100);
+}
+
+function serializeHistoryStore(): PersistedHistoryStore {
+  return {
+    version: HISTORY_STORE_VERSION,
+    chats: Object.fromEntries(chatHistoryStore.entries()),
+  };
+}
 
 function upsertHistoryRecord(record: HistoryMessageRecord): void {
   const history = chatHistoryStore.get(record.chatId) ?? [];
@@ -39,6 +131,7 @@ function upsertHistoryRecord(record: HistoryMessageRecord): void {
   }
 
   chatHistoryStore.set(record.chatId, history);
+  schedulePersistHistory();
 }
 
 export function appendInboundHistoryMessage(message: InboundMessage): void {
@@ -95,6 +188,7 @@ export function updateHistoryMessage(params: {
     ...patch,
   };
   chatHistoryStore.set(chatId, history);
+  schedulePersistHistory();
   return true;
 }
 
@@ -116,6 +210,7 @@ export function removeHistoryMessage(params: { chatId: string; messageId: string
     chatHistoryStore.set(chatId, nextHistory);
   }
 
+  schedulePersistHistory();
   return true;
 }
 
