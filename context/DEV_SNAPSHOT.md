@@ -75,7 +75,7 @@
     - 图片点击大图预览
     - 音频消息卡片展示与 fallback 下载入口
     - 连接竞争保护，避免旧 socket 干扰当前连接
-- `E2E_TEST_CASES.md`
+- `docs/E2E_TEST_CASES.md`
   - 已整理为完整测试矩阵，不再只是零散已测列表
 
 本轮已经稳定完成并验证的功能结论：
@@ -238,13 +238,13 @@ function normalizeInboundMimeType(params: {
   - 用上半红 / 下半蓝测试图验证
   - 修正远端模型能力声明后，回复正确为“上半红色，下半蓝色”
 
-完整矩阵见 [E2E_TEST_CASES.md](/Users/leway/Projects/clawdbot-generic-channel/E2E_TEST_CASES.md)。
+完整矩阵见 [E2E_TEST_CASES.md](/Users/leway/Projects/clawdbot-generic-channel/docs/E2E_TEST_CASES.md)。
 
 # 4. ⏳ 待处理任务 (Pending TODOs)
 
 优先级 1：
 
-- 继续补齐 `E2E_TEST_CASES.md` 中仍为 `未执行` 的项目
+- 继续补齐 `docs/E2E_TEST_CASES.md` 中仍为 `未执行` 的项目
 - 重点包括：
   - 异常断开后的自动重连完整验证
   - 心跳保活 30s+

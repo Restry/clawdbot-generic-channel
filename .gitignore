@@ -5,3 +5,5 @@ dist/
 .DS_Store
 
 .playwright-cli
+
+output/e2e

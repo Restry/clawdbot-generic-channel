@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -34,7 +34,6 @@ npx tsc --noEmit
 - `client.ts` - WebSocket server and client manager
 - `monitor.ts` - WebSocket/Webhook event listener, dispatches incoming messages
 - `bot.ts` - Message event handler, parses content, dispatches to agent
-- `media.ts` - Media download, processing, and payload building
 
 **Outbound:**
 - `send.ts` - Text message sending
@@ -48,23 +47,8 @@ npx tsc --noEmit
 
 1. `monitor.ts` starts WebSocket server, registers event handlers
 2. On `message.receive`, `bot.ts` parses the event
-3. `bot.ts` detects slash commands (messages starting with `/`)
-4. If message contains media URL, `media.ts` downloads and saves it locally
-5. Message (with media file paths and command status) is dispatched to OpenClaw agent via `reply-dispatcher.ts`
-6. Agent responses flow through `outbound.ts` → `send.ts`
-
-### Slash Command Support
-
-The Generic Channel supports OpenClaw slash commands. Messages starting with `/` are automatically detected and flagged as commands:
-
-- **Detection**: `bot.ts` checks if message content starts with `/`
-- **CommandBody**: Set to the trimmed message content
-- **CommandAuthorized**: Set to `true` for slash commands, `false` otherwise
-
-Examples:
-- `/help` - Will be processed as a slash command
-- `/status` - Will be processed as a slash command
-- `hello world` - Will be processed as a regular message
+3. Message is dispatched to OpenClaw agent via `reply-dispatcher.ts`
+4. Agent responses flow through `outbound.ts` → `send.ts`
 
 ### Key Configuration Options
 
@@ -76,4 +60,3 @@ Examples:
 | `dmPolicy` | `pairing` / `open` / `allowlist` |
 | `historyLimit` | Number of history messages for group chats |
 | `textChunkLimit` | Maximum characters per message chunk |
-| `mediaMaxMb` | Maximum media file size in MB (default: 30) |

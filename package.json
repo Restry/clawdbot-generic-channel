@@ -13,7 +13,7 @@
     "src",
     "examples",
     "openclaw.plugin.json",
-    "GENERIC_CHANNEL.md"
+    "docs"
   ],
   "repository": {
     "type": "git",

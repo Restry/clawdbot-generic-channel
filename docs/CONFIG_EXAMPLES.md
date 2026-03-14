@@ -79,7 +79,7 @@ There are two ways to connect:
 
 4. Click **Connect** and start chatting!
 
-For real H5 / App / WeChat Mini Program access, read `examples/INTEGRATION_GUIDE.md` next.
+For real H5 / App / WeChat Mini Program access, read `./INTEGRATION_GUIDE.md` next.
 
 #### Option B: Integrate into Your Own H5 Page
 
@@ -344,6 +344,7 @@ docker run -p 8080:8080 -v /path/to/config.yaml:/root/.openclaw/config.yaml open
 
 ## See Also
 
-- [Generic Channel Documentation](../GENERIC_CHANNEL.md) - Full API reference
+- [Documentation Index](./README.md) - Current docs
 - [README](../README.md) - Overview and setup
-- [H5 Client Example](./h5-client.html) - Working demo client
+- [Integration Guide](./INTEGRATION_GUIDE.md) - Real H5 / App / Mini Program access
+- [H5 Client Example](../examples/h5-client.html) - Working demo client

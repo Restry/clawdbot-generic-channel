@@ -79,7 +79,7 @@ openclaw start
 
 4. 点击 **Connect** 开始聊天！
 
-如果你要把自己的 H5 / 聊天 App / 微信小程序直接接进来，下一步直接看 `examples/INTEGRATION_GUIDE.md`。
+如果你要把自己的 H5 / 聊天 App / 微信小程序直接接进来，下一步直接看 `./INTEGRATION_GUIDE.md`。
 
 #### 方式 B：集成到你自己的 H5 页面
 
@@ -368,6 +368,7 @@ docker run -p 8080:8080 -v /path/to/config.yaml:/root/.openclaw/config.yaml open
 
 ## 相关文档
 
-- [通用频道文档](../GENERIC_CHANNEL.md) - 完整 API 参考
+- [文档索引](./README.md) - 当前保留文档
 - [README](../README.md) - 概述及配置说明
-- [H5 客户端示例](./h5-client.html) - 可运行的演示客户端
+- [接入指南](./INTEGRATION_GUIDE.md) - H5 / App / 小程序真实接入
+- [H5 客户端示例](../examples/h5-client.html) - 可运行的演示客户端

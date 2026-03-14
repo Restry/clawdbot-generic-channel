@@ -90,7 +90,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 - **Group Administration**: Full group management with roles, permissions, and settings
 - **Message Pinning & Starring**: Pin important messages (max 3) and bookmark favorites
 
-📖 **See [WHATSAPP_FEATURES.md](WHATSAPP_FEATURES.md) for complete documentation of advanced features.**
+📖 **See [docs/README.md](docs/README.md) for the current documentation set.**
 
 ### Quick Start
 
@@ -105,7 +105,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, and name, then click "Connect"
 
-4. For direct H5 / App / WeChat Mini Program integration, see `examples/INTEGRATION_GUIDE.md`
+4. For direct H5 / App / WeChat Mini Program integration, see `docs/INTEGRATION_GUIDE.md`
 
 ### Message Protocol
 
@@ -356,7 +356,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 - **群组管理**：完整的群组管理，支持角色、权限和设置
 - **消息置顶与收藏**：置顶重要消息（最多 3 条）和收藏喜欢的消息
 
-📖 **查看 [功能增强总结.md](功能增强总结.md) 了解完整的高级功能文档。**
+📖 **当前文档入口见 [docs/README.md](docs/README.md)。**
 
 ### 快速开始
 
@@ -371,7 +371,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID 和名称，然后点击"连接"
 
-4. H5 / 聊天 App / 微信小程序的真实接入方式见 `examples/INTEGRATION_GUIDE.md`
+4. H5 / 聊天 App / 微信小程序的真实接入方式见 `docs/INTEGRATION_GUIDE.md`
 
 ### 接入说明
 

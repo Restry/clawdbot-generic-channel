@@ -385,7 +385,7 @@ type OutboundMessage = {
 
 真实参考实现直接看:
 
-- `examples/h5-client.html`
+- `../examples/h5-client.html`
 
 ## 9. 微信上怎么接
 
@@ -515,10 +515,11 @@ channels:
 
 真实接入参考:
 
-- `examples/h5-client.html`
+- `../examples/h5-client.html`
 
 相关文档:
 
-- `README.md`
-- `examples/config-examples.md`
-- `examples/config-examples-zh.md`
+- `../README.md`
+- `./CONFIG_EXAMPLES.md`
+- `./CONFIG_EXAMPLES_ZH.md`
+- `./README.md`
