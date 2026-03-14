@@ -1,5 +1,6 @@
 import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk";
 import { getGenericRuntime } from "./runtime.js";
+import { inferMediaTypeFromMime, inferMimeTypeFromSource } from "./media.js";
 import { sendMessageGeneric, sendMediaGeneric } from "./send.js";
 
 export const genericOutbound: ChannelOutboundAdapter = {
@@ -11,16 +12,10 @@ export const genericOutbound: ChannelOutboundAdapter = {
     const result = await sendMessageGeneric({ cfg, to, text });
     return { channel: "generic-channel", ...result };
   },
-  sendMedia: async ({ cfg, to, text, mediaUrl, mediaType }) => {
-    // Determine content type from mediaType - preserve voice vs audio distinction
-    let contentType: "image" | "voice" | "audio" | undefined;
-    if (mediaType === "image") {
-      contentType = "image";
-    } else if (mediaType === "voice") {
-      contentType = "voice";
-    } else if (mediaType === "audio") {
-      contentType = "audio";
-    }
+  sendMedia: async ({ cfg, to, text, mediaUrl }) => {
+    const mimeType = mediaUrl ? inferMimeTypeFromSource(mediaUrl) : undefined;
+    const inferredType = mimeType ? inferMediaTypeFromMime(mimeType) : undefined;
+    const contentType = inferredType === "image" || inferredType === "audio" ? inferredType : undefined;
 
     if (contentType && mediaUrl) {
       const result = await sendMediaGeneric({
@@ -28,6 +23,7 @@ export const genericOutbound: ChannelOutboundAdapter = {
         to,
         mediaUrl,
         mediaType: contentType,
+        mimeType,
         caption: text,
       });
       return { channel: "generic-channel", ...result };

@@ -1,7 +1,9 @@
 import type { OpenClawConfig } from "openclaw/plugin-sdk";
+import { access, readFile } from "node:fs/promises";
 import type { GenericChannelConfig, GenericSendResult, OutboundMessage, WSEventType } from "./types.js";
 import { getGenericWSManager } from "./client.js";
 import { appendOutboundHistoryMessage } from "./history.js";
+import { inferMimeTypeFromSource } from "./media.js";
 import { updateMessageStatus } from "./message-status.js";
 
 export type SendGenericMessageParams = {
@@ -13,6 +15,39 @@ export type SendGenericMessageParams = {
   mediaUrl?: string;
   mimeType?: string;
 };
+
+async function resolveOutboundMediaUrl(params: {
+  mediaUrl?: string;
+  mimeType?: string;
+}): Promise<{ mediaUrl?: string; mimeType?: string }> {
+  const { mediaUrl, mimeType } = params;
+
+  if (!mediaUrl) {
+    return { mediaUrl, mimeType };
+  }
+
+  if (/^(data:|https?:\/\/)/i.test(mediaUrl)) {
+    return {
+      mediaUrl,
+      mimeType: mimeType ?? inferMimeTypeFromSource(mediaUrl),
+    };
+  }
+
+  try {
+    await access(mediaUrl);
+    const buffer = await readFile(mediaUrl);
+    const resolvedMimeType = mimeType ?? inferMimeTypeFromSource(mediaUrl) ?? "application/octet-stream";
+    return {
+      mediaUrl: `data:${resolvedMimeType};base64,${buffer.toString("base64")}`,
+      mimeType: resolvedMimeType,
+    };
+  } catch {
+    return {
+      mediaUrl,
+      mimeType: mimeType ?? inferMimeTypeFromSource(mediaUrl),
+    };
+  }
+}
 
 function normalizeTarget(to: string): { chatId: string; type: "user" | "chat" } {
   // Parse target format: "user:xxx" or "chat:xxx" or just "xxx"
@@ -36,13 +71,18 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
   const target = normalizeTarget(to);
   const messageId = `msg-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
+  const resolvedMedia = await resolveOutboundMediaUrl({
+    mediaUrl,
+    mimeType,
+  });
+
   const outboundMessage: OutboundMessage = {
     messageId,
     chatId: target.chatId,
     content: text,
     contentType,
-    mediaUrl,
-    mimeType,
+    mediaUrl: resolvedMedia.mediaUrl,
+    mimeType: resolvedMedia.mimeType,
     replyTo: replyToMessageId,
     timestamp: Date.now(),
   };

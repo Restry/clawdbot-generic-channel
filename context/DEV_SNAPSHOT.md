@@ -86,9 +86,23 @@
 - `presence` 30s 自动离线已修复
 - `textChunkLimit` 已生效
 - 图片按钮可正常拉起文件选择器
+- 音频按钮可正常拉起文件选择器
 - 图片发送后可展示，图片点击可弹出大图
+- 图片内容已正确进入 Agent 上下文
+- 语音/音频链路真实 E2E 已收口：
+  - 浏览器麦克风录音
+  - 语音发送与接收播放
+  - 本地音频文件选择、发送与接收播放
+  - 语音/音频内容进入 Agent 上下文
+- 出站媒体链路已修复：
+  - 不再依赖上游显式传入 `mediaType`
+  - 本地文件路径会在下发前转换为 Data URL，H5 可直接预览/播放
 - H5 页面错误地址切回正确地址后，旧重连不会再干扰当前连接
 - 远端插件已重装成功，`18080` 正常监听，协议级 `connection.open` / `history.sync` 已验证
+- 图片识别问题最终确认不是 `generic-channel` 插件收图错误：
+  - 插件已正确收图、落盘、注入 `MediaPath/MediaUrl`
+  - 真正根因是远端 OpenClaw 模型目录曾将 `azure-foundry/gpt-5.2` 声明为仅支持 `text`
+  - 修正远端模型能力声明后，真实图片问答已正确返回颜色结果
 
 **关键代码片段**
 
@@ -206,27 +220,26 @@ function normalizeInboundMimeType(params: {
 - `history.sync`
 - H5 页面展示历史消息
 - 图片按钮拉起文件选择器
+- 音频按钮拉起文件选择器
 - 图片选择后预览
 - 图片发送与聊天区展示
 - 点击图片打开大图弹窗
+- 图片内容进入 Agent 上下文
+- 浏览器录音与预览
+- 语音消息发送 / 接收播放
+- 音频消息发送 / 接收播放
+- 语音/音频内容进入 Agent 上下文
 - 手动断开与再次连接
 - 错误地址切回正确地址后旧重连不干扰当前连接
+- 真实图片问答回归：
+  - 用上半红 / 下半蓝测试图验证
+  - 修正远端模型能力声明后，回复正确为“上半红色，下半蓝色”
 
 完整矩阵见 [E2E_TEST_CASES.md](/Users/leway/Projects/clawdbot-generic-channel/E2E_TEST_CASES.md)。
 
 # 4. ⏳ 待处理任务 (Pending TODOs)
 
 优先级 1：
-
-- 继续做音频/语音链路的完整真实 E2E
-- 必测项：
-  - 浏览器录音
-  - 语音发送
-  - 语音接收展示
-  - 音频发送
-  - 音频进入 Agent 上下文
-
-优先级 2：
 
 - 继续补齐 `E2E_TEST_CASES.md` 中仍为 `未执行` 的项目
 - 重点包括：
@@ -236,7 +249,7 @@ function normalizeInboundMimeType(params: {
   - Slash Command
   - `historyLimit` 群聊上下文注入
 
-优先级 3：
+优先级 2：
 
 - 清理与统一前端文档和页面说明，确认只保留一套 H5 客户端入口
 - 如果后续遇到 Generic Channel 某些能力实现不清楚，可参考 OpenClaw 官方 channel 实现：
@@ -244,8 +257,7 @@ function normalizeInboundMimeType(params: {
 
 未解决的潜在风险 / Bug：
 
-- 音频消息“展示层”本轮只确认了接收播放和 fallback 结构，录音与发送链路还未完整收口
 - `thinking.update` 目前仍未实现，不应误标为通过
 - 仍有部分协议能力只在服务端路径存在，H5 页面 UI 侧未实现，不要把 UI 未实现误判为服务端 bug
 - 当前历史消息存储是内存级 `Map`，网关进程重启后历史会丢失；如果要做真正持久化，需要后续单独设计
-
+- 图片理解最终是否正确，仍依赖远端 OpenClaw 当前路由到的 provider/model 是否具备真实视觉能力；这不属于 `generic-channel` 插件收发链路本身

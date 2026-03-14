@@ -205,3 +205,35 @@ export function inferMediaTypeFromMime(mimeType: string): "image" | "voice" | "a
   }
   return "file";
 }
+
+export function inferMimeTypeFromSource(source: string): string | undefined {
+  if (!source) {
+    return undefined;
+  }
+
+  const dataUrlMatch = source.match(/^data:([^;,]+)[;,]/i);
+  if (dataUrlMatch) {
+    return dataUrlMatch[1]?.toLowerCase();
+  }
+
+  const normalized = source.split("?")[0]?.split("#")[0]?.toLowerCase() ?? "";
+
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".bmp")) return "image/bmp";
+  if (normalized.endsWith(".svg")) return "image/svg+xml";
+
+  if (normalized.endsWith(".mp3")) return "audio/mpeg";
+  if (normalized.endsWith(".wav")) return "audio/wav";
+  if (normalized.endsWith(".m4a")) return "audio/mp4";
+  if (normalized.endsWith(".aac")) return "audio/aac";
+  if (normalized.endsWith(".ogg") || normalized.endsWith(".oga")) return "audio/ogg";
+  if (normalized.endsWith(".opus")) return "audio/opus";
+  if (normalized.endsWith(".flac")) return "audio/flac";
+  if (normalized.endsWith(".weba")) return "audio/webm";
+  if (normalized.endsWith(".webm")) return "audio/webm";
+
+  return undefined;
+}

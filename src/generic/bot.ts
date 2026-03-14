@@ -92,6 +92,21 @@ export function parseGenericMessage(message: InboundMessage): GenericMessageCont
   };
 }
 
+function buildGenericMediaPlaceholder(messageType: InboundMessage["messageType"]): string {
+  switch (messageType) {
+    case "image":
+      return "<media:image>";
+    case "voice":
+      return "<media:voice>";
+    case "audio":
+      return "<media:audio>";
+    case "file":
+      return "<media:document>";
+    default:
+      return "";
+  }
+}
+
 export async function handleGenericMessage(params: {
   cfg: OpenClawConfig;
   message: InboundMessage;
@@ -203,24 +218,24 @@ export async function handleGenericMessage(params: {
     });
     const mediaPayload = buildMediaPayload(mediaList);
 
+    const hasMediaAttachment =
+      Boolean(ctx.mediaUrl) &&
+      (ctx.contentType === "image" ||
+        ctx.contentType === "voice" ||
+        ctx.contentType === "audio" ||
+        ctx.contentType === "file");
+    const mediaPlaceholder = hasMediaAttachment
+      ? mediaList.map((media) => media.placeholder).filter(Boolean).join("\n") ||
+        buildGenericMediaPlaceholder(ctx.contentType)
+      : "";
+    const normalizedRawBody = [ctx.content.trim(), mediaPlaceholder].filter(Boolean).join("\n").trim();
+
     // Build message body with sender name
     const speaker = ctx.senderName ?? ctx.senderId;
-    let messageBody = `${speaker}: ${ctx.content}`;
+    let messageBody = `${speaker}: ${normalizedRawBody || ctx.content}`;
 
-    // Handle media messages - include media info in the message body for agent context
-    if (ctx.mediaUrl && (ctx.contentType === "image" || ctx.contentType === "voice" || ctx.contentType === "audio")) {
-      let mediaLabel = "🔊 Audio";
-      if (ctx.contentType === "image") {
-        mediaLabel = "🖼️ Image";
-      } else if (ctx.contentType === "voice") {
-        mediaLabel = "🎤 Voice";
-      }
-      messageBody = `${speaker}: [${mediaLabel}] ${ctx.content || "(no caption)"}`;
-      // If media was successfully downloaded, it's available via mediaPayload
-      // Otherwise include URL as fallback
-      if (mediaList.length === 0 && ctx.mediaUrl) {
-        messageBody += `\nMedia URL: ${ctx.mediaUrl}`;
-      }
+    if (hasMediaAttachment && mediaList.length === 0 && ctx.mediaUrl) {
+      messageBody += `\nMedia URL: ${ctx.mediaUrl}`;
     }
 
     // Handle quoted/reply messages
@@ -261,8 +276,8 @@ export async function handleGenericMessage(params: {
 
     const ctxPayload = core.channel.reply.finalizeInboundContext({
       Body: combinedBody,
-      RawBody: ctx.content,
-      CommandBody: commandBody,
+      RawBody: normalizedRawBody || ctx.content,
+      CommandBody: normalizedRawBody || commandBody,
       From: genericFrom,
       To: genericTo,
       SessionKey: route.sessionKey,

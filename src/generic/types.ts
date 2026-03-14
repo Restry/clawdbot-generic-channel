@@ -49,7 +49,7 @@ export type GenericMessageContext = {
   senderName?: string;
   chatType: "direct" | "group";
   content: string;
-  contentType: string;
+  contentType: InboundMessage["messageType"];
   // Media URL for image/voice/audio messages
   mediaUrl?: string;
   // MIME type for media content
