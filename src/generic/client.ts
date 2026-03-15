@@ -125,6 +125,10 @@ function isAuthFailure(
   return result.ok === false;
 }
 
+function toRelayCloseCode(code: number): number {
+  return code >= 1000 && code <= 4999 ? code : 1008;
+}
+
 export interface GenericClientManager {
   start(httpServer?: HTTPServer): void;
   stop(): void;
@@ -1141,7 +1145,7 @@ class GenericRelayManager extends GenericClientManagerBase {
     const frame: RelayServerRejectFrame = {
       type: "relay.server.reject",
       connectionId,
-      code,
+      code: toRelayCloseCode(code),
       message,
       timestamp: Date.now(),
     };

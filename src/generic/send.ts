@@ -89,8 +89,8 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
     timestamp: Date.now(),
   };
 
-  // Send via WebSocket if in websocket mode
-  if (genericCfg.connectionMode === "websocket") {
+  // Send via live socket transports in websocket/relay mode.
+  if (genericCfg.connectionMode === "websocket" || genericCfg.connectionMode === "relay") {
     const wsManager = getGenericWSManager();
     if (wsManager) {
       const sent = wsManager.sendToClient(target.chatId, {
@@ -133,7 +133,7 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
     }
   }
 
-  if (genericCfg.connectionMode !== "websocket") {
+  if (genericCfg.connectionMode === "webhook") {
     appendOutboundHistoryMessage(outboundMessage, {
       chatType,
       agentId,
@@ -165,7 +165,7 @@ export async function sendThinkingIndicator(params: {
 
   const target = normalizeTarget(to);
 
-  if (genericCfg.connectionMode === "websocket") {
+  if (genericCfg.connectionMode === "websocket" || genericCfg.connectionMode === "relay") {
     const wsManager = getGenericWSManager();
     if (wsManager) {
       wsManager.sendToClient(target.chatId, {
