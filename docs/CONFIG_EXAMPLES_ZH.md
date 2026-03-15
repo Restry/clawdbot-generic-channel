@@ -43,6 +43,28 @@ channels:
       model: "tiny"
 ```
 
+### 第三步补充：如果要暴露到公网，建议加上简单 token 认证
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 8080
+    wsPath: "/ws"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - id: "alex"
+          senderId: "alex"
+          chatId: "alex"
+          token: "gc_alex_xxxxxxxxx"
+          allowAgents:
+            - "main"
+            - "writer"
+```
+
 多用户接入时，建议同时加上全局会话隔离配置：
 
 ```yaml
@@ -248,6 +270,7 @@ session:
 | `connectionMode` | enum | `"websocket"` | 连接模式：`"websocket"` 或 `"webhook"` |
 | `wsPort` | number | `8080` | WebSocket 服务器端口 |
 | `wsPath` | string | `"/ws"` | WebSocket 端点路径 |
+| `auth` | object | - | 可选的一用户一 Token WebSocket 鉴权配置 |
 | `webhookPath` | string | `"/generic/events"` | Webhook 端点路径 |
 | `webhookPort` | number | `3000` | Webhook 服务器端口 |
 | `webhookSecret` | string | - | 可选的 Webhook 签名密钥 |

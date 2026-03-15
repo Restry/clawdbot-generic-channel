@@ -872,6 +872,11 @@
                     <small>唯一标识您的聊天会话</small>
                 </div>
                 <div class="form-group">
+                    <label>连接 Token</label>
+                    <input type="password" id="authToken" placeholder="gc_user_xxxxxxxxx">
+                    <small>当服务端启用 user-token 认证时必填。出于安全考虑，此字段不会保存到本地历史。</small>
+                </div>
+                <div class="form-group">
                     <label>用户名</label>
                     <input type="text" id="userName" placeholder="Demo User">
                     <small>显示给 AI 的名称</small>
@@ -901,7 +906,7 @@
                     <ol>
                         <li>点击右上角 <strong>⚙️ 设置</strong> 按钮</li>
                         <li>输入 WebSocket 服务器地址（例如：<code>ws://localhost:8080/ws</code>）</li>
-                        <li>填写您的聊天 ID 和用户名</li>
+                        <li>填写您的聊天 ID、用户名；如果服务端启用了认证，再填写连接 Token</li>
                         <li>点击 <strong>连接</strong> 按钮</li>
                         <li>连接成功后即可开始聊天</li>
                     </ol>
@@ -974,6 +979,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
 
         let ws = null;
         let chatId = '';
+        let authToken = '';
         let userName = '';
         let serverUrl = '';
         let messageCounter = 0;
@@ -1027,11 +1033,13 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             if (config) {
                 document.getElementById('serverUrl').value = config.serverUrl || 'ws://localhost:8080/ws';
                 document.getElementById('chatId').value = config.chatId || '';
+                document.getElementById('authToken').value = '';
                 document.getElementById('userName').value = config.userName || '';
                 selectedAgentId = typeof config.selectedAgentId === 'string' ? config.selectedAgentId : '';
             } else {
                 document.getElementById('serverUrl').value = 'ws://localhost:8080/ws';
                 document.getElementById('chatId').value = 'user-' + Date.now();
+                document.getElementById('authToken').value = '';
                 document.getElementById('userName').value = 'Demo User';
                 selectedAgentId = '';
             }
@@ -1122,6 +1130,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 const item = history[index];
                 document.getElementById('serverUrl').value = item.serverUrl;
                 document.getElementById('chatId').value = item.chatId;
+                document.getElementById('authToken').value = '';
                 document.getElementById('userName').value = item.userName;
                 selectedAgentId = typeof item.selectedAgentId === 'string' ? item.selectedAgentId : '';
                 renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
@@ -1137,7 +1146,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             });
         }
 
-        function buildWebSocketUrl(baseUrl, nextChatId, nextAgentId) {
+        function buildWebSocketUrl(baseUrl, nextChatId, nextAgentId, nextAuthToken) {
             const parsed = new URL(baseUrl);
             parsed.searchParams.set('chatId', nextChatId);
 
@@ -1145,6 +1154,12 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 parsed.searchParams.set('agentId', nextAgentId);
             } else {
                 parsed.searchParams.delete('agentId');
+            }
+
+            if (nextAuthToken) {
+                parsed.searchParams.set('token', nextAuthToken);
+            } else {
+                parsed.searchParams.delete('token');
             }
 
             return parsed.toString();
@@ -1251,6 +1266,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
         function connect() {
             serverUrl = document.getElementById('serverUrl').value.trim();
             chatId = document.getElementById('chatId').value.trim();
+            authToken = document.getElementById('authToken').value.trim();
             userName = document.getElementById('userName').value.trim();
 
             if (!serverUrl || !chatId || !userName) {
@@ -1264,7 +1280,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             addToHistory(config);
 
             // Connect to WebSocket
-            const url = buildWebSocketUrl(serverUrl, chatId, selectedAgentId);
+            const url = buildWebSocketUrl(serverUrl, chatId, selectedAgentId, authToken);
 
             try {
                 clearReconnectTimer();

@@ -25,6 +25,7 @@ import { handleGroupAction } from "./groups.js";
 import { handlePinMessage, handleUnpinMessage } from "./pins-stars.js";
 import { getRecentHistoryMessages } from "./history.js";
 import { listGenericAgents, resolveGenericAgentId } from "./agents.js";
+import { isGenericAgentAllowed } from "./auth.js";
 
 export type MonitorGenericOpts = {
   config?: OpenClawConfig;
@@ -131,6 +132,19 @@ async function monitorWebSocket(params: {
       return;
     }
 
+    if (!isGenericAgentAllowed({
+      allowedAgents: wsManager.getAllowedAgentIds(ws),
+      requestedAgentId,
+    })) {
+      wsManager.setSelectedAgentId(ws, undefined);
+      sendAgentSelected({
+        ws,
+        ok: false,
+        error: `agentId not allowed: ${requestedAgentId}`,
+      });
+      return;
+    }
+
     const resolvedAgentId = resolveGenericAgentId(cfg, requestedAgentId);
     if (resolvedAgentId) {
       wsManager.setSelectedAgentId(ws, resolvedAgentId);
@@ -163,6 +177,20 @@ async function monitorWebSocket(params: {
         ws,
         requestId: data.requestId,
         ok: true,
+      });
+      return;
+    }
+
+    if (!isGenericAgentAllowed({
+      allowedAgents: wsManager.getAllowedAgentIds(ws),
+      requestedAgentId,
+    })) {
+      sendAgentSelected({
+        ws,
+        requestId: data.requestId,
+        ok: false,
+        selectedAgentId: wsManager.getSelectedAgentId(ws),
+        error: `agentId not allowed: ${requestedAgentId}`,
       });
       return;
     }

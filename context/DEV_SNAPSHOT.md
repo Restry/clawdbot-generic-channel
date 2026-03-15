@@ -126,6 +126,18 @@
     - model: `azure-foundry/Kimi-K2.5`
 - 当前没有额外 `bindings`
   - 不显式选 agent 时，默认落到 `main`
+- 2026-03-15 本轮二次联调已补确认：
+  - `channel.status.get` / `channel.status`
+  - `agent.list.get` / `agent.list`
+  - `agent.select` / `agent.selected`
+  - 连接 URL `agentId` 预选
+  - 单条消息 `data.agentId` 显式覆盖
+- 本轮远端日志已确认：
+  - 显式 `data.agentId=writer` 的消息落到 `session=agent:writer:...`
+  - 同一连接上未显式覆盖、但连接级 `agentId=code` 的消息落到 `session=agent:code:...`
+- 本轮额外发现：
+  - 远端 `code` agent 当前模型 `azure-foundry/gpt-5.3-codex` 能被选中并命中路由
+  - 但实际回复返回 provider 400，属于远端模型/调用兼容性问题，不是 generic-channel 的 agent 路由失效
 
 # 4. 仍需注意的边界
 
@@ -134,6 +146,7 @@
 - 很多增强能力目前是“服务端 / 协议层已实现”，不是“H5 页面 UI 全部实现”
   - 例如 reaction、forward、presence、pin、search、group 管理
 - 图片理解是否真的正确，仍依赖远端当前路由到的 provider/model 具备视觉输入能力
+- 远端 `code` agent 当前虽然能被正确选中，但回复链路受模型/provider 兼容性影响，不能把这个远端故障误判为 generic-channel 多 agent 协议失败
 
 # 5. 后续同步规则
 

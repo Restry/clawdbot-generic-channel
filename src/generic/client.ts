@@ -8,6 +8,11 @@ import type {
   AgentListRequest,
   AgentSelectRequest,
 } from "./types.js";
+import {
+  authenticateGenericConnection,
+  isGenericAgentAllowed,
+  type GenericAuthUser,
+} from "./auth.js";
 import type { ForwardedMessage } from "./forwarding.js";
 import type { GroupAction } from "./groups.js";
 import type { UserPresence } from "./presence.js";
@@ -85,6 +90,7 @@ export type AgentSelectRequestData = AgentSelectRequest;
 type ClientConnectionState = {
   chatId: string;
   selectedAgentId?: string;
+  authUser?: GenericAuthUser;
 };
 
 // Client connection manager
@@ -104,18 +110,19 @@ export class GenericWSManager {
   start(httpServer?: HTTPServer): void {
     const port = this.config.wsPort ?? 8080;
     const path = this.config.wsPath ?? "/ws";
+    const verifyClient = this.verifyClient.bind(this);
 
     if (httpServer) {
       // Attach to existing HTTP server
       this.httpServer = httpServer;
-      this.wss = new WebSocketServer({ server: httpServer, path });
+      this.wss = new WebSocketServer({ server: httpServer, path, verifyClient });
     } else {
       // Create standalone WebSocket server
-      this.wss = new WebSocketServer({ port, path });
+      this.wss = new WebSocketServer({ port, path, verifyClient });
     }
 
     this.wss.on("connection", (ws: WebSocket, req) => {
-      const { chatId, agentId } = this.extractConnectionParams(req.url || "");
+      const { chatId, agentId, authUser } = this.extractConnectionParams(req.url || "");
       console.log(`[generic] WebSocket client connected: ${chatId}`);
 
       if (chatId) {
@@ -124,6 +131,7 @@ export class GenericWSManager {
       this.clientStates.set(ws, {
         chatId,
         selectedAgentId: agentId,
+        authUser,
       });
 
       ws.on("message", (data: RawData) => {
@@ -189,29 +197,89 @@ export class GenericWSManager {
   private extractConnectionParams(url: string): {
     chatId: string;
     agentId?: string;
+    authUser?: GenericAuthUser;
   } {
-    try {
-      const parsed = new URL(url, "ws://generic-channel.local");
-      const chatId = parsed.searchParams.get("chatId")?.trim() || `client-${Date.now()}`;
-      const agentId = parsed.searchParams.get("agentId")?.trim() || undefined;
-      return { chatId, agentId };
-    } catch {
-      const chatMatch = url.match(/[?&]chatId=([^&]+)/);
-      const agentMatch = url.match(/[?&]agentId=([^&]+)/);
-      return {
-        chatId: chatMatch ? decodeURIComponent(chatMatch[1]) : `client-${Date.now()}`,
-        agentId: agentMatch ? decodeURIComponent(agentMatch[1]).trim() || undefined : undefined,
-      };
+    const authResult = authenticateGenericConnection({
+      config: this.config,
+      url,
+    });
+    const authUser = authResult.ok ? authResult.authUser : undefined;
+    const chatId = authUser?.chatId ?? authResult.query.chatId ?? `client-${Date.now()}`;
+
+    return {
+      chatId,
+      agentId: authResult.query.agentId,
+      authUser,
+    };
+  }
+
+  private verifyClient(
+    info: { origin: string; secure: boolean; req: InstanceType<typeof import("http").IncomingMessage> },
+    callback: (res: boolean, code?: number, message?: string) => void,
+  ): void {
+    const authResult = authenticateGenericConnection({
+      config: this.config,
+      url: info.req.url || "",
+    });
+
+    if ("message" in authResult) {
+      console.warn(`[generic] WebSocket auth rejected: ${authResult.message}`);
+      callback(false, authResult.code, authResult.message);
+      return;
     }
+
+    callback(true);
+  }
+
+  private logRejectedEvent(chatId: string, eventType: WSEvent["type"], reason: string): void {
+    console.warn(`[generic] Rejected ${eventType} from ${chatId}: ${reason}`);
+  }
+
+  private rewriteBoundFields<T extends Record<string, unknown>>(data: T, authUser: GenericAuthUser): T {
+    const mutable = data as Record<string, unknown>;
+
+    if ("chatId" in data) {
+      mutable.chatId = authUser.chatId;
+    }
+    if ("senderId" in data) {
+      mutable.senderId = authUser.senderId;
+    }
+    if ("userId" in data) {
+      mutable.userId = authUser.senderId;
+    }
+    if ("readBy" in data) {
+      mutable.readBy = authUser.senderId;
+    }
+    if ("pinnedBy" in data) {
+      mutable.pinnedBy = authUser.senderId;
+    }
+    if ("actorId" in data) {
+      mutable.actorId = authUser.senderId;
+    }
+    return data;
   }
 
   private handleMessage(ws: WebSocket, chatId: string, data: RawData): void {
     try {
       const message = JSON.parse(data.toString()) as WSEvent;
+      const authUser = this.clientStates.get(ws)?.authUser;
 
       switch (message.type) {
         case "message.receive": {
           const inbound = message.data as InboundMessage;
+          if (authUser) {
+            inbound.chatId = authUser.chatId;
+            inbound.senderId = authUser.senderId;
+
+            if (!isGenericAgentAllowed({
+              allowedAgents: authUser.allowAgents,
+              requestedAgentId: inbound.agentId,
+            })) {
+              this.logRejectedEvent(chatId, message.type, `agentId not allowed: ${String(inbound.agentId)}`);
+              break;
+            }
+          }
+
           const selectedAgentId = this.getSelectedAgentId(ws);
           if (!String(inbound.agentId ?? "").trim() && selectedAgentId) {
             inbound.agentId = selectedAgentId;
@@ -240,44 +308,112 @@ export class GenericWSManager {
             data: (message.data as ChannelStatusRequestData | undefined) ?? {},
           });
           break;
-        case "typing":
-          this.onTypingIndicator?.(message.data as TypingIndicatorData);
+        case "typing": {
+          const typing = message.data as TypingIndicatorData;
+          if (authUser) {
+            this.rewriteBoundFields(typing as unknown as Record<string, unknown>, authUser);
+          }
+          this.onTypingIndicator?.(typing);
           break;
+        }
         case "status.delivered":
-        case "status.read":
-          this.onStatusUpdate?.(message.data as MessageStatusUpdate);
+        case "status.read": {
+          const statusUpdate = message.data as MessageStatusUpdate;
+          if (authUser) {
+            this.rewriteBoundFields(statusUpdate as unknown as Record<string, unknown>, authUser);
+          }
+          this.onStatusUpdate?.(statusUpdate);
           break;
-        case "message.edit":
-          this.onMessageEdit?.(message.data as MessageEditData);
+        }
+        case "message.edit": {
+          const edit = message.data as MessageEditData;
+          if (authUser) {
+            this.rewriteBoundFields(edit as unknown as Record<string, unknown>, authUser);
+          }
+          this.onMessageEdit?.(edit);
           break;
-        case "message.delete":
-          this.onMessageDelete?.(message.data as MessageDeleteData);
+        }
+        case "message.delete": {
+          const deletion = message.data as MessageDeleteData;
+          if (authUser) {
+            this.rewriteBoundFields(deletion as unknown as Record<string, unknown>, authUser);
+          }
+          this.onMessageDelete?.(deletion);
           break;
+        }
         case "reaction.add":
-        case "reaction.remove":
-          this.onReactionEvent?.(message as ReactionEvent);
+        case "reaction.remove": {
+          const reactionEvent = message as ReactionEvent;
+          if (authUser) {
+            this.rewriteBoundFields(reactionEvent.data as unknown as Record<string, unknown>, authUser);
+          }
+          this.onReactionEvent?.(reactionEvent);
           break;
-        case "message.forward":
-          this.onMessageForward?.(message.data as ForwardedMessage);
+        }
+        case "message.forward": {
+          const forward = message.data as ForwardedMessage;
+          if (authUser) {
+            if (forward.targetChatId !== authUser.chatId || forward.originalChatId !== authUser.chatId) {
+              this.logRejectedEvent(chatId, message.type, "forward target/origin must stay within bound chatId");
+              break;
+            }
+            forward.forwardedBy = authUser.senderId;
+          }
+          this.onMessageForward?.(forward);
           break;
-        case "user.status":
-          this.onUserStatusUpdate?.(message.data as UserPresence);
+        }
+        case "user.status": {
+          const presence = message.data as UserPresence;
+          if (authUser) {
+            this.rewriteBoundFields(presence as unknown as Record<string, unknown>, authUser);
+          }
+          this.onUserStatusUpdate?.(presence);
           break;
-        case "file.transfer":
-          this.onFileTransfer?.(message.data as FileTransferData);
+        }
+        case "file.transfer": {
+          const transfer = message.data as FileTransferData;
+          if (authUser) {
+            this.rewriteBoundFields(transfer as unknown as Record<string, unknown>, authUser);
+          }
+          this.onFileTransfer?.(transfer);
           break;
-        case "file.progress":
-          this.onFileProgress?.(message.data as FileProgressData);
+        }
+        case "file.progress": {
+          const progress = message.data as FileProgressData;
+          if (authUser) {
+            this.rewriteBoundFields(progress as unknown as Record<string, unknown>, authUser);
+          }
+          this.onFileProgress?.(progress);
           break;
-        case "group.action":
-          this.onGroupAction?.(message.data as GroupAction);
+        }
+        case "group.action": {
+          const groupAction = message.data as GroupAction;
+          if (authUser) {
+            if (groupAction.groupId !== authUser.chatId) {
+              this.logRejectedEvent(chatId, message.type, "groupId must match bound chatId");
+              break;
+            }
+            this.rewriteBoundFields(groupAction as unknown as Record<string, unknown>, authUser);
+          }
+          this.onGroupAction?.(groupAction);
           break;
-        case "message.pin":
-          this.onPinMessage?.(message.data as PinMessageData);
+        }
+        case "message.pin": {
+          const pin = message.data as PinMessageData;
+          if (authUser) {
+            this.rewriteBoundFields(pin as unknown as Record<string, unknown>, authUser);
+          }
+          this.onPinMessage?.(pin);
           break;
-        case "message.unpin":
-          this.onUnpinMessage?.(message.data as UnpinMessageData);
+        }
+        case "message.unpin": {
+          const unpin = message.data as UnpinMessageData;
+          if (authUser) {
+            this.rewriteBoundFields(unpin as unknown as Record<string, unknown>, authUser);
+          }
+          this.onUnpinMessage?.(unpin);
           break;
+        }
       }
     } catch (err) {
       console.error(`[generic] Failed to parse message from ${chatId}:`, err);
@@ -286,6 +422,14 @@ export class GenericWSManager {
 
   getSelectedAgentId(ws: WebSocket): string | undefined {
     return this.clientStates.get(ws)?.selectedAgentId;
+  }
+
+  getAllowedAgentIds(ws: WebSocket): string[] | undefined {
+    return this.clientStates.get(ws)?.authUser?.allowAgents;
+  }
+
+  getAuthenticatedUser(ws: WebSocket): GenericAuthUser | undefined {
+    return this.clientStates.get(ws)?.authUser;
   }
 
   setSelectedAgentId(ws: WebSocket, agentId?: string): void {

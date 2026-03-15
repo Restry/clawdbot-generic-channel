@@ -67,6 +67,29 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
         connectionMode: { type: "string", enum: ["websocket", "webhook"] },
         wsPort: { type: "integer", minimum: 1 },
         wsPath: { type: "string" },
+        auth: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            enabled: { type: "boolean" },
+            tokenParam: { type: "string" },
+            users: {
+              type: "array",
+              items: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  id: { type: "string" },
+                  senderId: { type: "string" },
+                  chatId: { type: "string" },
+                  token: { type: "string" },
+                  allowAgents: { type: "array", items: { type: "string" } },
+                  enabled: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
         webhookPath: { type: "string" },
         webhookPort: { type: "integer", minimum: 1 },
         webhookSecret: { type: "string" },

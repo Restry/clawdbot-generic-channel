@@ -134,8 +134,8 @@
 | Agent | `agent.list` 返回 `id/name/default/model` | 已通过 |
 | Agent | `agent.select` 切换当前连接 agent | 已通过 |
 | Agent | `agent.selected` 返回确认结果 | 已通过 |
-| Agent | 连接 URL `agentId` 预选 agent | 未执行 |
-| Agent | 单条消息 `data.agentId` 显式覆盖 | 未执行 |
+| Agent | 连接 URL `agentId` 预选 agent | 已通过 |
+| Agent | 单条消息 `data.agentId` 显式覆盖 | 已通过 |
 | Agent | 服务端自动路由回退到默认 agent | 已通过 |
 
 ## H5 页面与增强功能
@@ -238,6 +238,8 @@
 - `agent.list` 返回 `main / code / writer`
 - `agent.select` 切换当前连接 agent
 - `agent.selected` 返回确认结果
+- 连接 URL `agentId` 预选 agent
+- 单条消息 `data.agentId` 显式覆盖
 - 页面连接远端 WebSocket
 - 页面发送文本并收到 AI 回复
 - “思考中”提示正常结束消失
@@ -261,6 +263,9 @@
 - 上一版文档只写了“已执行案例”，不够完整；本版已改为**完整能力测试矩阵**。
 - 当前已经实际通过的是上面“已确认通过”的项目。
 - 多 agent 协议已完成真实验证：远端测试机当前已配置 `main / code / writer`，前端可通过 `agent.list.get` 拉取列表，并通过 `agent.select` 切换当前连接目标 agent。
+- 2026-03-15 本轮补测已确认：URL 查询参数 `agentId` 预选和单条消息 `data.agentId` 显式覆盖都已生效。
+- 本轮远端日志显示：`data.agentId=writer` 的消息确实落到 `session=agent:writer:...`；同一连接上未显式覆盖、仅依赖连接级 `agentId=code` 的消息落到 `session=agent:code:...`。
+- 当前远端 `code` agent 的实际回复返回 provider 400，这说明本轮发现的是远端模型/调用兼容性问题，不是 generic-channel 的路由协议失效。
 - 本轮已补完语音/音频链路的真实 E2E：浏览器麦克风录音、语音发送、音频文件发送、服务端媒体落盘与 Agent 上下文注入、以及 H5 接收侧对 `voice` / `audio` 的播放卡片渲染。
 - 历史消息现已持久化到本地文件，gateway 重启后同一 `chatId` 重新连接仍可通过 `history.sync` 回放最近消息。
 - 其余标记为 `未执行` 的能力，表示代码或页面支持，但这轮还没完成验证。

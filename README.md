@@ -31,6 +31,14 @@ channels:
     connectionMode: "websocket"  # or "webhook"
     wsPort: 8080
     wsPath: "/ws"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - senderId: "alex"
+          chatId: "alex"
+          token: "gc_alex_xxxxxxxxx"
+          allowAgents: ["main", "writer"]
     dmPolicy: "open"
     historyLimit: 10
     textChunkLimit: 4000
@@ -56,6 +64,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 | `connectionMode` | enum | `"websocket"` | Connection mode: `"websocket"` or `"webhook"` |
 | `wsPort` | number | `8080` | WebSocket server port |
 | `wsPath` | string | `"/ws"` | WebSocket endpoint path |
+| `auth` | object | - | Optional per-user WebSocket token authentication |
 | `webhookPath` | string | `"/generic/events"` | Webhook endpoint path |
 | `webhookPort` | number | `3000` | Webhook server port |
 | `webhookSecret` | string | - | Optional webhook signature secret |
@@ -105,7 +114,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 2. Open `examples/h5-client.html` in your browser to test the connection
 
-3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, and name, then click "Connect"
+3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, name, and token if enabled, then click "Connect"
 
 4. For direct H5 / App / WeChat Mini Program integration, see `docs/INTEGRATION_GUIDE.md`
 5. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html`
@@ -203,7 +212,8 @@ Behavior:
 ```javascript
 // Connect to WebSocket server
 let selectedAgentId = 'code';
-const ws = new WebSocket(`ws://localhost:8080/ws?chatId=user-123&agentId=${encodeURIComponent(selectedAgentId)}`);
+const token = 'gc_alex_xxxxxxxxx';
+const ws = new WebSocket(`ws://localhost:8080/ws?chatId=user-123&agentId=${encodeURIComponent(selectedAgentId)}&token=${encodeURIComponent(token)}`);
 
 ws.onopen = () => {
   console.log('Connected to Generic Channel');
@@ -258,6 +268,40 @@ ws.send(JSON.stringify({
   }
 }));
 ```
+
+### Simple Per-User WebSocket Token Auth
+
+For public or semi-public deployments, you should not expose the WebSocket port without authentication.
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - id: "alex"
+          senderId: "alex"
+          chatId: "alex"
+          token: "gc_alex_xxxxxxxxx"
+          allowAgents: ["main", "writer"]
+        - id: "bob"
+          senderId: "bob"
+          chatId: "bob"
+          token: "gc_bob_xxxxxxxxx"
+          allowAgents: ["main"]
+```
+
+Behavior:
+- The client must connect with `?chatId=...&token=...`
+- The token is bound to one configured `senderId` and `chatId`
+- If the connection `chatId` does not match the token binding, the handshake is rejected
+- After connection, the server treats the token-bound `senderId` / `chatId` as authoritative
+- If `allowAgents` is set, the client can only select or override to those agents
 
 ### FAQ
 
@@ -333,6 +377,14 @@ channels:
     connectionMode: "websocket"  # 或 "webhook"
     wsPort: 8080
     wsPath: "/ws"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - senderId: "alex"
+          chatId: "alex"
+          token: "gc_alex_xxxxxxxxx"
+          allowAgents: ["main", "writer"]
     dmPolicy: "open"
     historyLimit: 10
     textChunkLimit: 4000
@@ -358,6 +410,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 | `connectionMode` | enum | `"websocket"` | 连接模式：`"websocket"` 或 `"webhook"` |
 | `wsPort` | number | `8080` | WebSocket 服务器端口 |
 | `wsPath` | string | `"/ws"` | WebSocket 端点路径 |
+| `auth` | object | - | 可选的按用户 WebSocket Token 认证配置 |
 | `webhookPath` | string | `"/generic/events"` | Webhook 端点路径 |
 | `webhookPort` | number | `3000` | Webhook 服务器端口 |
 | `webhookSecret` | string | - | 可选的 Webhook 签名密钥 |
@@ -407,7 +460,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 2. 在浏览器中打开 `examples/h5-client.html` 测试连接
 
-3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID 和名称，然后点击"连接"
+3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID、名称；如果服务端启用了认证，再输入 token，然后点击"连接"
 
 4. H5 / 聊天 App / 微信小程序的真实接入方式见 `docs/INTEGRATION_GUIDE.md`
 5. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html` 的顺序阅读
@@ -416,9 +469,11 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 - 当前真实配置键是 `channels.generic-channel`
 - 当前 H5 参考实现只有 `examples/h5-client.html`
-- 客户端统一通过 `ws://host:port/ws?chatId=会话ID` 建连
+- 客户端统一通过 `ws://host:port/ws?chatId=会话ID` 建连；如果启用了简单认证，再额外带上 `token`
 - 如果服务端配置了多个 agent，客户端可通过 `agent.list.get` / `agent.select` 列出并切换 agent，也可在建连时额外带 `agentId`
 - 客户端发消息时统一发送 `type: "message.receive"`
+- `parentId` / `replyTo` 的引用回复协议已支持，但当前 H5 示例页没有现成引用回复 UI
+- `reaction.add` / `reaction.remove` 的 emoji reaction 协议已支持，但当前 H5 示例页没有 reaction UI
 - 图片、音频、语音都通过 `mediaUrl + mimeType + messageType` 传入
 - 多用户并发场景建议把 `session.dmScope` 设为 `per-account-channel-peer`
 
@@ -454,6 +509,41 @@ channels:
 - 开启后默认也会自动转写 `audio`
 - 转写文本会以 `[Voice transcript]` 或 `[Audio transcript]` 注入给 agent
 - 如果转写失败，消息不会失败，插件仍会继续把原始媒体占位符传给 agent
+
+### 简单的一用户一 Token 鉴权
+
+如果端口会暴露到公网或半公网，建议至少开启 WebSocket token 认证。
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - id: "alex"
+          senderId: "alex"
+          chatId: "alex"
+          token: "gc_alex_xxxxxxxxx"
+          allowAgents: ["main", "writer"]
+        - id: "bob"
+          senderId: "bob"
+          chatId: "bob"
+          token: "gc_bob_xxxxxxxxx"
+          allowAgents: ["main"]
+```
+
+行为说明：
+
+- 客户端连接时必须带上 `?chatId=...&token=...`
+- 每个 token 绑定一个 `senderId` 和 `chatId`
+- 如果连接 URL 里的 `chatId` 和 token 绑定值不一致，握手会被拒绝
+- 连接建立后，服务端会以 token 绑定的 `senderId/chatId` 为准，不再信任前端自报值
+- 如果配置了 `allowAgents`，客户端只能选择这些 agent
 
 ### 常见问题
 

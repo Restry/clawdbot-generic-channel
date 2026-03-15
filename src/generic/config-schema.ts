@@ -3,6 +3,23 @@ export { z };
 
 const DmPolicySchema = z.enum(["open", "pairing", "allowlist"]);
 const GenericConnectionModeSchema = z.enum(["websocket", "webhook"]);
+const GenericAuthUserSchema = z
+  .object({
+    id: z.string().optional(),
+    senderId: z.string(),
+    chatId: z.string().optional(),
+    token: z.string(),
+    allowAgents: z.array(z.string()).optional(),
+    enabled: z.boolean().optional().default(true),
+  })
+  .strict();
+const GenericAuthConfigSchema = z
+  .object({
+    enabled: z.boolean().optional().default(false),
+    tokenParam: z.string().optional().default("token"),
+    users: z.array(GenericAuthUserSchema).optional().default([]),
+  })
+  .strict();
 const GenericTranscriptionConfigSchema = z
   .object({
     enabled: z.boolean().optional().default(false),
@@ -28,6 +45,7 @@ export const GenericChannelConfigSchema = z
     // WebSocket configuration
     wsPort: z.number().int().positive().optional().default(8080),
     wsPath: z.string().optional().default("/ws"),
+    auth: GenericAuthConfigSchema.optional(),
 
     // Webhook configuration
     webhookPath: z.string().optional().default("/generic/events"),

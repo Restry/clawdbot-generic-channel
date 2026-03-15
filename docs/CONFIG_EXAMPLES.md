@@ -43,6 +43,28 @@ channels:
       model: "tiny"
 ```
 
+### Step 3 Add-on: If the port is exposed publicly, add simple token auth
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 8080
+    wsPath: "/ws"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - id: "alex"
+          senderId: "alex"
+          chatId: "alex"
+          token: "gc_alex_xxxxxxxxx"
+          allowAgents:
+            - "main"
+            - "writer"
+```
+
 Recommended global session isolation for multi-user access:
 
 ```yaml

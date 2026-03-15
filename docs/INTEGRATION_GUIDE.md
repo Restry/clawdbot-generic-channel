@@ -8,6 +8,7 @@
 2. 客户端用 WebSocket 连接 `ws://host:port/ws?chatId=会话ID`
 3. 客户端按协议发送 `message.receive` 事件
 4. 如果服务端配置了多个 agent，客户端可额外用 `agent.list.get` / `agent.select` 做显式入口选择
+5. 如果服务端启用了 user-token 认证，客户端还要在连接 URL 上额外带 `token`
 
 这份接入指南只覆盖当前真实可用且已完成 E2E 的 `websocket` 路径。
 
@@ -25,6 +26,25 @@ channels:
     dmPolicy: "open"
     historyLimit: 20
     mediaMaxMb: 30
+```
+
+如果你要把端口暴露到公网或半公网，建议从一开始就加上最简单的一用户一 token 认证：
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - senderId: "user-42"
+          chatId: "conv-10001"
+          token: "gc_user42_xxxxxxxxx"
+          allowAgents: ["main", "code"]
 ```
 
 建议同时补上：
@@ -84,6 +104,7 @@ channels:
 |------|------|----------|
 | `serverUrl` | WebSocket 地址 | 例如 `ws://host:18080/ws` |
 | `chatId` | 会话 ID | 私聊用会话 ID，群聊用群 ID |
+| `token` | 连接认证凭证 | 服务端启用 auth 时必填 |
 | `senderId` | 当前发言用户 ID | 业务系统里的用户主键 |
 | `senderName` | 当前发言用户显示名 | 昵称 / 用户名 |
 | `chatType` | 会话类型 | `direct` 或 `group` |
@@ -105,6 +126,26 @@ channels:
 | 多个不同业务线共用一个 OpenClaw | 给 `chatId` 加业务前缀 | 给 `senderId` 加业务前缀 | 按实际场景 |
 
 一句话: `chatId` 是“这条消息属于哪个会话”，`senderId` 是“是谁发的”。
+
+## 3.1 当前要特别区分：协议支持 != 示例页 UI 已实现
+
+当前 `generic-channel` 有几类能力已经在协议和服务端实现，但 `examples/h5-client.html` 还没有把它们做成完整 UI。
+
+这次接入最容易误解的两项是：
+
+- **引用回复**
+  - 协议支持
+  - 服务端支持
+  - 当前 H5 示例页**没有**“点某条消息后引用回复”的现成 UI
+- **消息表情反应（emoji reaction）**
+  - 协议支持
+  - 服务端支持
+  - 当前 H5 示例页**没有** reaction 按钮、emoji 面板或 reaction 展示 UI
+
+所以如果你是自己接 H5 / App / 小程序：
+
+- 可以直接按下面的协议接入这两项能力
+- 但不要把自带的 `examples/h5-client.html` 当成“这两项已经有现成前端交互”
 
 ## 4. 多 Agent 列表与选择
 
@@ -225,10 +266,18 @@ agents:
 
 ```javascript
 const chatId = "conv-10001";
+const token = "gc_user42_xxxxxxxxx";
 const ws = new WebSocket(
-  `ws://localhost:18080/ws?chatId=${encodeURIComponent(chatId)}&agentId=code`
+  `ws://localhost:18080/ws?chatId=${encodeURIComponent(chatId)}&agentId=code&token=${encodeURIComponent(token)}`
 );
 ```
+
+如果服务端启用了 user-token 认证，还要注意这几点：
+
+- `token` 绑定的是某个固定的 `senderId/chatId`
+- URL 里的 `chatId` 必须和 token 绑定值一致
+- 建连后，服务端会以 token 绑定身份为准，不再信任客户端在消息体里自报的 `senderId/chatId`
+- 如果 token 配置了 `allowAgents`，客户端只能选择这些 agent
 
 连接成功后，服务端会先回一个 `connection.open`:
 
@@ -275,6 +324,35 @@ type InboundMessage = {
   parentId?: string;
 };
 ```
+
+### 引用回复：客户端发给插件
+
+如果你要让“这条消息是在回复上一条消息”进入协议，做法就是在 `message.receive.data.parentId` 里带上被引用的消息 ID。
+
+示例：
+
+```json
+{
+  "type": "message.receive",
+  "data": {
+    "messageId": "msg-1710000000010",
+    "chatId": "conv-10001",
+    "chatType": "direct",
+    "senderId": "user-42",
+    "senderName": "Leway",
+    "messageType": "text",
+    "content": "我这里补充一下",
+    "parentId": "msg-1710000000001",
+    "timestamp": 1710000000010
+  }
+}
+```
+
+当前实现行为：
+
+- 服务端会把这个 `parentId` 当作“这是一条引用回复”传给 agent 上下文
+- 当前默认 AI 回复回客户端时，也会把 `replyTo` 设为当前入站消息 ID
+- 但自带 H5 示例页目前没有“点消息 -> 自动填充引用回复”的 UI，你需要在自己的前端里做这层交互
 
 ### 文本消息示例
 
@@ -394,6 +472,16 @@ type OutboundMessage = {
 };
 ```
 
+这里的 `replyTo?: string` 表示“这条插件下发给前端的消息，是在回复哪条消息”。
+
+如果你的前端想把 AI 回复渲染成引用样式，应该读取 `message.send.data.replyTo`，自己去关联本地消息列表并渲染引用块。
+
+当前状态：
+
+- 协议字段已存在
+- 服务端已会填 `replyTo`
+- 自带 H5 示例页目前**没有**把它渲染成完整引用气泡 UI
+
 示例:
 
 ```json
@@ -473,6 +561,52 @@ type OutboundMessage = {
 - 把返回的 `agents[]` 渲染成入口列表或下拉框
 - 用户选中后发 `agent.select`
 - 后续消息可继续依赖当前连接选择，也可以在单条 `message.receive.data.agentId` 上再次显式覆盖
+
+### `reaction.add` / `reaction.remove`
+
+如果你要做消息表情反应，当前协议直接使用这两个事件。
+
+客户端添加 reaction：
+
+```json
+{
+  "type": "reaction.add",
+  "data": {
+    "messageId": "msg-1710000001000",
+    "chatId": "conv-10001",
+    "senderId": "user-42",
+    "emoji": "👍",
+    "timestamp": 1710000003000
+  }
+}
+```
+
+客户端移除 reaction：
+
+```json
+{
+  "type": "reaction.remove",
+  "data": {
+    "messageId": "msg-1710000001000",
+    "chatId": "conv-10001",
+    "senderId": "user-42",
+    "emoji": "👍",
+    "timestamp": 1710000004000
+  }
+}
+```
+
+当前实现行为：
+
+- 插件会接收 `reaction.add` / `reaction.remove`
+- 服务端会更新内存中的 reaction 状态
+- 然后把同一个事件广播给当前 chat 下的其他客户端
+
+注意边界：
+
+- 这是当前的**协议与服务端能力**
+- 自带 H5 示例页目前**没有** reaction UI，也没有 reaction 列表渲染
+- reaction 目前是内存态，不是持久化存储；如果你要做正式产品，前端要把“断线重连后如何恢复 reaction 展示”单独设计清楚
 
 ### `channel.status.get` / `channel.status`
 
