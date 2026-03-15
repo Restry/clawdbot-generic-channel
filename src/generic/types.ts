@@ -69,10 +69,34 @@ export type GenericProbeResult = {
   port?: number;
 };
 
+export type ChannelStatusRequest = {
+  requestId?: string;
+  includeChats?: boolean;
+};
+
+export type ChannelStatusResponse = {
+  requestId?: string;
+  channel: "generic-channel";
+  configured: boolean;
+  enabled: boolean;
+  running: boolean;
+  mode: GenericConnectionMode;
+  port: number;
+  path?: string;
+  currentChatId: string;
+  currentChatConnectionCount: number;
+  connectedChatCount: number;
+  connectedSocketCount: number;
+  connectedChats?: string[];
+  timestamp: number;
+};
+
 // WebSocket event types
 export type WSEventType =
   | "message.receive"
   | "message.send"
+  | "channel.status.get"
+  | "channel.status"
   | "history.sync"
   | "message.edit"
   | "message.delete"

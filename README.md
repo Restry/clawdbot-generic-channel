@@ -183,6 +183,8 @@ Behavior:
 |------------|-------------|
 | `message.receive` | Inbound message from client |
 | `message.send` | Outbound message to client |
+| `channel.status.get` | Client asks for lightweight generic-channel status |
+| `channel.status` | Lightweight generic-channel status response |
 | `connection.open` | Connection established |
 | `connection.close` | Connection closed |
 | `typing` | Typing indicator (optional) |
@@ -222,7 +224,23 @@ ws.onmessage = (event) => {
   if (message.type === 'message.send') {
     console.log('AI Reply:', message.data.content);
   }
+
+  if (message.type === 'channel.status') {
+    console.log('Channel Status:', message.data);
+  }
 };
+```
+
+Lightweight status query example:
+
+```javascript
+ws.send(JSON.stringify({
+  type: 'channel.status.get',
+  data: {
+    requestId: 'status-1',
+    includeChats: false
+  }
+}));
 ```
 
 ### FAQ

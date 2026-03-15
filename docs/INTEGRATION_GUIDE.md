@@ -349,6 +349,53 @@ type OutboundMessage = {
 
 连接成功确认，前面已经展示。
 
+### `channel.status.get` / `channel.status`
+
+这是一个轻量级状态接口，只返回 `generic-channel` 自己的运行状态和当前连接统计，不返回 OpenClaw 全局的 `usage / agents / skills / sessions`。
+
+客户端请求:
+
+```json
+{
+  "type": "channel.status.get",
+  "data": {
+    "requestId": "status-1",
+    "includeChats": false
+  }
+}
+```
+
+服务端响应:
+
+```json
+{
+  "type": "channel.status",
+  "data": {
+    "requestId": "status-1",
+    "channel": "generic-channel",
+    "configured": true,
+    "enabled": true,
+    "running": true,
+    "mode": "websocket",
+    "port": 18080,
+    "path": "/ws",
+    "currentChatId": "conv-10001",
+    "currentChatConnectionCount": 1,
+    "connectedChatCount": 3,
+    "connectedSocketCount": 4,
+    "timestamp": 1710000002100
+  }
+}
+```
+
+字段说明:
+
+- `currentChatId`: 发起这次查询的当前会话 ID
+- `currentChatConnectionCount`: 当前这个 `chatId` 下有几个打开的连接
+- `connectedChatCount`: 当前总共有多少个不同 `chatId` 在线
+- `connectedSocketCount`: 当前总共有多少个打开的 WebSocket 连接
+- `includeChats = true` 时，响应里会额外带 `connectedChats`
+
 ## 8. H5 最小可运行示例
 
 这就是自己接页面时最小需要的逻辑:
@@ -374,6 +421,10 @@ type OutboundMessage = {
     if (packet.type === "history.sync") {
       console.log("history:", packet.data.messages);
     }
+
+    if (packet.type === "channel.status") {
+      console.log("channel status:", packet.data);
+    }
   };
 
   function sendText(content) {
@@ -388,6 +439,16 @@ type OutboundMessage = {
         messageType: "text",
         content,
         timestamp: Date.now()
+      }
+    }));
+  }
+
+  function queryChannelStatus() {
+    ws.send(JSON.stringify({
+      type: "channel.status.get",
+      data: {
+        requestId: `status-${Date.now()}`,
+        includeChats: false
       }
     }));
   }

@@ -93,6 +93,34 @@ async function monitorWebSocket(params: {
     });
   };
 
+  wsManager.onChannelStatusRequest = ({ chatId, ws, data }) => {
+    const stats = wsManager.getConnectionStats();
+    const connectionMode = genericCfg.connectionMode ?? "websocket";
+    const port = connectionMode === "websocket"
+      ? (genericCfg.wsPort ?? 8080)
+      : (genericCfg.webhookPort ?? 3000);
+
+    wsManager.sendDirect(ws, {
+      type: "channel.status",
+      data: {
+        requestId: data.requestId,
+        channel: "generic-channel",
+        configured: true,
+        enabled: true,
+        running: true,
+        mode: connectionMode,
+        port,
+        path: connectionMode === "websocket" ? (genericCfg.wsPath ?? "/ws") : genericCfg.webhookPath,
+        currentChatId: chatId,
+        currentChatConnectionCount: wsManager.getConnectionCount(chatId),
+        connectedChatCount: stats.connectedChatCount,
+        connectedSocketCount: stats.connectedSocketCount,
+        connectedChats: data.includeChats ? stats.connectedChats : undefined,
+        timestamp: Date.now(),
+      },
+    });
+  };
+
   // Set up message handler
   wsManager.onMessageReceive = async (message: InboundMessage) => {
     try {

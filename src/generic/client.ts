@@ -1,6 +1,11 @@
 import { WebSocketServer, WebSocket, type RawData } from "ws";
 import type { Server as HTTPServer } from "http";
-import type { GenericChannelConfig, WSEvent, InboundMessage } from "./types.js";
+import type {
+  GenericChannelConfig,
+  WSEvent,
+  InboundMessage,
+  ChannelStatusRequest,
+} from "./types.js";
 import type { ForwardedMessage } from "./forwarding.js";
 import type { GroupAction } from "./groups.js";
 import type { UserPresence } from "./presence.js";
@@ -70,6 +75,8 @@ export type UnpinMessageData = {
   messageId: string;
   chatId: string;
 };
+
+export type ChannelStatusRequestData = ChannelStatusRequest;
 
 // Client connection manager
 export class GenericWSManager {
@@ -177,6 +184,13 @@ export class GenericWSManager {
         case "message.receive":
           this.onMessageReceive?.(message.data as InboundMessage);
           break;
+        case "channel.status.get":
+          this.onChannelStatusRequest?.({
+            chatId,
+            ws,
+            data: (message.data as ChannelStatusRequestData | undefined) ?? {},
+          });
+          break;
         case "typing":
           this.onTypingIndicator?.(message.data as TypingIndicatorData);
           break;
@@ -244,20 +258,28 @@ export class GenericWSManager {
     }
   }
 
+  private pruneClosedClients(): void {
+    this.clients.forEach((clients, chatId) => {
+      for (const ws of clients) {
+        if (ws.readyState !== WebSocket.OPEN) {
+          clients.delete(ws);
+        }
+      }
+
+      if (clients.size === 0) {
+        this.clients.delete(chatId);
+      }
+    });
+  }
+
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
-      this.clients.forEach((clients, chatId) => {
+      this.pruneClosedClients();
+      this.clients.forEach((clients) => {
         for (const ws of clients) {
           if (ws.readyState === WebSocket.OPEN) {
             ws.ping();
-            continue;
           }
-
-          clients.delete(ws);
-        }
-
-        if (clients.size === 0) {
-          this.clients.delete(chatId);
         }
       });
     }, 30000); // 30 seconds
@@ -279,6 +301,11 @@ export class GenericWSManager {
   onGroupAction?: (data: GroupAction) => void;
   onPinMessage?: (data: PinMessageData) => void;
   onUnpinMessage?: (data: UnpinMessageData) => void;
+  onChannelStatusRequest?: (params: {
+    chatId: string;
+    ws: WebSocket;
+    data: ChannelStatusRequestData;
+  }) => void;
 
   sendToClient(chatId: string, event: WSEvent): boolean {
     const clients = this.clients.get(chatId);
@@ -310,6 +337,7 @@ export class GenericWSManager {
   }
 
   isClientConnected(chatId: string): boolean {
+    this.pruneClosedClients();
     const clients = this.clients.get(chatId);
     if (!clients) {
       return false;
@@ -323,7 +351,33 @@ export class GenericWSManager {
   }
 
   getConnectedClients(): string[] {
+    this.pruneClosedClients();
     return Array.from(this.clients.keys());
+  }
+
+  getConnectionCount(chatId: string): number {
+    this.pruneClosedClients();
+    return this.clients.get(chatId)?.size ?? 0;
+  }
+
+  getConnectionStats(): {
+    connectedChatCount: number;
+    connectedSocketCount: number;
+    connectedChats: string[];
+  } {
+    this.pruneClosedClients();
+
+    let connectedSocketCount = 0;
+    for (const clients of this.clients.values()) {
+      connectedSocketCount += clients.size;
+    }
+
+    const connectedChats = Array.from(this.clients.keys());
+    return {
+      connectedChatCount: connectedChats.length,
+      connectedSocketCount,
+      connectedChats,
+    };
   }
 }
 
