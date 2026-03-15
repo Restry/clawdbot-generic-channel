@@ -18,15 +18,15 @@ npm install @restry/generic-channel
 
 ### Step 2: Plugin Location
 
-After installation, the plugin is automatically placed in the OpenClaw plugins directory:
-- **Linux/macOS**: `~/.openclaw/plugins/@restry/generic-channel/`
-- **Windows**: `%USERPROFILE%\.openclaw\plugins\@restry\generic-channel\`
+After installation, the plugin is automatically placed in the OpenClaw extensions directory:
+- **Linux/macOS**: `~/.openclaw/extensions/generic-channel/`
+- **Windows**: `%USERPROFILE%\.openclaw\extensions\generic-channel\`
 
 You don't need to move any files manually - the OpenClaw plugin system handles this.
 
 ### Step 3: Configure the Channel
 
-Edit your OpenClaw config file at `~/.openclaw/config.yaml` (or the path shown by `openclaw config path`):
+Edit your OpenClaw config file (in current setups this is typically `~/.openclaw/openclaw.json`; use `openclaw config path` to confirm). The structural examples below still use YAML for readability:
 
 ```yaml
 channels:
@@ -60,7 +60,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 ### Step 4: Start OpenClaw
 
 ```bash
-openclaw start
+openclaw gateway restart
 ```
 
 You should see in the logs:
@@ -76,7 +76,7 @@ There are two ways to connect:
 
 1. Locate the example client file:
    - If installed via npm: `node_modules/@restry/generic-channel/examples/h5-client.html`
-   - If installed via OpenClaw: `~/.openclaw/plugins/@restry/generic-channel/examples/h5-client.html`
+   - If installed via OpenClaw: `~/.openclaw/extensions/generic-channel/examples/h5-client.html`
 
 2. Open `h5-client.html` in your web browser (double-click or use `file://` URL)
 
@@ -240,10 +240,10 @@ Why this baseline:
 
 ## Testing Your Configuration
 
-1. Save your config to `~/.openclaw/config.yaml` or your OpenClaw config location
-2. Start OpenClaw:
+1. Save your config to your OpenClaw config location (typically `~/.openclaw/openclaw.json`)
+2. Restart the OpenClaw gateway:
    ```bash
-   openclaw start
+   openclaw gateway restart
    ```
 3. Check the logs to verify the Generic Channel started successfully:
    ```
@@ -360,16 +360,16 @@ WORKDIR /app
 RUN npm install -g openclaw
 RUN openclaw plugins install @restry/generic-channel
 EXPOSE 8080
-CMD ["openclaw", "start"]
+CMD ["openclaw", "gateway", "start"]
 ```
 
 ```bash
 docker build -t openclaw-generic .
 # Mount config at runtime (recommended for security)
-docker run -p 8080:8080 -v /path/to/config.yaml:/root/.openclaw/config.yaml openclaw-generic
+docker run -p 8080:8080 -v /path/to/openclaw.json:/root/.openclaw/openclaw.json openclaw-generic
 ```
 
-> **Note**: Mount `config.yaml` at runtime instead of copying it into the image to avoid hardcoding sensitive credentials.
+> **Note**: Mount `openclaw.json` (or your actual OpenClaw config file) at runtime instead of copying it into the image to avoid hardcoding sensitive credentials.
 
 ---
 

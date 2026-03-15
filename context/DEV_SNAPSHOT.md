@@ -1,266 +1,151 @@
-# 1. 🎯 当前目标 (Project Intent)
+# 1. 当前状态
 
-当前在开发和收尾的是 `generic-channel` 的 H5 直连聊天链路与媒体链路，目标是让 OpenClaw 的 Generic WebSocket Channel 在真实浏览器和远端服务器环境下稳定支持以下能力：
+当前 `generic-channel` 已经完成从“单一 H5 直连演示”到“可真实接入、可多 agent 选择”的主链路收尾。
 
-- 文本聊天、思考状态、历史消息回放
-- 图片选择、发送、预览、大图查看
-- 音频/语音消息的识别、接收和展示
-- 连接中断后的恢复，不被旧连接或旧重连任务干扰
+当前真实主路径：
 
-业务目标是把这个插件做成一个可直接部署到 OpenClaw 网关上的通用 H5 聊天通道，最终要求是“改完即可打包、安装、真实 E2E 验证通过”。
+- 服务端：OpenClaw `generic-channel`
+- 连接方式：`websocket`
+- 客户端参考实现：`examples/h5-client.html`
+- 文档入口：
+  - `README.md`
+  - `docs/INTEGRATION_GUIDE.md`
+  - `docs/CONFIG_EXAMPLES_ZH.md`
+  - `docs/E2E_TEST_CASES.md`
 
-# 2. 🛠️ 技术栈与规范 (Technical Stack)
+当前重点能力：
 
-- 语言与模块：TypeScript ESM
-- 运行方式：插件直接以 `.ts` 被 OpenClaw 加载，无额外编译产物运行
-- 核心依赖：
-  - `openclaw >= 2026.1.29`
-  - `ws ^8.19.0`
-  - `zod ^4.3.6`
-  - `typescript ^5.7.0`
-- 本地校验命令：
-  - `npm run typecheck`
-  - `npm run pack:dist`
-- 打包产物：
-  - `dist/restry-generic-channel-2.0.0.tgz`
-- H5 客户端主文件：
-  - `examples/h5-client.html`
-- 远端测试环境：
-  - SSH: `ssh -p 18822 restry@wolf-sg.southeastasia.cloudapp.azure.com`
-  - WS: `ws://wolf-sg.southeastasia.cloudapp.azure.com:18080/ws`
-  - OpenClaw 配置：`~/.openclaw/openclaw.json`
-  - 插件安装目录：`~/.openclaw/extensions/generic-channel`
+- 文本消息、历史消息、思考状态
+- 图片发送、预览、大图查看、图片内容进入 Agent 上下文
+- 语音/音频发送、自动转写、接收播放
+- 连接竞争保护、重连后历史回放
+- 轻量频道状态查询：`channel.status.get` / `channel.status`
+- 多 agent 显式选择：
+  - `agent.list.get` / `agent.list`
+  - `agent.select` / `agent.selected`
+  - 连接 URL `agentId`
+  - 单条消息 `data.agentId`
 
-规范与约束：
+# 2. 当前代码真相
 
-- 必须全程中文
-- 修改代码统一使用 `apply_patch`
-- 搜索优先 `rg`
-- 不回滚用户已有改动
-- 不能只分析，默认要直接修复、打包、部署、测试
-- 只保留 `examples/h5-client.html` 这一份 H5 页面，`examples/h5-client-enhanced.html` 已不再保留
-- 最终正确的远端更新流程：
-  1. 本地修改并通过 `npm run typecheck`
-  2. 执行 `npm run pack:dist`
-  3. `scp` 包到服务器
-  4. 远端临时移除 `generic-channel` 的 channel/plugin 配置
-  5. 删除旧目录 `~/.openclaw/extensions/generic-channel`
-  6. `openclaw plugins install /home/restry/restry-generic-channel-2.0.0.tgz`
-  7. 恢复 `generic-channel` 配置
-  8. `openclaw gateway restart`
+## 协议与路由
 
-# 3. ✅ 已完成的工作 (Finished Items)
+- 频道状态协议：
+  - `src/generic/types.ts`
+  - `src/generic/monitor.ts`
+  - `src/generic/client.ts`
+- 多 agent 协议：
+  - `src/generic/types.ts`
+  - `src/generic/agents.ts`
+  - `src/generic/client.ts`
+  - `src/generic/monitor.ts`
+  - `src/generic/bot.ts`
+- 当前入站消息路由规则：
+  1. 如果连接级或消息级显式提供 `agentId`，优先走显式 agent
+  2. 否则回退到 OpenClaw `bindings / default agent` 自动路由
 
-已完成的核心文件与职责：
+## H5 页面
 
-- `src/generic/history.ts`
-  - 新增历史消息存储与回放
-  - 核心函数：
-    - `appendInboundHistoryMessage`
-    - `appendOutboundHistoryMessage`
-    - `updateHistoryMessage`
-    - `removeHistoryMessage`
-    - `getRecentHistoryMessages`
-- `src/generic/monitor.ts`
-  - 在 `onClientConnect` 时下发 `history.sync`
-- `src/generic/media.ts`
-  - 新增 `normalizeInboundMimeType`
-  - 修正 `voice/audio` 被错误识别为 `video/webm` 的问题，统一归一到 `audio/*`
+唯一保留页面：
+
 - `examples/h5-client.html`
-  - 已整合为唯一保留的 H5 客户端
-  - 核心能力：
-    - WebSocket 连接/断开/重连
-    - `history.sync` 渲染
-    - 图片文件选择与发送预览
-    - 图片点击大图预览
-    - 音频消息卡片展示与 fallback 下载入口
-    - 连接竞争保护，避免旧 socket 干扰当前连接
-- `docs/E2E_TEST_CASES.md`
-  - 已整理为完整测试矩阵，不再只是零散已测列表
 
-本轮已经稳定完成并验证的功能结论：
+当前页面已实现：
 
-- `thinking.end` 不结束问题已修复
-- `history.sync` 历史消息回放链路已打通
-- 历史消息已持久化到 `~/.openclaw/generic-channel-history.json`
-- `dmPolicy = pairing` 已补齐
-- `presence` 30s 自动离线已修复
-- `textChunkLimit` 已生效
-- 图片按钮可正常拉起文件选择器
-- 音频按钮可正常拉起文件选择器
-- 图片发送后可展示，图片点击可弹出大图
-- 图片内容已正确进入 Agent 上下文
-- 语音/音频链路真实 E2E 已收口：
-  - 浏览器麦克风录音
-  - 语音发送与接收播放
-  - 本地音频文件选择、发送与接收播放
-  - 语音/音频内容进入 Agent 上下文
-- 出站媒体链路已修复：
-  - 不再依赖上游显式传入 `mediaType`
-  - 本地文件路径会在下发前转换为 Data URL，H5 可直接预览/播放
-- H5 页面错误地址切回正确地址后，旧重连不会再干扰当前连接
-- gateway 重启后，同一 `chatId` 重新连接仍可回放最近历史消息
-- 远端插件已重装成功，`18080` 正常监听，协议级 `connection.open` / `history.sync` 已验证
-- 图片识别问题最终确认不是 `generic-channel` 插件收图错误：
-  - 插件已正确收图、落盘、注入 `MediaPath/MediaUrl`
-  - 真正根因是远端 OpenClaw 模型目录曾将 `azure-foundry/gpt-5.2` 声明为仅支持 `text`
-  - 修正远端模型能力声明后，真实图片问答已正确返回颜色结果
+- 连接 / 断开 / 自动重连
+- 历史连接记录
+- `history.sync`
+- 图片选择、预览、发送、大图查看
+- 音频文件选择、发送、播放
+- 浏览器录音、发送、播放
+- 多 agent 下拉选择
+- 连接竞争保护，避免旧 socket 干扰当前连接
 
-**关键代码片段**
+## 文档
 
-1. 历史消息数据结构与 upsert 逻辑，位于 `src/generic/history.ts`
+当前应优先相信：
 
-```ts
-export type HistoryMessageRecord = {
-  messageId: string;
-  chatId: string;
-  direction: "sent" | "received";
-  content: string;
-  contentType: "text" | "markdown" | "image" | "voice" | "audio" | "file";
-  mediaUrl?: string;
-  mimeType?: string;
-  timestamp: number;
-  replyTo?: string;
-  senderId?: string;
-  senderName?: string;
-};
+1. `README.md`
+2. `docs/INTEGRATION_GUIDE.md`
+3. `docs/CONFIG_EXAMPLES_ZH.md`
+4. `docs/E2E_TEST_CASES.md`
 
-function upsertHistoryRecord(record: HistoryMessageRecord): void {
-  const history = chatHistoryStore.get(record.chatId) ?? [];
-  const index = history.findIndex((entry) => entry.messageId === record.messageId);
+辅助文档：
 
-  if (index >= 0) {
-    history[index] = { ...history[index], ...record };
-  } else {
-    history.push(record);
-  }
+- `docs/PROACTIVE_DM.md`
+- `docs/CONFIG_EXAMPLES.md`
+- `docs/README.md`
 
-  history.sort((a, b) => a.timestamp - b.timestamp);
-  chatHistoryStore.set(record.chatId, history.slice(-MAX_STORED_HISTORY_PER_CHAT));
-}
-```
+# 3. 已确认完成
 
-2. 客户端连接竞争保护与安全重连，位于 `examples/h5-client.html`
+## 本地校验
 
-```js
-let wsConnectionToken = 0;
+- `npm run typecheck` 已通过
+- `npm run pack:dist` 已通过
+- 最新包：
+  - `dist/restry-generic-channel-2.0.0.tgz`
 
-function connect() {
-    clearReconnectTimer();
-    replaceActiveSocket();
-    isManualDisconnect = false;
-    const socket = new WebSocket(url);
-    ws = socket;
-    wsConnectionToken++;
-    setupWebSocketHandlers(socket, wsConnectionToken);
-}
+## 已确认通过的真实能力
 
-function isCurrentSocket(socket, connectionToken) {
-    return ws === socket && wsConnectionToken === connectionToken;
-}
-
-function scheduleReconnect(connectionToken) {
-    reconnectTimeout = setTimeout(() => {
-        reconnectTimeout = null;
-        if (connectionToken !== wsConnectionToken || ws) {
-            return;
-        }
-        connect();
-    }, delay);
-}
-```
-
-3. H5 历史消息渲染保护，位于 `examples/h5-client.html`
-
-```js
-function handleHistorySync(payload) {
-    if (!payload?.messages || !Array.isArray(payload.messages) || payload.chatId !== chatId) {
-        return;
-    }
-
-    hideThinkingIndicator();
-    const messagesContainer = document.getElementById('messages');
-    messagesContainer.innerHTML = '';
-
-    for (const entry of payload.messages) {
-        try {
-            renderHistoryMessage(entry);
-        } catch (error) {
-            console.error('Failed to render history message:', error, entry);
-        }
-    }
-}
-```
-
-4. 入站媒体 MIME 归一化，位于 `src/generic/media.ts`
-
-```ts
-function normalizeInboundMimeType(params: {
-  messageType: InboundMessage["messageType"];
-  detectedContentType?: string;
-  declaredContentType?: string;
-}): string | undefined {
-  const { messageType, detectedContentType, declaredContentType } = params;
-  const detected = detectedContentType?.toLowerCase();
-  const declared = declaredContentType?.toLowerCase();
-
-  if (messageType === "voice" || messageType === "audio") {
-    if (declared?.startsWith("audio/")) return declared;
-    if (detected?.startsWith("audio/")) return detected;
-    if (declared === "video/webm" || detected === "video/webm") return "audio/webm";
-    return detectedContentType ?? declaredContentType ?? "audio/webm";
-  }
-
-  return detectedContentType ?? declaredContentType;
-}
-```
-
-已确认通过的本轮重点 E2E：
-
-- 远端 WebSocket 建连
 - `connection.open`
 - `history.sync`
-- H5 页面展示历史消息
-- 图片按钮拉起文件选择器
-- 音频按钮拉起文件选择器
-- 图片选择后预览
-- 图片发送与聊天区展示
-- 点击图片打开大图弹窗
-- 图片内容进入 Agent 上下文
-- 浏览器录音与预览
-- 语音消息发送 / 接收播放
-- 音频消息发送 / 接收播放
-- 语音/音频内容进入 Agent 上下文
-- gateway 重启后历史回放
-- 手动断开与再次连接
-- 错误地址切回正确地址后旧重连不干扰当前连接
-- 真实图片问答回归：
-  - 用上半红 / 下半蓝测试图验证
-  - 修正远端模型能力声明后，回复正确为“上半红色，下半蓝色”
+- 图片消息链路
+- 语音 / 音频消息链路
+- 图片理解链路
+- gateway 重启后历史消息仍可回放
+- 同一 `chatId` 多窗口同时连接
+- 连接竞争保护
+- `channel.status.get` / `channel.status`
+- `agent.list.get` / `agent.list`
+- `agent.select` / `agent.selected`
 
-完整矩阵见 [E2E_TEST_CASES.md](/Users/leway/Projects/clawdbot-generic-channel/docs/E2E_TEST_CASES.md)。
+## 远端测试环境
 
-# 4. ⏳ 待处理任务 (Pending TODOs)
+- SSH:
+  - `ssh -p 18822 restry@wolf-sg.southeastasia.cloudapp.azure.com`
+- WS:
+  - `ws://wolf-sg.southeastasia.cloudapp.azure.com:18080/ws`
+- OpenClaw 配置：
+  - `~/.openclaw/openclaw.json`
+- 插件目录：
+  - `~/.openclaw/extensions/generic-channel`
 
-优先级 1：
+## 远端当前已确认状态
 
-- 继续补齐 `docs/E2E_TEST_CASES.md` 中仍为 `未执行` 的项目
-- 重点包括：
-  - 异常断开后的自动重连完整验证
-  - 心跳保活 30s+
-  - `parentId` 引用回复
-  - Slash Command
-  - `historyLimit` 群聊上下文注入
+- 远端插件已加载成功
+- `18080` 正在监听
+- 远端测试机已配置 3 个 agent：
+  - `main`
+    - workspace: `~/.openclaw/workspace-main`
+    - model: `azure-foundry/gpt-5.2`
+  - `code`
+    - workspace: `~/.openclaw/workspace-code`
+    - model: `azure-foundry/gpt-5.3-codex`
+  - `writer`
+    - workspace: `~/.openclaw/workspace-writer`
+    - model: `azure-foundry/Kimi-K2.5`
+- 当前没有额外 `bindings`
+  - 不显式选 agent 时，默认落到 `main`
 
-优先级 2：
+# 4. 仍需注意的边界
 
-- 清理与统一前端文档和页面说明，确认只保留一套 H5 客户端入口
-- 如果后续遇到 Generic Channel 某些能力实现不清楚，可参考 OpenClaw 官方 channel 实现：
-  - `https://github.com/openclaw/openclaw/tree/main/src/channels`
+- `webhook` 配置字段仍在 schema 中，但不是当前主文档推荐路径，也不在当前真实 E2E 覆盖范围内
+- `thinking.update` 目前仍未完成真实实现，不应误标为通过
+- 很多增强能力目前是“服务端 / 协议层已实现”，不是“H5 页面 UI 全部实现”
+  - 例如 reaction、forward、presence、pin、search、group 管理
+- 图片理解是否真的正确，仍依赖远端当前路由到的 provider/model 具备视觉输入能力
 
-未解决的潜在风险 / Bug：
+# 5. 后续同步规则
 
-- `thinking.update` 目前仍未实现，不应误标为通过
-- 仍有部分协议能力只在服务端路径存在，H5 页面 UI 侧未实现，不要把 UI 未实现误判为服务端 bug
-- 当前历史消息存储是内存级 `Map`，网关进程重启后历史会丢失；如果要做真正持久化，需要后续单独设计
-- 图片理解最终是否正确，仍依赖远端 OpenClaw 当前路由到的 provider/model 是否具备真实视觉能力；这不属于 `generic-channel` 插件收发链路本身
+以后每次功能演进后，至少同步这几处：
+
+1. `README.md`
+2. `docs/INTEGRATION_GUIDE.md`
+3. `docs/E2E_TEST_CASES.md`
+4. `context/DEV_SNAPSHOT.md`
+
+如果改到部署方式或配置方式，还要同步：
+
+5. `docs/CONFIG_EXAMPLES_ZH.md`
+6. `docs/CONFIG_EXAMPLES.md`
+7. `docs/PROACTIVE_DM.md`

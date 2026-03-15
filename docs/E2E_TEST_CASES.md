@@ -1,6 +1,6 @@
 # E2E Test Cases
 
-最后更新：2026-03-14
+最后更新：2026-03-15
 
 ## 说明
 
@@ -126,6 +126,18 @@
 | 配置 | `allowFrom` 生效 | 已通过 |
 | 诊断 | `probeGeneric` 健康检查 | 已通过 |
 
+## 多 Agent
+
+| 模块 | 测试案例 | 当前状态 |
+| --- | --- | --- |
+| Agent | `agent.list.get` 请求 agent 列表 | 已通过 |
+| Agent | `agent.list` 返回 `id/name/default/model` | 已通过 |
+| Agent | `agent.select` 切换当前连接 agent | 已通过 |
+| Agent | `agent.selected` 返回确认结果 | 已通过 |
+| Agent | 连接 URL `agentId` 预选 agent | 未执行 |
+| Agent | 单条消息 `data.agentId` 显式覆盖 | 未执行 |
+| Agent | 服务端自动路由回退到默认 agent | 已通过 |
+
 ## H5 页面与增强功能
 
 | 模块 | 测试案例 | 当前状态 |
@@ -222,6 +234,10 @@
 - `dmPolicy = pairing`
 - `allowFrom` 生效
 - `probeGeneric` 健康检查
+- `agent.list.get` 请求 agent 列表
+- `agent.list` 返回 `main / code / writer`
+- `agent.select` 切换当前连接 agent
+- `agent.selected` 返回确认结果
 - 页面连接远端 WebSocket
 - 页面发送文本并收到 AI 回复
 - “思考中”提示正常结束消失
@@ -235,11 +251,16 @@
 - 音频按钮拉起文件选择器
 - 图片选择与预览
 - 语音录音与预览
+- 测试机多 agent 配置生效：
+  - `main`
+  - `code`
+  - `writer`
 
 ## 当前结论
 
 - 上一版文档只写了“已执行案例”，不够完整；本版已改为**完整能力测试矩阵**。
 - 当前已经实际通过的是上面“已确认通过”的项目。
+- 多 agent 协议已完成真实验证：远端测试机当前已配置 `main / code / writer`，前端可通过 `agent.list.get` 拉取列表，并通过 `agent.select` 切换当前连接目标 agent。
 - 本轮已补完语音/音频链路的真实 E2E：浏览器麦克风录音、语音发送、音频文件发送、服务端媒体落盘与 Agent 上下文注入、以及 H5 接收侧对 `voice` / `audio` 的播放卡片渲染。
 - 历史消息现已持久化到本地文件，gateway 重启后同一 `chatId` 重新连接仍可通过 `history.sync` 回放最近消息。
 - 其余标记为 `未执行` 的能力，表示代码或页面支持，但这轮还没完成验证。

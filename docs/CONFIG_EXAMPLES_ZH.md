@@ -18,15 +18,15 @@ npm install @restry/generic-channel
 
 ### 第二步：插件位置
 
-安装后，插件会自动放置在 OpenClaw 的插件目录中：
-- **Linux/macOS**: `~/.openclaw/plugins/@restry/generic-channel/`
-- **Windows**: `%USERPROFILE%\.openclaw\plugins\@restry\generic-channel\`
+安装后，插件会自动放置在 OpenClaw 的扩展目录中：
+- **Linux/macOS**: `~/.openclaw/extensions/generic-channel/`
+- **Windows**: `%USERPROFILE%\.openclaw\extensions\generic-channel\`
 
 你不需要手动移动任何文件 - OpenClaw 插件系统会自动处理。
 
 ### 第三步：配置频道
 
-编辑 OpenClaw 配置文件 `~/.openclaw/config.yaml`（或通过 `openclaw config path` 查看路径）：
+编辑 OpenClaw 配置文件（当前环境通常是 `~/.openclaw/openclaw.json`；也可通过 `openclaw config path` 查看实际路径）。下面的结构示例仍用 YAML 表示：
 
 ```yaml
 channels:
@@ -60,7 +60,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 ### 第四步：启动 OpenClaw
 
 ```bash
-openclaw start
+openclaw gateway restart
 ```
 
 你应该在日志中看到：
@@ -76,7 +76,7 @@ openclaw start
 
 1. 找到示例客户端文件：
    - 如果通过 npm 安装：`node_modules/@restry/generic-channel/examples/h5-client.html`
-   - 如果通过 OpenClaw 安装：`~/.openclaw/plugins/@restry/generic-channel/examples/h5-client.html`
+   - 如果通过 OpenClaw 安装：`~/.openclaw/extensions/generic-channel/examples/h5-client.html`
 
 2. 在浏览器中打开 `h5-client.html`（双击或使用 `file://` URL）
 
@@ -261,10 +261,10 @@ session:
 
 ## 测试你的配置
 
-1. 将配置保存到 `~/.openclaw/config.yaml` 或你的 OpenClaw 配置位置
-2. 启动 OpenClaw：
+1. 将配置保存到你的 OpenClaw 配置位置（当前环境通常是 `~/.openclaw/openclaw.json`）
+2. 重启 OpenClaw Gateway：
    ```bash
-   openclaw start
+   openclaw gateway restart
    ```
 3. 检查日志确认通用频道启动成功：
    ```
@@ -385,16 +385,16 @@ WORKDIR /app
 RUN npm install -g openclaw
 RUN openclaw plugins install @restry/generic-channel
 EXPOSE 8080
-CMD ["openclaw", "start"]
+CMD ["openclaw", "gateway", "start"]
 ```
 
 ```bash
 docker build -t openclaw-generic .
 # 在运行时挂载配置文件（出于安全考虑推荐此方式）
-docker run -p 8080:8080 -v /path/to/config.yaml:/root/.openclaw/config.yaml openclaw-generic
+docker run -p 8080:8080 -v /path/to/openclaw.json:/root/.openclaw/openclaw.json openclaw-generic
 ```
 
-> **注意**：在运行时挂载 `config.yaml` 而不是将其复制到镜像中，以避免在镜像中硬编码敏感凭据。
+> **注意**：在运行时挂载 `openclaw.json`（或你的实际 OpenClaw 配置文件）而不是将其复制到镜像中，以避免在镜像中硬编码敏感凭据。
 
 ---
 

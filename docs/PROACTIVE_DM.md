@@ -209,7 +209,7 @@ channels:
    import { getGenericWSManager } from '@restry/generic-channel/src/generic/client.js';
 
    const wsManager = getGenericWSManager();
-   const isConnected = wsManager?.hasClient(chatId);
+   const isConnected = wsManager?.isClientConnected(chatId);
    ```
 
 2. **检查日志**：查看 OpenClaw 日志中是否有 `Client ${chatId} not connected` 警告
@@ -426,7 +426,7 @@ channels:
    import { getGenericWSManager } from '@restry/generic-channel/src/generic/client.js';
 
    const wsManager = getGenericWSManager();
-   const isConnected = wsManager?.hasClient(chatId);
+   const isConnected = wsManager?.isClientConnected(chatId);
    ```
 
 2. **Check Logs**: Look for `Client ${chatId} not connected` warnings in OpenClaw logs
