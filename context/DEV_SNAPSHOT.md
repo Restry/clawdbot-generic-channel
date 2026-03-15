@@ -1,11 +1,13 @@
 # 1. 当前状态
 
-当前 `generic-channel` 已经完成从“单一 H5 直连演示”到“可真实接入、可多 agent 选择、单连接多会话”的主链路收尾。
+当前 `generic-channel` 已经完成从“单一 H5 直连演示”到“可真实接入、可多 agent 选择、单连接多会话、支持 relay 公网转发”的主链路收尾。
 
 当前真实主路径：
 
 - 服务端：OpenClaw `generic-channel`
-- 连接方式：`websocket`
+- 连接方式：
+  - 本地/内网：`websocket`
+  - 公网：`relay`
 - 客户端参考实现：`examples/h5-client.html`
 - 文档入口：
   - `README.md`
@@ -20,6 +22,7 @@
 - 语音/音频发送、自动转写、接收播放
 - 连接竞争保护、重连后历史回放
 - token 绑定用户身份，兼容旧的固定 `chatId` 模式
+- relay 模式下插件主动反连网关，客户端只连 `/client`
 - `conversation.list.get` / `conversation.list`
 - `history.get` 按指定 `chatId` 拉取历史
 - 显式选中 `agentId` 时，`history.sync` / `history.get` 按 `chatId + agentId` 过滤
@@ -86,13 +89,10 @@
 ## 本地校验
 
 - 当前最新提交：
-  - `7f0999b Support multi-conversation sessions`
+  - `a33173c Fix relay outbound delivery`
 - 当前仓库状态：
   - 除本次 `DEV_SNAPSHOT` 同步外，无其他未提交改动
 - `npm run typecheck` 已通过
-- `npm run pack:dist` 已通过
-- 最新包：
-  - `dist/restry-generic-channel-2.0.0.tgz`
 
 ## 已确认通过的真实能力
 
@@ -113,17 +113,27 @@
 - `history.get`
 - 单一 WebSocket 连接切换多个 `chatId`
 - 固定 `chatId` 下按 `agentId` 隔离 `history.sync` / `history.get`
+- relay backend 反连 `/backend`
+- 第三方客户端通过 relay `/client` 建连
+- relay 路径下 `thinking.start` / `thinking.end` / `message.send`
+- relay 路径下 token/chatId 约束仍生效
 
 ## 远端测试环境
 
 - SSH:
   - `ssh -p 18822 restry@wolf-sg.southeastasia.cloudapp.azure.com`
-- WS:
-  - `ws://wolf-sg.southeastasia.cloudapp.azure.com:18080/ws`
+- Relay client:
+  - `ws://wolf-sg.southeastasia.cloudapp.azure.com:18080/client?channelId=gc-relay-test`
+- Relay backend:
+  - `ws://127.0.0.1:18080/backend`
 - OpenClaw 配置：
   - `~/.openclaw/openclaw.json`
 - 插件目录：
   - `~/.openclaw/extensions/generic-channel`
+- Relay 网关目录：
+  - `~/relay-gateway`
+- Relay 环境文件：
+  - `~/.relay-gateway.env`
 
 ## 远端当前已确认状态
 
@@ -132,7 +142,7 @@
   - `~/.openclaw/extensions/generic-channel`
   - remote: `https://github.com/Restry/clawdbot-generic-channel.git`
   - branch: `main`
-- `18080` 正在监听
+- 当前公网 `18080` 由 relay-gateway 监听，不再由插件直连模式监听 `/ws`
 - 远端测试机已配置 3 个 agent：
   - `main`
     - workspace: `~/.openclaw/workspace-main`
@@ -156,6 +166,10 @@
   - `conversation.list.get` / `conversation.list`
   - `history.get`
   - 单一 WebSocket 连接切换多个 `chatId`
+  - relay backend 成功反连 `/backend`
+  - 外部客户端成功连接 relay `/client`
+  - relay 路径下 `agent.selected`、`history.sync`、`agent.list`、`thinking.start`、`thinking.end`、`message.send`
+  - relay 路径下 token/chatId 不匹配返回标准 WebSocket `1008`
 - 本轮远端日志已确认：
   - 显式 `data.agentId=writer` 的消息落到 `session=agent:writer:...`
   - 同一连接上未显式覆盖、但连接级 `agentId=code` 的消息落到 `session=agent:code:...`

@@ -25,6 +25,10 @@
 | WebSocket | 同一 `chatId` 多客户端同时连接 | 已通过 |
 | WebSocket | 重连后 `history.sync` 回放 | 已通过 |
 | WebSocket | 心跳保活 30s+ | 未执行 |
+| Relay | 插件反连 `/backend` | 已通过 |
+| Relay | 第三方客户端连接 `/client` | 已通过 |
+| Relay | `healthz` 健康检查 | 已通过 |
+| Relay | relay 路径下 token/chatId 不匹配返回标准 `1008` | 已通过 |
 | Webhook | Webhook 模式接入 | 未实现 |
 | Webhook | `webhookSecret` 校验 | 未实现 |
 
@@ -191,6 +195,10 @@
 - 手动重新连接
 - 同一 `chatId` 多客户端同时连接
 - 重连后 `history.sync` 回放
+- relay backend 反连 `/backend`
+- 第三方客户端通过 relay `/client` 建连
+- relay `healthz`
+- relay 路径 token/chatId 不匹配返回 `1008`
 - DM 文本消息收发
 - 群聊文本消息收发
 - `thinking.start`

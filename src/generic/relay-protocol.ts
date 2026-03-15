@@ -8,6 +8,14 @@ export type RelayConnectionQuery = {
   token?: string;
 };
 
+export type RelayTrustedAuthUser = {
+  id: string;
+  senderId: string;
+  chatId?: string;
+  token: string;
+  allowAgents?: string[];
+};
+
 export type RelayBackendHelloFrame = {
   type: "relay.backend.hello";
   channelId: string;
@@ -32,6 +40,7 @@ export type RelayClientOpenFrame = {
   type: "relay.client.open";
   connectionId: string;
   query: RelayConnectionQuery;
+  authUser?: RelayTrustedAuthUser;
   timestamp: number;
 };
 

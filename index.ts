@@ -159,7 +159,7 @@ export {
 const plugin = {
   id: "generic-channel",
   name: "Generic Channel",
-  description: "Generic WebSocket/Webhook channel plugin for OpenClaw",
+  description: "Generic WebSocket/Relay/Webhook channel plugin for OpenClaw",
   configSchema: emptyPluginConfigSchema(),
   register(api: OpenClawPluginApi) {
     setGenericRuntime(api.runtime);

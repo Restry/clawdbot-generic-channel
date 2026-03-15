@@ -33,6 +33,7 @@ import {
   type RelayServerCloseFrame,
   type RelayServerEventFrame,
   type RelayServerRejectFrame,
+  type RelayTrustedAuthUser,
 } from "./relay-protocol.js";
 
 export type TypingIndicatorData = {
@@ -127,6 +128,20 @@ function isAuthFailure(
 
 function toRelayCloseCode(code: number): number {
   return code >= 1000 && code <= 4999 ? code : 1008;
+}
+
+function buildRelayTrustedAuthUser(authUser: RelayTrustedAuthUser): GenericAuthUser {
+  return {
+    id: String(authUser.id),
+    senderId: String(authUser.senderId),
+    chatId: authUser.chatId?.trim() || undefined,
+    token: String(authUser.token),
+    allowAgents: Array.isArray(authUser.allowAgents)
+      ? authUser.allowAgents
+          .map((agentId) => String(agentId ?? "").trim().toLowerCase())
+          .filter((agentId) => Boolean(agentId))
+      : undefined,
+  };
 }
 
 export interface GenericClientManager {
@@ -1063,10 +1078,20 @@ class GenericRelayManager extends GenericClientManagerBase {
       });
     }
 
-    const authResult = authenticateGenericConnection({
-      config: this.config,
-      url: buildRelayAuthUrl("/relay", frame.query),
-    });
+    const authResult: GenericConnectionAuthResult = frame.authUser
+      ? {
+          ok: true,
+          query: {
+            chatId: frame.query.chatId,
+            agentId: frame.query.agentId,
+            token: frame.query.token,
+          },
+          authUser: buildRelayTrustedAuthUser(frame.authUser),
+        }
+      : authenticateGenericConnection({
+          config: this.config,
+          url: buildRelayAuthUrl("/relay", frame.query),
+        });
 
     if (isAuthFailure(authResult)) {
       this.sendRelayReject(frame.connectionId, authResult.code, authResult.message);

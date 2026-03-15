@@ -559,7 +559,7 @@ async function monitorWebSocket(params: {
     };
 
     const handleAbort = () => {
-      log("generic: abort signal received, stopping WebSocket server");
+      log(`generic: abort signal received, stopping ${genericCfg.connectionMode === "relay" ? "relay client" : "WebSocket server"}`);
       cleanup();
       resolve();
     };
@@ -572,8 +572,7 @@ async function monitorWebSocket(params: {
 
     abortSignal?.addEventListener("abort", handleAbort, { once: true });
 
-    // The WebSocket server runs indefinitely until aborted
-    log("generic: WebSocket server is running");
+    log(`generic: ${genericCfg.connectionMode === "relay" ? "relay client" : "WebSocket server"} is running`);
   });
 }
 

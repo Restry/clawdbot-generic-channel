@@ -140,7 +140,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 - Plugin backend connects to `/backend`
 - Third-party clients connect to `/client`
-- The relay only forwards JSON frames and does not interpret generic-channel business events
+- `relay-gateway` also provides a simple admin UI for channel/user/token management
 - See `relay-gateway/README.md` for environment variables, health checks, and deployment examples
 
 ### Message Protocol
@@ -535,7 +535,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 - 插件主动反连 `/backend`
 - 第三方客户端连接 `/client`
-- 网关只做 JSON 帧转发，不解析 `generic-channel` 业务消息
+- `relay-gateway` 还提供一个简单管理页，可维护 channel、用户和 token
 - 环境变量、健康检查和部署示例见 `relay-gateway/README.md`
 
 ### 自动语音/音频转写

@@ -68,6 +68,19 @@ RELAY_PORT=19080
 RELAY_CHANNELS_JSON='{"demo":{"secret":"replace-me"}}'
 ```
 
+启动后可以直接打开管理页：
+
+```text
+http://relay-host:19080/admin
+```
+
+管理页当前支持：
+
+- 展示当前已配置服务器列表
+- 展示 backend 在线状态和当前客户端连接数
+- 配置 channel secret
+- 配置该服务器下的用户、token、固定 `chatId` 和 `allowAgents`
+
 如果你暂时还要直连暴露端口，建议一开始就开 token 认证：
 
 ```yaml
@@ -128,6 +141,7 @@ ws.onmessage = (event) => {
 - `senderId` = 当前是谁在发言
 - `token` 绑定的是用户身份，不默认绑定固定 `chatId`
 - `channelId` = relay 网关里把一组客户端路由到哪个插件实例
+- `relay-gateway` 可以直接托管这组客户端的用户/token
 - 如果连接显式选中了 `agentId`，`history.sync` 和 `history.get` 会按 `chatId + agentId` 过滤
 - `examples/h5-client.html` 是参考页，不是协议规范本身
 - relay 模式下，客户端只连 `/client`，不能连 `/backend`
