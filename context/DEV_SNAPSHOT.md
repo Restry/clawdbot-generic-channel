@@ -128,6 +128,10 @@
 ## 远端当前已确认状态
 
 - 远端插件已加载成功
+- 远端插件目录已切换为 Git 工作树：
+  - `~/.openclaw/extensions/generic-channel`
+  - remote: `https://github.com/Restry/clawdbot-generic-channel.git`
+  - branch: `main`
 - `18080` 正在监听
 - 远端测试机已配置 3 个 agent：
   - `main`
@@ -158,6 +162,7 @@
 - 本轮远端真实会话隔离已确认：
   - 同一 token 用户在 `main` 下两个不同 `chatId` 可分别记住不同上下文，不会串会话
   - `writer` 会话只出现在 `agentId=writer` 的会话列表里，不会混入 `agentId=main`
+  - 固定 `chatId` 账号 `test-full` 在显式 `agentId=main` / `agentId=writer` 下，`history.sync`、`history.get`、`conversation.list` 摘要都已按 `chatId + agentId` 隔离
 - 本轮额外发现：
   - 远端 `code` agent 当前模型 `azure-foundry/gpt-5.3-codex` 能被选中并命中路由
   - 但实际回复返回 provider 400，属于远端模型/调用兼容性问题，不是 generic-channel 的 agent 路由失效
