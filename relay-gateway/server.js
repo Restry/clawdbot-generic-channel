@@ -11,6 +11,7 @@ const adminPagePath = join(baseDir, "public", "admin.html");
 const host = process.env.RELAY_HOST || "0.0.0.0";
 const port = Number(process.env.RELAY_PORT || 19080);
 const adminToken = normalizeNonEmpty(process.env.RELAY_ADMIN_TOKEN);
+const publicBaseUrl = normalizeNonEmpty(process.env.RELAY_PUBLIC_BASE_URL);
 const pluginBackendUrl =
   normalizeNonEmpty(process.env.RELAY_PLUGIN_BACKEND_URL) || `ws://127.0.0.1:${port}/backend`;
 
@@ -574,6 +575,7 @@ async function handleAdminState(response) {
     ok: true,
     configPath,
     adminAuthEnabled: Boolean(adminToken),
+    publicBaseUrl,
     pluginBackendUrl,
     channels: listChannels(),
     stats: {

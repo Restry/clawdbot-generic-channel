@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -11,12 +11,13 @@
           extend: {
             colors: {
               ink: "#142132",
-              sand: "#f6efe4",
-              accent: "#0f766e",
-              amberish: "#c56a18",
+              sand: "#f8f3ea",
+              pine: "#0f766e",
+              ember: "#b45309",
+              dusk: "#273446",
             },
             boxShadow: {
-              float: "0 24px 60px rgba(20, 33, 50, 0.12)",
+              float: "0 18px 48px rgba(20, 33, 50, 0.10)",
             },
             fontFamily: {
               sans: [
@@ -42,13 +43,13 @@
     <style>
       body {
         background:
-          radial-gradient(circle at 0 0, rgba(197, 106, 24, 0.18), transparent 26rem),
-          radial-gradient(circle at 100% 0, rgba(15, 118, 110, 0.12), transparent 30rem),
-          linear-gradient(180deg, #fbf7ef 0%, #f4ede3 100%);
+          radial-gradient(circle at 0 0, rgba(180, 83, 9, 0.14), transparent 24rem),
+          radial-gradient(circle at 100% 0, rgba(15, 118, 110, 0.12), transparent 28rem),
+          linear-gradient(180deg, #fcfaf6 0%, #f5ede1 100%);
       }
     </style>
   </head>
-  <body class="min-h-screen text-ink antialiased">
+  <body class="min-h-screen bg-sand text-ink antialiased">
     <div id="app"></div>
 
     <script type="module">
@@ -58,20 +59,10 @@
 
       const html = htm.bind(React.createElement);
       const STORAGE_KEY = "relay-admin-token";
-      const DEFAULT_CHANNEL_FORM = {
-        channelId: "",
-        label: "",
-        secret: "",
-        tokenParam: "token",
-      };
-      const createDefaultUserForm = () => ({
-        id: "",
-        senderId: "",
-        chatId: "",
-        token: `gc_${randomToken()}`,
-        allowAgents: "",
-        enabled: true,
-      });
+      const TAB_CONNECT = "connect";
+      const TAB_USERS = "users";
+      const TAB_SETTINGS = "settings";
+      const TAB_ACTIVITY = "activity";
 
       function randomToken() {
         if (globalThis.crypto?.randomUUID) {
@@ -80,11 +71,31 @@
         if (globalThis.crypto?.getRandomValues) {
           const bytes = new Uint8Array(16);
           globalThis.crypto.getRandomValues(bytes);
-          return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+          return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
         }
         return `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`
           .replaceAll(".", "")
           .slice(0, 32);
+      }
+
+      function createChannelDraft(channel) {
+        return {
+          channelId: channel?.channelId || "",
+          label: channel?.label || "",
+          secret: channel?.secret || "",
+          tokenParam: channel?.tokenParam || "token",
+        };
+      }
+
+      function createUserDraft(user) {
+        return {
+          id: user?.id || "",
+          senderId: user?.senderId || "",
+          chatId: user?.chatId || "",
+          token: user?.token || `gc_${randomToken()}`,
+          allowAgents: Array.isArray(user?.allowAgents) ? user.allowAgents.join(",") : "",
+          enabled: user?.enabled === false ? false : true,
+        };
       }
 
       function formatTime(value) {
@@ -98,20 +109,196 @@
         }
       }
 
-      function getWsOrigin() {
-        return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
+      function summarizeLastSeen(channel) {
+        if (!channel) {
+          return "Never";
+        }
+        if (channel.backendConnected && channel.lastConnectedAt) {
+          return formatTime(channel.lastConnectedAt);
+        }
+        return formatTime(channel.lastDisconnectedAt || channel.lastConnectedAt);
       }
 
-      async function copyText(text) {
-        if (!text) {
+      function normalizeHttpOrigin(value) {
+        if (!value) {
+          return window.location.origin;
+        }
+        try {
+          return new URL(value).origin;
+        } catch {
+          return window.location.origin;
+        }
+      }
+
+      function getPublicHttpOrigin(gatewayState) {
+        return normalizeHttpOrigin(gatewayState?.publicBaseUrl);
+      }
+
+      function getPublicWsOrigin(gatewayState) {
+        const origin = new URL(getPublicHttpOrigin(gatewayState));
+        origin.protocol = origin.protocol === "https:" ? "wss:" : "ws:";
+        return origin.origin;
+      }
+
+      function getPublicAdminUrl(gatewayState) {
+        return `${getPublicHttpOrigin(gatewayState)}/admin`;
+      }
+
+      function buildClientBaseUrl(gatewayState, channel) {
+        const channelId = channel?.channelId || "<channel-id>";
+        return `${getPublicWsOrigin(gatewayState)}/client?channelId=${encodeURIComponent(channelId)}`;
+      }
+
+      function buildClientFullUrl(gatewayState, channel, user) {
+        const tokenParam = channel.tokenParam || "token";
+        const token = user?.token || "<user-token>";
+        return `${buildClientBaseUrl(gatewayState, channel)}&${encodeURIComponent(tokenParam)}=${encodeURIComponent(token)}`;
+      }
+
+      function buildPluginBackendUrl(gatewayState) {
+        return gatewayState?.pluginBackendUrl || "ws://127.0.0.1:18080/backend";
+      }
+
+      function buildRelayBlock(gatewayState, channel) {
+        const channelId = channel?.channelId || "<channel-id>";
+        const secret = channel?.secret || "<backend-secret>";
+        return [
+          'connectionMode: "relay"',
+          "relay:",
+          `  url: "${buildPluginBackendUrl(gatewayState)}"`,
+          `  channelId: "${channelId}"`,
+          `  secret: "${secret}"`,
+        ].join("\n");
+      }
+
+      function buildOpenClawConfig(gatewayState, channel) {
+        const channelId = channel?.channelId || "<channel-id>";
+        const secret = channel?.secret || "<backend-secret>";
+        return [
+          "channels:",
+          "  generic-channel:",
+          "    enabled: true",
+          '    connectionMode: "relay"',
+          "    relay:",
+          `      url: "${buildPluginBackendUrl(gatewayState)}"`,
+          `      channelId: "${channelId}"`,
+          `      secret: "${secret}"`,
+          '      instanceId: "openclaw-node-1"',
+          "    auth:",
+          "      enabled: false",
+        ].join("\n");
+      }
+
+      function pickPreferredUser(channel, selectedUserSenderId) {
+        const users = Array.isArray(channel?.users) ? channel.users : [];
+        if (users.length === 0) {
+          return null;
+        }
+        return (
+          users.find((item) => item.senderId === selectedUserSenderId) ||
+          users.find((item) => item.enabled !== false) ||
+          users[0]
+        );
+      }
+
+      function buildClientPreset(gatewayState, channel, user) {
+        return {
+          serverUrl: buildClientBaseUrl(gatewayState, channel),
+          token: user?.token || "<create-user-token-first>",
+          userName: user?.senderId || "your-user-name",
+          chatId: user?.chatId || "<optional, can stay empty>",
+          agentId:
+            Array.isArray(user?.allowAgents) && user.allowAgents.length > 0
+              ? user.allowAgents[0]
+              : "main",
+        };
+      }
+
+      function buildClientTemplate(gatewayState, channel, user) {
+        const preset = buildClientPreset(gatewayState, channel, user);
+        return [
+          `serverUrl = "${preset.serverUrl}"`,
+          `userName = "${preset.userName}"`,
+          `token = "${preset.token}"`,
+          "",
+          "# optional",
+          `chatId = "${preset.chatId}"`,
+          `agentId = "${preset.agentId}"`,
+        ].join("\n");
+      }
+
+      function buildClientGuide(gatewayState, channel, user) {
+        const preset = buildClientPreset(gatewayState, channel, user);
+        return [
+          {
+            key: "serverUrl",
+            value: preset.serverUrl,
+            note: "填到 H5 的 serverUrl。这里故意只保留 channelId，让 token 单独填，方便更换用户。",
+          },
+          {
+            key: "token",
+            value: preset.token,
+            note: user ? `使用 ${user.senderId} 的网关 token。` : "先在用户管理里创建一个 token，再填到这里。",
+          },
+          {
+            key: "userName",
+            value: preset.userName,
+            note: "通常与 senderId 相同。聊天窗口里看到的发送者名称就是它。",
+          },
+          {
+            key: "chatId",
+            value: preset.chatId,
+            note: "可以留空。连上之后，客户端仍可自由切换或新建会话。",
+          },
+          {
+            key: "agentId",
+            value: preset.agentId,
+            note: "可选。如果这个用户限制了 agent，第一次接入建议先填一个允许的 agentId。",
+          },
+        ];
+      }
+
+      function buildClientGuideText(gatewayState, channel, user) {
+        return buildClientGuide(gatewayState, channel, user)
+          .map((item) => `${item.key}: ${item.value}`)
+          .join("\n");
+      }
+
+      function buildSetupChecklist(gatewayState, channel) {
+        return [
+          {
+            label: "Public TLS",
+            ok: getPublicHttpOrigin(gatewayState).startsWith("https://"),
+            hint: getPublicHttpOrigin(gatewayState),
+          },
+          {
+            label: "Backend online",
+            ok: Boolean(channel?.backendConnected),
+            hint: channel?.backendConnected ? `Instance ${channel.instanceId || "-"}` : "Plugin still needs to connect back",
+          },
+          {
+            label: "User tokens",
+            ok: (channel?.userCount || 0) > 0,
+            hint: `${channel?.userCount || 0} managed users`,
+          },
+          {
+            label: "H5 compatible",
+            ok: (channel?.tokenParam || "token") === "token",
+            hint: `tokenParam = ${channel?.tokenParam || "token"}`,
+          },
+        ];
+      }
+
+      async function copyText(value) {
+        if (!value) {
           throw new Error("Nothing to copy");
         }
         if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(text);
+          await navigator.clipboard.writeText(value);
           return;
         }
         const input = document.createElement("textarea");
-        input.value = text;
+        input.value = value;
         input.setAttribute("readonly", "");
         input.style.position = "fixed";
         input.style.opacity = "0";
@@ -141,117 +328,28 @@
         return data;
       }
 
-      function pickPreferredUser(channel, selectedUserSenderId) {
-        const users = Array.isArray(channel?.users) ? channel.users : [];
-        if (users.length === 0) {
-          return null;
-        }
-        return (
-          users.find((item) => item.senderId === selectedUserSenderId) ||
-          users.find((item) => item.enabled !== false) ||
-          users[0]
-        );
-      }
-
-      function buildClientBaseUrl(channel) {
-        return `${getWsOrigin()}/client?channelId=${encodeURIComponent(channel.channelId)}`;
-      }
-
-      function buildClientFullUrl(channel, user) {
-        const tokenParam = channel.tokenParam || "token";
-        const token = user?.token || "<user-token>";
-        return `${buildClientBaseUrl(channel)}&${encodeURIComponent(tokenParam)}=${encodeURIComponent(token)}`;
-      }
-
-      function buildRelayBackendUrl(gatewayState) {
-        return gatewayState?.pluginBackendUrl || "ws://127.0.0.1:18080/backend";
-      }
-
-      function buildOpenClawConfig(channel, gatewayState) {
-        return [
-          "channels:",
-          "  generic-channel:",
-          "    enabled: true",
-          '    connectionMode: "relay"',
-          "    relay:",
-          `      url: "${buildRelayBackendUrl(gatewayState)}"`,
-          `      channelId: "${channel.channelId}"`,
-          `      secret: "${channel.secret}"`,
-          '      instanceId: "openclaw-node-1"',
-          "    auth:",
-          "      enabled: false",
-        ].join("\n");
-      }
-
-      function buildRelayBlock(channel, gatewayState) {
-        return [
-          'connectionMode: "relay"',
-          "relay:",
-          `  url: "${buildRelayBackendUrl(gatewayState)}"`,
-          `  channelId: "${channel.channelId}"`,
-          `  secret: "${channel.secret}"`,
-        ].join("\n");
-      }
-
-      function buildClientPreset(channel, user) {
-        return {
-          serverUrl: buildClientBaseUrl(channel),
-          token: user?.token || "<create-user-token-first>",
-          userName: user?.senderId || "your-user-name",
-          chatId: user?.chatId || "<optional, can stay empty>",
-          agentId:
-            Array.isArray(user?.allowAgents) && user.allowAgents.length > 0
-              ? user.allowAgents[0]
-              : "main",
-        };
-      }
-
-      function buildClientTemplate(channel, user) {
-        const preset = buildClientPreset(channel, user);
-        return [
-          `serverUrl = "${preset.serverUrl}"`,
-          `userName = "${preset.userName}"`,
-          `token = "${preset.token}"`,
-          "",
-          "# optional",
-          `chatId = "${preset.chatId}"`,
-          `agentId = "${preset.agentId}"`,
-        ].join("\n");
-      }
-
-      function buildClientGuide(channel, user) {
-        const preset = buildClientPreset(channel, user);
-        return [
-          { key: "serverUrl", value: preset.serverUrl, note: "填到 H5 客户端的 serverUrl 输入框。这里建议只保留 channelId，token 单独填。"},
-          { key: "token", value: preset.token, note: user ? `使用 ${user.senderId} 的网关 token。` : "先创建一个用户，再把它的 token 填到这里。"},
-          { key: "userName", value: preset.userName, note: "通常与 senderId 一致，聊天里看到的发送者名称就是它。"},
-          { key: "chatId", value: preset.chatId, note: "可留空。连接成功后，客户端还可以自由切换或新建多个会话。"},
-          { key: "agentId", value: preset.agentId, note: "可选。如果该用户限制了 agent，首次连接建议先填一个允许的 agentId。"},
-        ];
-      }
-
-      function badgeToneClass(tone) {
+      function toneClasses(tone) {
         if (tone === "ok") {
           return "bg-emerald-50 text-emerald-700 ring-emerald-200";
         }
         if (tone === "warn") {
-          return "bg-amber-50 text-amber-700 ring-amber-200";
+          return "bg-amber-50 text-amber-800 ring-amber-200";
         }
         if (tone === "danger") {
           return "bg-rose-50 text-rose-700 ring-rose-200";
         }
-        return "bg-slate-100 text-slate-600 ring-slate-200";
+        return "bg-slate-100 text-slate-700 ring-slate-200";
       }
 
       function Button({ tone = "primary", className = "", type = "button", ...props }) {
         const toneClass =
           tone === "primary"
-            ? "bg-amber-400 text-slate-950 hover:bg-amber-300"
-            : tone === "danger"
-              ? "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 hover:bg-rose-100"
+            ? "bg-dusk text-white hover:bg-slate-900"
+            : tone === "secondary"
+              ? "bg-white text-slate-900 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
               : tone === "ghost"
-                ? "bg-white/70 text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-white"
-                : "bg-white text-slate-800 ring-1 ring-inset ring-slate-200 hover:bg-slate-50";
+                ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                : "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 hover:bg-rose-100";
 
         return html`
           <button
@@ -262,65 +360,100 @@
         `;
       }
 
-      function Badge({ tone = "slate", children }) {
+      function Chip({ tone = "slate", children, className = "" }) {
         return html`
-          <span className=${`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${badgeToneClass(tone)}`}>
+          <span className=${`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${toneClasses(tone)} ${className}`.trim()}>
             ${children}
           </span>
         `;
       }
 
-      function Panel({ title, subtitle, actions = null, children, className = "" }) {
+      function Card({ className = "", children }) {
         return html`
-          <section className=${`rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-float backdrop-blur ${className}`.trim()}>
-            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div className=${`rounded-[26px] border border-white/70 bg-white/85 shadow-float backdrop-blur ${className}`.trim()}>
+            ${children}
+          </div>
+        `;
+      }
+
+      function SectionCard({ title, subtitle, actions = null, children, className = "" }) {
+        return html`
+          <${Card} className=${`p-5 ${className}`.trim()}>
+            <div className="mb-4 flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-slate-900">${title}</h2>
+                <h2 className="text-lg font-semibold text-slate-950">${title}</h2>
                 ${subtitle ? html`<p className="text-sm leading-6 text-slate-500">${subtitle}</p>` : null}
               </div>
               ${actions}
             </div>
             ${children}
-          </section>
+          </${Card}>
         `;
       }
 
-      function EmptyState({ title, text }) {
+      function EmptyState({ title, text, action = null }) {
         return html`
-          <div className="grid min-h-[220px] place-items-center rounded-[24px] border border-dashed border-slate-200 bg-white/50 px-6 py-10 text-center">
-            <div className="space-y-3">
-              <div className="text-xl font-semibold text-slate-900">${title}</div>
-              <p className="max-w-md text-sm leading-6 text-slate-500">${text}</p>
+          <div className="grid min-h-[220px] place-items-center rounded-[24px] border border-dashed border-slate-200 bg-slate-50/70 px-6 py-10 text-center">
+            <div className="max-w-md space-y-3">
+              <div className="text-xl font-semibold text-slate-950">${title}</div>
+              <p className="text-sm leading-7 text-slate-500">${text}</p>
+              ${action}
             </div>
           </div>
         `;
       }
 
+      function TabButton({ active, label, onClick }) {
+        return html`
+          <button
+            type="button"
+            onClick=${onClick}
+            className=${`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+              active
+                ? "bg-slate-900 text-white"
+                : "bg-white text-slate-600 ring-1 ring-inset ring-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            ${label}
+          </button>
+        `;
+      }
+
       function App() {
-        const [adminToken, setAdminToken] = useState(localStorage.getItem(STORAGE_KEY) || "");
-        const [adminInput, setAdminInput] = useState(localStorage.getItem(STORAGE_KEY) || "");
-        const [tokenVisible, setTokenVisible] = useState(false);
+        const savedToken = localStorage.getItem(STORAGE_KEY) || "";
+        const [adminToken, setAdminToken] = useState(savedToken);
+        const [adminInput, setAdminInput] = useState(savedToken);
+        const [showAdminToken, setShowAdminToken] = useState(false);
         const [gatewayState, setGatewayState] = useState(null);
-        const [selectedChannelId, setSelectedChannelId] = useState("");
-        const [selectedUserSenderId, setSelectedUserSenderId] = useState("");
-        const [serverQuery, setServerQuery] = useState("");
-        const [userQuery, setUserQuery] = useState("");
-        const [channelForm, setChannelForm] = useState(DEFAULT_CHANNEL_FORM);
-        const [userForm, setUserForm] = useState(createDefaultUserForm());
         const [isLoading, setIsLoading] = useState(false);
         const [errorMessage, setErrorMessage] = useState("");
+        const [selectedChannelId, setSelectedChannelId] = useState("");
+        const [selectedUserSenderId, setSelectedUserSenderId] = useState("");
+        const [activeTab, setActiveTab] = useState(TAB_CONNECT);
+        const [serverSearch, setServerSearch] = useState("");
+        const [userSearch, setUserSearch] = useState("");
+        const [showChannelEditor, setShowChannelEditor] = useState(false);
+        const [showUserEditor, setShowUserEditor] = useState(false);
+        const [editingUserSenderId, setEditingUserSenderId] = useState("");
+        const [channelDraft, setChannelDraft] = useState(createChannelDraft());
+        const [userDraft, setUserDraft] = useState(createUserDraft());
         const [activity, setActivity] = useState([]);
         const [toasts, setToasts] = useState([]);
 
         const channels = Array.isArray(gatewayState?.channels) ? gatewayState.channels : [];
-        const selectedChannel = channels.find((item) => item.channelId === selectedChannelId) || null;
         const filteredChannels = channels
-          .filter((item) => {
-            const query = serverQuery.trim().toLowerCase();
+          .filter((channel) => {
+            const query = serverSearch.trim().toLowerCase();
             if (!query) {
               return true;
             }
-            return [item.channelId, item.label, item.backendConnected ? "online" : "offline", item.userCount > 0 ? "protected" : "open", item.instanceId]
+            return [
+              channel.channelId,
+              channel.label,
+              channel.backendConnected ? "online" : "offline",
+              channel.userCount > 0 ? "protected" : "open",
+              channel.instanceId,
+            ]
               .filter(Boolean)
               .join(" ")
               .toLowerCase()
@@ -338,14 +471,39 @@
             }
             return (left.label || left.channelId).localeCompare(right.label || right.channelId);
           });
+
+        const selectedChannel = channels.find((channel) => channel.channelId === selectedChannelId) || null;
+        const isDraftChannel = !selectedChannel && showChannelEditor;
+        const workspaceChannel =
+          selectedChannel ||
+          (isDraftChannel
+            ? {
+                channelId: channelDraft.channelId.trim(),
+                label: channelDraft.label.trim(),
+                secret: channelDraft.secret.trim(),
+                tokenParam: channelDraft.tokenParam.trim() || "token",
+                users: [],
+                userCount: 0,
+                clientCount: 0,
+                backendConnected: false,
+                instanceId: "",
+              }
+            : null);
         const preferredUser = pickPreferredUser(selectedChannel, selectedUserSenderId);
-        const visibleUsers = (Array.isArray(selectedChannel?.users) ? selectedChannel.users : [])
-          .filter((item) => {
-            const query = userQuery.trim().toLowerCase();
+        const filteredUsers = (Array.isArray(selectedChannel?.users) ? selectedChannel.users : [])
+          .filter((user) => {
+            const query = userSearch.trim().toLowerCase();
             if (!query) {
               return true;
             }
-            return [item.senderId, item.id, item.chatId, item.token, Array.isArray(item.allowAgents) ? item.allowAgents.join(",") : "", item.enabled === false ? "disabled" : "enabled"]
+            return [
+              user.senderId,
+              user.id,
+              user.chatId,
+              user.token,
+              Array.isArray(user.allowAgents) ? user.allowAgents.join(",") : "",
+              user.enabled === false ? "disabled" : "enabled",
+            ]
               .filter(Boolean)
               .join(" ")
               .toLowerCase()
@@ -357,109 +515,120 @@
             }
             return left.senderId.localeCompare(right.senderId);
           });
+
         const summary = {
-          channelCount: channels.length,
-          protectedCount: channels.filter((item) => item.userCount > 0).length,
-          backendCount: gatewayState?.stats?.backendCount || 0,
-          offlineCount: channels.filter((item) => !item.backendConnected).length,
+          channels: channels.length,
+          protectedChannels: channels.filter((channel) => channel.userCount > 0).length,
+          backendsOnline: gatewayState?.stats?.backendCount || 0,
+          backendsOffline: channels.filter((channel) => !channel.backendConnected).length,
           clientCount: gatewayState?.stats?.clientCount || 0,
-          userCount: channels.reduce((sum, item) => sum + (item.userCount || 0), 0),
+          userCount: channels.reduce((sum, channel) => sum + (channel.userCount || 0), 0),
         };
-        const nextStep = !selectedChannel
-          ? "先选择一个服务器，或者新建一个 channel。"
-          : selectedChannel.userCount === 0
-            ? "先创建至少一个用户 token，避免任何拿到入口的人都能连接。"
-            : !selectedChannel.backendConnected
-              ? "把右侧 OpenClaw 配置写到插件机器上，确保插件以 relay 模式连回网关。"
-              : selectedChannel.tokenParam !== "token"
-                ? "如果你要直接用官方 H5 示例页，建议把 tokenParam 改回 token。"
-                : "配置已经比较完整，接下来把客户端字段说明交给接入方即可。";
+
+        const nextAction = isDraftChannel
+          ? "正在创建一个新服务器草稿。先填好 channelId 和 secret，再决定是否立刻分配用户 token。"
+          : !selectedChannel
+            ? "先从左边选择一个服务器，或者新建一个 channel。"
+          : !selectedChannel.backendConnected
+            ? "当前最重要的是让 OpenClaw 插件连回本机 backend，这样客户端才不会被拒绝。"
+            : selectedChannel.userCount === 0
+              ? "先为这个服务器创建至少一个用户 token，再把客户端字段说明发给第三方。"
+              : (selectedChannel.tokenParam || "token") !== "token"
+                ? "如果第三方直接接官方 H5 页，建议把 tokenParam 改回 token。"
+                : "当前配置已经适合日常接入，重点是把正确用户的 client guide 发给第三方。";
 
         useEffect(() => {
+          if (!selectedChannelId && showChannelEditor) {
+            return;
+          }
           if (!channels.length) {
             if (selectedChannelId) {
               setSelectedChannelId("");
             }
             return;
           }
-          if (selectedChannel) {
-            const user = pickPreferredUser(selectedChannel, selectedUserSenderId);
-            if ((user?.senderId || "") !== selectedUserSenderId) {
-              setSelectedUserSenderId(user?.senderId || "");
-            }
+          if (selectedChannelId && channels.some((item) => item.channelId === selectedChannelId)) {
+            return;
           }
-        }, [channels, selectedChannelId, selectedUserSenderId, selectedChannel]);
+          setSelectedChannelId(channels[0].channelId);
+        }, [channels, selectedChannelId]);
 
         useEffect(() => {
           if (!selectedChannel) {
+            setChannelDraft(createChannelDraft());
+            setSelectedUserSenderId("");
             return;
           }
-          setChannelForm({
-            channelId: selectedChannel.channelId || "",
-            label: selectedChannel.label || "",
-            secret: selectedChannel.secret || "",
-            tokenParam: selectedChannel.tokenParam || "token",
-          });
-        }, [selectedChannelId, gatewayState?.timestamp]);
+          setChannelDraft(createChannelDraft(selectedChannel));
+          const nextUser = pickPreferredUser(selectedChannel, selectedUserSenderId);
+          if ((nextUser?.senderId || "") !== selectedUserSenderId) {
+            setSelectedUserSenderId(nextUser?.senderId || "");
+          }
+        }, [selectedChannel?.channelId, gatewayState?.timestamp]);
 
         useEffect(() => {
-          if (!adminToken) {
-            loadState(false);
+          if (!showUserEditor) {
             return;
           }
-          loadState(false);
+          const editingUser = Array.isArray(selectedChannel?.users)
+            ? selectedChannel.users.find((item) => item.senderId === editingUserSenderId)
+            : null;
+          setUserDraft(createUserDraft(editingUser || null));
+        }, [showUserEditor, editingUserSenderId, selectedChannel?.channelId, gatewayState?.timestamp]);
+
+        useEffect(() => {
+          loadState(false, savedToken);
         }, []);
 
-        function addActivity(message, tone = "slate") {
+        function pushActivity(message, tone = "slate") {
           setActivity((current) => [
             { id: `${Date.now()}-${Math.random()}`, message, tone, time: Date.now() },
             ...current,
-          ].slice(0, 10));
+          ].slice(0, 14));
         }
 
-        function showToast(message, tone = "slate") {
+        function pushToast(message, tone = "slate") {
           const id = `${Date.now()}-${Math.random()}`;
           setToasts((current) => [...current, { id, message, tone }]);
           window.setTimeout(() => {
             setToasts((current) => current.filter((item) => item.id !== id));
-          }, 2600);
+          }, 2800);
         }
 
-        async function runAction(work, successMessage, errorPrefix = "Request failed") {
+        async function runAction(work, successMessage, errorPrefix) {
           try {
             setErrorMessage("");
             const result = await work();
             if (successMessage) {
-              addActivity(successMessage, "ok");
-              showToast(successMessage, "ok");
+              pushActivity(successMessage, "ok");
+              pushToast(successMessage, "ok");
             }
             return result;
           } catch (error) {
             const message = `${errorPrefix}: ${String(error.message || error)}`;
             setErrorMessage(message);
-            addActivity(message, "danger");
-            showToast(message, "danger");
+            pushActivity(message, "danger");
+            pushToast(message, "danger");
             throw error;
           }
         }
 
         async function loadState(announce = true, tokenOverride = undefined) {
-          const activeToken = tokenOverride ?? adminToken;
+          const token = tokenOverride ?? adminToken;
           setIsLoading(true);
           try {
-            const data = await requestJson("/api/state", activeToken);
+            const data = await requestJson("/api/state", token);
             setGatewayState(data);
-            const nextChannels = Array.isArray(data.channels) ? data.channels : [];
             setSelectedChannelId((current) => {
-              if (current && nextChannels.some((item) => item.channelId === current)) {
+              if (current && data.channels.some((item) => item.channelId === current)) {
                 return current;
               }
-              return nextChannels[0]?.channelId || "";
+              return data.channels[0]?.channelId || "";
             });
             setErrorMessage("");
             if (announce) {
-              addActivity("Relay state refreshed.", "ok");
-              showToast("Relay state refreshed.", "ok");
+              pushActivity("Relay state refreshed.", "ok");
+              pushToast("Relay state refreshed.", "ok");
             }
           } catch (error) {
             const message = String(error.message || error);
@@ -467,15 +636,15 @@
               setGatewayState(null);
               setErrorMessage("Admin token required");
               if (announce) {
-                addActivity("Admin token required before state can be loaded.", "warn");
-                showToast("Admin token required.", "warn");
+                pushActivity("Admin token required before state can be loaded.", "warn");
+                pushToast("Admin token required.", "warn");
               }
               return;
             }
             setErrorMessage(message);
             if (announce) {
-              addActivity(message, "danger");
-              showToast(message, "danger");
+              pushActivity(message, "danger");
+              pushToast(message, "danger");
             }
           } finally {
             setIsLoading(false);
@@ -487,44 +656,60 @@
           const nextToken = adminInput.trim();
           localStorage.setItem(STORAGE_KEY, nextToken);
           setAdminToken(nextToken);
-          addActivity("Admin token saved locally.", "ok");
-          showToast("Admin token saved locally.", "ok");
+          pushActivity("Admin token saved locally.", "ok");
+          pushToast("Admin token saved locally.", "ok");
           await loadState(false, nextToken);
         }
 
-        function prepareNewChannel() {
-          setSelectedChannelId("");
-          setChannelForm(DEFAULT_CHANNEL_FORM);
-          setUserForm(createDefaultUserForm());
-          addActivity("Server form reset for a new channel.", "ok");
-          showToast("Server form reset for a new channel.", "ok");
+        function selectChannel(channelId) {
+          setSelectedChannelId(channelId);
+          setShowChannelEditor(false);
+          setShowUserEditor(false);
+          setEditingUserSenderId("");
+          setActiveTab(TAB_CONNECT);
+          pushActivity(`Selected ${channelId}.`, "ok");
         }
 
-        function startEditingUser(user) {
+        function startNewChannel() {
+          setSelectedChannelId("");
+          setChannelDraft(createChannelDraft());
+          setShowChannelEditor(true);
+          setActiveTab(TAB_SETTINGS);
+          pushActivity("Preparing a new server draft.", "ok");
+          pushToast("Preparing a new server draft.", "ok");
+        }
+
+        function startEditServer() {
+          setShowChannelEditor(true);
+          setActiveTab(TAB_SETTINGS);
+        }
+
+        function startNewUser() {
+          setEditingUserSenderId("");
+          setUserDraft(createUserDraft());
+          setShowUserEditor(true);
+          setActiveTab(TAB_USERS);
+        }
+
+        function startEditUser(user) {
+          setEditingUserSenderId(user.senderId);
+          setUserDraft(createUserDraft(user));
+          setShowUserEditor(true);
+          setActiveTab(TAB_USERS);
           setSelectedUserSenderId(user.senderId);
-          setUserForm({
-            id: user.id || "",
-            senderId: user.senderId || "",
-            chatId: user.chatId || "",
-            token: user.token || `gc_${randomToken()}`,
-            allowAgents: Array.isArray(user.allowAgents) ? user.allowAgents.join(",") : "",
-            enabled: user.enabled === false ? false : true,
-          });
-          addActivity(`Loaded ${user.senderId} into user form.`, "ok");
-          showToast(`Loaded ${user.senderId} into user form.`, "ok");
         }
 
         async function submitChannel(event) {
           event.preventDefault();
           const payload = {
-            channelId: channelForm.channelId.trim(),
-            label: channelForm.label.trim(),
-            secret: channelForm.secret.trim(),
-            tokenParam: channelForm.tokenParam.trim() || "token",
+            channelId: channelDraft.channelId.trim(),
+            label: channelDraft.label.trim(),
+            secret: channelDraft.secret.trim(),
+            tokenParam: channelDraft.tokenParam.trim() || "token",
           };
           if (!payload.channelId) {
             setErrorMessage("channelId is required");
-            showToast("channelId is required", "danger");
+            pushToast("channelId is required.", "danger");
             return;
           }
           await runAction(
@@ -535,6 +720,7 @@
               });
               await loadState(false);
               setSelectedChannelId(payload.channelId);
+              setShowChannelEditor(false);
             },
             `Saved server ${payload.channelId}.`,
             "Failed to save server",
@@ -545,20 +731,20 @@
           event.preventDefault();
           if (!selectedChannel) {
             setErrorMessage("Select a server before saving users");
-            showToast("Select a server before saving users.", "warn");
+            pushToast("Select a server before saving users.", "warn");
             return;
           }
           const payload = {
-            id: userForm.id.trim(),
-            senderId: userForm.senderId.trim(),
-            chatId: userForm.chatId.trim(),
-            token: userForm.token.trim(),
-            allowAgents: userForm.allowAgents.trim(),
-            enabled: userForm.enabled,
+            id: userDraft.id.trim(),
+            senderId: userDraft.senderId.trim(),
+            chatId: userDraft.chatId.trim(),
+            token: userDraft.token.trim(),
+            allowAgents: userDraft.allowAgents.trim(),
+            enabled: userDraft.enabled,
           };
           if (!payload.senderId) {
             setErrorMessage("senderId is required");
-            showToast("senderId is required", "danger");
+            pushToast("senderId is required.", "danger");
             return;
           }
           await runAction(
@@ -569,14 +755,16 @@
               });
               await loadState(false);
               setSelectedUserSenderId(payload.senderId);
-              setUserForm(createDefaultUserForm());
+              setShowUserEditor(false);
+              setEditingUserSenderId("");
+              setUserDraft(createUserDraft());
             },
             `Saved user ${payload.senderId}.`,
             "Failed to save user",
           );
         }
 
-        async function deleteChannel(channel) {
+        async function removeChannel(channel) {
           if (!window.confirm(`Delete channel ${channel.channelId}?`)) {
             return;
           }
@@ -585,9 +773,6 @@
               await requestJson(`/api/channels/${encodeURIComponent(channel.channelId)}`, adminToken, {
                 method: "DELETE",
               });
-              if (selectedChannelId === channel.channelId) {
-                setSelectedChannelId("");
-              }
               await loadState(false);
             },
             `Deleted channel ${channel.channelId}.`,
@@ -595,7 +780,7 @@
           );
         }
 
-        async function deleteUser(user) {
+        async function removeUser(user) {
           if (!selectedChannel) {
             return;
           }
@@ -626,754 +811,769 @@
           );
         }
 
+        const checklist = buildSetupChecklist(gatewayState, selectedChannel);
+
         return html`
-          <div className="mx-auto max-w-[1500px] px-4 py-6 md:px-6 md:py-8">
-            <div className="grid gap-6">
-              <section className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr]">
-                <div className="rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-float backdrop-blur">
-                  <div className="mb-6 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                    Relay Gateway Control Room
-                  </div>
-                  <div className="grid gap-6">
+          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-5 sm:py-5">
+            <div className="grid gap-4">
+              <${Card} className="overflow-hidden">
+                <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1.25fr_0.95fr]">
+                  <div className="space-y-4">
+                    <div className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                      Relay Gateway Workspace
+                    </div>
                     <div className="space-y-3">
-                      <h1 className="max-w-3xl text-3xl font-semibold leading-tight text-slate-950 md:text-5xl">
-                        把网关运维和第三方接入说明放到一张页面里。
+                      <h1 className="max-w-4xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+                        把 relay 管理端做成一个真正可日常使用的平台。
                       </h1>
-                      <p className="max-w-3xl text-sm leading-7 text-slate-500 md:text-base">
-                        这个页面现在分成明确的几个阶段：先登录，再选择服务器，然后拿到插件配置和客户端字段说明，最后管理用户 token。主次分层清楚，接入方和运维方都能直接照着填。
+                      <p className="max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
+                        这里不再是临时调试页，而是把经常发生的工作拆成稳定流程：选服务器、确认健康状态、复制正确的插件配置、给第三方接入方一份可直接照填的客户端字段说明，然后再管理用户 token。
                       </p>
                     </div>
 
-                    <div className="grid gap-3 md:grid-cols-4">
-                      <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
-                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Channels</div>
-                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.channelCount}</div>
-                        <div className="mt-2 text-sm text-slate-500">${summary.protectedCount} protected</div>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Servers</div>
+                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.channels}</div>
+                        <div className="mt-2 text-sm text-slate-500">${summary.protectedChannels} protected</div>
                       </div>
-                      <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
-                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Backends Online</div>
-                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.backendCount}</div>
-                        <div className="mt-2 text-sm text-slate-500">${summary.offlineCount} offline</div>
+                      <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Backends</div>
+                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.backendsOnline}</div>
+                        <div className="mt-2 text-sm text-slate-500">${summary.backendsOffline} offline</div>
                       </div>
-                      <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
-                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Clients Connected</div>
+                      <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Live Clients</div>
                         <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.clientCount}</div>
                         <div className="mt-2 text-sm text-slate-500">
-                          ${summary.clientCount > 0 ? "Relay traffic is live" : "No live client sessions"}
+                          ${summary.clientCount > 0 ? "Relay traffic is live" : "No live traffic right now"}
                         </div>
                       </div>
-                      <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
-                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Managed Users</div>
+                      <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Managed Users</div>
                         <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.userCount}</div>
-                        <div className="mt-2 truncate text-sm text-slate-500">
-                          ${gatewayState?.configPath || "Config path unavailable"}
-                        </div>
+                        <div className="mt-2 truncate text-sm text-slate-500">${gatewayState?.configPath || "Config path unavailable"}</div>
                       </div>
                     </div>
 
-                    <div className="rounded-[28px] border border-slate-200 bg-white/75 p-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <${Badge} tone=${errorMessage ? "warn" : "ok"}>${errorMessage ? "Attention" : "Ready"}</${Badge}>
-                        <${Badge}>${selectedChannel ? `Selected: ${selectedChannel.channelId}` : "No channel selected"}</${Badge}>
-                        <${Badge}>${gatewayState?.timestamp ? `Refreshed ${formatTime(gatewayState.timestamp)}` : "Never refreshed"}</${Badge}>
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+                      <div className="flex flex-wrap gap-2">
+                        <${Chip} tone=${errorMessage ? "warn" : "ok"}>${errorMessage ? "Attention" : "Ready"}</${Chip}>
+                        <${Chip}>${selectedChannel ? `Selected: ${selectedChannel.channelId}` : "No channel selected"}</${Chip}>
+                        <${Chip}>${gatewayState?.timestamp ? `Refreshed ${formatTime(gatewayState.timestamp)}` : "Never refreshed"}</${Chip}>
                       </div>
-                      <p className="mt-3 text-sm leading-7 text-slate-600">${errorMessage || nextStep}</p>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">${errorMessage || nextAction}</p>
                     </div>
                   </div>
-                </div>
 
-                <div className="rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-float backdrop-blur">
-                  <form className="grid gap-4" onSubmit=${saveAdminToken}>
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 0</div>
-                      <h2 className="text-2xl font-semibold text-slate-950">先拿到管理权限</h2>
-                      <p className="text-sm leading-7 text-slate-500">
-                        管理接口需要 admin token 时，在这里保存。token 只保存在当前浏览器本地。
-                      </p>
-                    </div>
-                    <label className="grid gap-2">
-                      <span className="text-sm font-medium text-slate-700">Admin Token</span>
-                      <input
-                        className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm shadow-sm"
-                        type=${tokenVisible ? "text" : "password"}
-                        autoComplete="new-password"
-                        value=${adminInput}
-                        onInput=${(event) => setAdminInput(event.target.value)}
-                        placeholder="optional if relay admin auth is enabled"
-                      />
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      <${Button} type="submit">Save Token</${Button}>
-                      <${Button} tone="secondary" onClick=${() => setTokenVisible((value) => !value)}>
-                        ${tokenVisible ? "Hide Token" : "Show Token"}
-                      </${Button}>
-                      <${Button} tone="ghost" onClick=${() => loadState(true)} disabled=${isLoading}>
-                        ${isLoading ? "Refreshing..." : "Refresh State"}
-                      </${Button}>
-                    </div>
-                    <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 text-sm leading-7 text-slate-600">
-                      <div className="mb-2 flex flex-wrap gap-2">
-                        <${Badge} tone=${gatewayState?.adminAuthEnabled ? "ok" : "warn"}>
-                          ${gatewayState?.adminAuthEnabled ? "Admin auth on" : "Waiting for token or auth disabled"}
-                        </${Badge}>
+                  <div className="grid gap-4">
+                    <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
+                      <div className="mb-3 space-y-1">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Public entry</div>
+                        <div className="text-sm font-semibold text-slate-900">${getPublicHttpOrigin(gatewayState)}</div>
+                        <p className="text-sm leading-6 text-slate-500">
+                          这是对外提供给第三方接入方的域名。客户端 URL 会基于它生成，避免把内网地址抄出去。
+                        </p>
                       </div>
-                      这个页面会展示：
-                      <br />
-                      1. 插件端配置文件应该怎样写
-                      <br />
-                      2. 客户端每个字段应该怎样填
-                      <br />
-                      3. 当前服务器有哪些用户、token 和 agent 限制
+                      <div className="flex flex-wrap gap-2">
+                        <${Chip} tone=${getPublicHttpOrigin(gatewayState).startsWith("https://") ? "ok" : "warn"}>
+                          ${getPublicHttpOrigin(gatewayState).startsWith("https://") ? "HTTPS ready" : "HTTPS missing"}
+                        </${Chip}>
+                        <${Chip}>Admin: ${getPublicAdminUrl(gatewayState)}</${Chip}>
+                      </div>
                     </div>
-                  </form>
-                </div>
-              </section>
 
-              <section className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-                <div className="grid gap-6">
-                  <${Panel}
+                    <form className="rounded-[24px] border border-slate-200 bg-white/75 p-4" onSubmit=${saveAdminToken}>
+                      <input type="text" autoComplete="username" className="hidden" value="relay-admin" readOnly />
+                      <div className="mb-3 space-y-1">
+                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 0</div>
+                        <h2 className="text-xl font-semibold text-slate-950">先拿到管理权限</h2>
+                        <p className="text-sm leading-6 text-slate-500">
+                          这个令牌只会保存在当前浏览器本地。对于日常运维来说，先把它保存好，后面所有动作都会更顺手。
+                        </p>
+                      </div>
+                      <label className="grid gap-2">
+                        <span className="text-sm font-medium text-slate-700">Admin Token</span>
+                        <input
+                          className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                          type=${showAdminToken ? "text" : "password"}
+                          autoComplete="new-password"
+                          value=${adminInput}
+                          onInput=${(event) => setAdminInput(event.target.value)}
+                          placeholder="optional if relay admin auth is enabled"
+                        />
+                      </label>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <${Button} type="submit">Save Token</${Button}>
+                        <${Button} tone="secondary" onClick=${() => setShowAdminToken((value) => !value)}>
+                          ${showAdminToken ? "Hide Token" : "Show Token"}
+                        </${Button}>
+                        <${Button} tone="ghost" onClick=${() => loadState(true)} disabled=${isLoading}>
+                          ${isLoading ? "Refreshing..." : "Refresh State"}
+                        </${Button}>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <${Chip} tone=${gatewayState?.adminAuthEnabled ? "ok" : "warn"}>
+                          ${gatewayState?.adminAuthEnabled ? "Admin auth on" : "Waiting for token or auth disabled"}
+                        </${Chip}>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </${Card}>
+
+              <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
+                <div className="grid gap-4">
+                  <${SectionCard}
                     title="Step 1. 选择服务器"
-                    subtitle="左侧先选 channel。右侧会切换成该服务器的配置、接入说明和用户管理。"
-                    actions=${html`<${Badge}>${channels.length} channels</${Badge}>`}
+                    subtitle="把服务器列表放在单独区域，便于快速扫一眼谁在线、谁缺用户、谁的 tokenParam 不标准。"
+                    actions=${html`<${Button} tone="secondary" onClick=${startNewChannel}>Create New Server</${Button}>`}
                   >
                     <div className="grid gap-3">
                       <input
-                        className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm shadow-sm"
+                        className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
                         type="search"
-                        value=${serverQuery}
-                        onInput=${(event) => setServerQuery(event.target.value)}
-                        placeholder="Search by label, channelId, status..."
+                        value=${serverSearch}
+                        onInput=${(event) => setServerSearch(event.target.value)}
+                        placeholder="Search by label, channelId, status, instance..."
                       />
-                      <${Button} tone="secondary" onClick=${prepareNewChannel}>Create New Server</${Button}>
                     </div>
-
                     <div className="mt-4 grid gap-3">
                       ${filteredChannels.length === 0
-                        ? html`<${EmptyState} title="No channels yet" text="Create the first relay server from the form on the right." />`
+                        ? html`<${EmptyState}
+                            title="No servers yet"
+                            text="先创建一个 channel。创建完成后，这里会成为你日常切换和查看状态的入口。"
+                          />`
                         : filteredChannels.map((channel) => {
                             const selected = channel.channelId === selectedChannelId;
+                            const tokenTone = (channel.tokenParam || "token") === "token" ? "ok" : "warn";
                             return html`
-                              <article
-                                className=${`rounded-[24px] border p-4 transition ${
+                              <button
+                                type="button"
+                                onClick=${() => selectChannel(channel.channelId)}
+                                className=${`grid gap-3 rounded-[24px] border p-4 text-left transition ${
                                   selected
-                                    ? "border-emerald-300 bg-emerald-50/70 shadow-sm"
+                                    ? "border-slate-900 bg-slate-900 text-white shadow-float"
                                     : "border-slate-200 bg-white/80 hover:border-slate-300 hover:bg-white"
                                 }`}
                               >
-                                <div className="space-y-3">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                      <div className="text-base font-semibold text-slate-900">
-                                        ${channel.label || channel.channelId}
-                                      </div>
-                                      <div className="font-mono text-xs text-slate-500">
-                                        ${channel.channelId}
-                                      </div>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="text-base font-semibold ${selected ? "text-white" : "text-slate-950"}">
+                                      ${channel.label || channel.channelId}
                                     </div>
-                                    <div className="flex flex-wrap justify-end gap-2">
-                                      <${Badge} tone=${channel.backendConnected ? "ok" : "warn"}>
-                                        ${channel.backendConnected ? "backend online" : "backend offline"}
-                                      </${Badge}>
-                                      <${Badge} tone=${channel.userCount > 0 ? "ok" : "warn"}>
-                                        ${channel.userCount > 0 ? "token protected" : "open access"}
-                                      </${Badge}>
+                                    <div className="font-mono text-xs ${selected ? "text-white/75" : "text-slate-500"}">
+                                      ${channel.channelId}
                                     </div>
                                   </div>
-
-                                  <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                                    <div className="rounded-2xl border border-slate-200 bg-white/90 px-3 py-2">
-                                      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Clients</div>
-                                      <div className="mt-1 font-semibold text-slate-900">${channel.clientCount}</div>
-                                    </div>
-                                    <div className="rounded-2xl border border-slate-200 bg-white/90 px-3 py-2">
-                                      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Users</div>
-                                      <div className="mt-1 font-semibold text-slate-900">${channel.userCount}</div>
-                                    </div>
-                                    <div className="rounded-2xl border border-slate-200 bg-white/90 px-3 py-2">
-                                      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Param</div>
-                                      <div className="mt-1 font-semibold text-slate-900">${channel.tokenParam || "token"}</div>
-                                    </div>
-                                  </div>
-
-                                  <div className="text-xs leading-6 text-slate-500">
-                                    <div>Instance: ${channel.instanceId || "-"}</div>
-                                    <div>
-                                      Last seen:
-                                      ${formatTime(channel.backendConnected ? channel.lastConnectedAt : channel.lastDisconnectedAt || channel.lastConnectedAt)}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex flex-wrap gap-2">
-                                    <${Button} tone=${selected ? "primary" : "secondary"} onClick=${() => {
-                                      setSelectedChannelId(channel.channelId);
-                                      addActivity(`Selected ${channel.channelId}.`, "ok");
-                                      showToast(`Selected ${channel.channelId}.`, "ok");
-                                    }}>
-                                      ${selected ? "Selected" : "Manage"}
-                                    </${Button}>
-                                    <${Button}
-                                      tone="ghost"
-                                      onClick=${() => handleCopy("client URL", buildClientBaseUrl(channel))}
-                                    >
-                                      Copy Client URL
-                                    </${Button}>
-                                    <${Button} tone="danger" onClick=${() => deleteChannel(channel)}>Delete</${Button}>
+                                  <div className="flex flex-wrap justify-end gap-2">
+                                    <${Chip} tone=${channel.backendConnected ? "ok" : "warn"}>
+                                      ${channel.backendConnected ? "backend online" : "backend offline"}
+                                    </${Chip}>
+                                    <${Chip} tone=${channel.userCount > 0 ? "ok" : "warn"}>
+                                      ${channel.userCount > 0 ? "protected" : "open"}
+                                    </${Chip}>
                                   </div>
                                 </div>
-                              </article>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className=${`rounded-2xl px-3 py-2 text-center ${selected ? "bg-white/10" : "bg-slate-50"}`}>
+                                    <div className=${`text-[11px] uppercase tracking-[0.14em] ${selected ? "text-white/65" : "text-slate-400"}`}>Clients</div>
+                                    <div className="mt-1 text-sm font-semibold">${channel.clientCount}</div>
+                                  </div>
+                                  <div className=${`rounded-2xl px-3 py-2 text-center ${selected ? "bg-white/10" : "bg-slate-50"}`}>
+                                    <div className=${`text-[11px] uppercase tracking-[0.14em] ${selected ? "text-white/65" : "text-slate-400"}`}>Users</div>
+                                    <div className="mt-1 text-sm font-semibold">${channel.userCount}</div>
+                                  </div>
+                                  <div className=${`rounded-2xl px-3 py-2 text-center ${selected ? "bg-white/10" : "bg-slate-50"}`}>
+                                    <div className=${`text-[11px] uppercase tracking-[0.14em] ${selected ? "text-white/65" : "text-slate-400"}`}>Token</div>
+                                    <div className="mt-1 text-sm font-semibold">${channel.tokenParam || "token"}</div>
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  <${Chip} tone=${tokenTone}>tokenParam ${channel.tokenParam || "token"}</${Chip}>
+                                  <${Chip}>${channel.instanceId || "no instance id"}</${Chip}>
+                                  <${Chip}>Last seen ${summarizeLastSeen(channel)}</${Chip}>
+                                </div>
+                              </button>
                             `;
                           })}
                     </div>
-                  </${Panel}>
+                  </${SectionCard}>
 
-                  <${Panel} title="Activity" subtitle="最近的管理动作和验证结果会显示在这里。">
+                  <${SectionCard}
+                    title="Activity"
+                    subtitle="成功、失败、复制动作和状态刷新都记录在这里，方便回头排查。"
+                  >
                     <div className="grid gap-3">
                       ${activity.length === 0
-                        ? html`<div className="rounded-[20px] border border-dashed border-slate-200 bg-white/50 px-4 py-6 text-sm text-slate-500">No activity yet.</div>`
+                        ? html`<div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm text-slate-500">No activity yet.</div>`
                         : activity.map((item) => html`
-                            <div className="rounded-[20px] border border-slate-200 bg-white/70 px-4 py-3">
+                            <div className="rounded-[22px] border border-slate-200 bg-white/70 px-4 py-3">
                               <div className="mb-1 text-xs text-slate-400">${formatTime(item.time)}</div>
                               <div className="text-sm leading-6 text-slate-700">${item.message}</div>
                             </div>
                           `)}
                     </div>
-                  </${Panel}>
+                  </${SectionCard}>
                 </div>
 
-                <div className="grid gap-6">
-                  <${Panel}
-                    title="Step 2. 先看接入路径，再做修改"
-                    subtitle="每个服务器的“插件侧配置”和“客户端字段填写说明”都在这里，接入方可以直接照着复制。"
+                <div className="grid gap-4">
+                  <${SectionCard}
+                    title="Workspace"
+                    subtitle="把经常使用的动作拆成 4 个视图：概览、接入、用户、设置。默认先看接入。"
+                    actions=${workspaceChannel?.channelId ? html`
+                      <div className="flex flex-wrap gap-2">
+                        <${Button} tone="secondary" onClick=${() => handleCopy("public client URL", buildClientBaseUrl(gatewayState, workspaceChannel))}>Copy Client URL</${Button}>
+                        <${Button} tone="ghost" onClick=${() => handleCopy("OpenClaw config", buildOpenClawConfig(gatewayState, workspaceChannel))}>Copy Plugin Config</${Button}>
+                      </div>
+                    ` : null}
                   >
-                    ${selectedChannel
+                    ${workspaceChannel
                       ? html`
-                          <div className="grid gap-4">
-                            <div className="flex flex-wrap items-start justify-between gap-4 rounded-[28px] border border-slate-200 bg-white/70 p-5">
-                              <div className="space-y-2">
-                                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Current server</div>
-                                <div className="text-2xl font-semibold text-slate-950">
-                                  ${selectedChannel.label || selectedChannel.channelId}
+                          <div className="space-y-4">
+                            <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-1">
+                                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">${selectedChannel ? "Current server" : "New server draft"}</div>
+                                  <div className="text-2xl font-semibold text-slate-950">${workspaceChannel.label || workspaceChannel.channelId || "Untitled draft"}</div>
+                                  <div className="font-mono text-sm text-slate-500">${workspaceChannel.channelId || "channelId pending"}</div>
                                 </div>
-                                <div className="font-mono text-sm text-slate-500">${selectedChannel.channelId}</div>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                <${Badge} tone=${selectedChannel.backendConnected ? "ok" : "warn"}>
-                                  ${selectedChannel.backendConnected ? "backend online" : "backend offline"}
-                                </${Badge}>
-                                <${Badge} tone=${selectedChannel.userCount > 0 ? "ok" : "warn"}>
-                                  ${selectedChannel.userCount > 0 ? "gateway auth enforced" : "no users configured"}
-                                </${Badge}>
-                              </div>
-                            </div>
-
-                            <div className="grid gap-3 md:grid-cols-4">
-                              <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
-                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">Backend Secret</div>
-                                <div className="mt-2 font-mono text-sm font-semibold text-slate-900">
-                                  ${selectedChannel.secretMasked}
-                                </div>
-                                <div className="mt-3">
-                                  <${Button}
-                                    tone="secondary"
-                                    className="w-full"
-                                    onClick=${() => handleCopy("backend secret", selectedChannel.secret)}
-                                  >
-                                    Copy Secret
-                                  </${Button}>
-                                </div>
-                              </div>
-                              <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
-                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">Token Param</div>
-                                <div className="mt-2 font-mono text-sm font-semibold text-slate-900">
-                                  ${selectedChannel.tokenParam || "token"}
-                                </div>
-                                <div className="mt-3 text-sm text-slate-500">H5 客户端把用户 token 通过这个 query 参数带上来。</div>
-                              </div>
-                              <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
-                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">Users</div>
-                                <div className="mt-2 text-3xl font-semibold text-slate-950">
-                                  ${selectedChannel.userCount}
-                                </div>
-                                <div className="mt-3 text-sm text-slate-500">
-                                  ${selectedChannel.userCount > 0 ? "Relay-side token auth is active." : "当前没有任何 token 保护。"}
-                                </div>
-                              </div>
-                              <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
-                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">Live Clients</div>
-                                <div className="mt-2 text-3xl font-semibold text-slate-950">
-                                  ${selectedChannel.clientCount}
-                                </div>
-                                <div className="mt-3 text-sm text-slate-500">
-                                  ${selectedChannel.backendConnected ? "Backend is ready to forward traffic." : "Backend offline: clients will be rejected."}
+                                <div className="flex flex-wrap gap-2">
+                                  <${Chip} tone=${selectedChannel ? (selectedChannel.backendConnected ? "ok" : "warn") : "warn"}>
+                                    ${selectedChannel ? (selectedChannel.backendConnected ? "backend online" : "backend offline") : "draft only"}
+                                  </${Chip}>
+                                  <${Chip} tone=${selectedChannel ? (selectedChannel.userCount > 0 ? "ok" : "warn") : "warn"}>
+                                    ${selectedChannel ? (selectedChannel.userCount > 0 ? `${selectedChannel.userCount} users` : "no users") : "users after save"}
+                                  </${Chip}>
+                                  <${Chip} tone=${(workspaceChannel.tokenParam || "token") === "token" ? "ok" : "warn"}>
+                                    tokenParam ${workspaceChannel.tokenParam || "token"}
+                                  </${Chip}>
                                 </div>
                               </div>
                             </div>
 
-                            ${selectedChannel.tokenParam !== "token"
-                              ? html`
-                                  <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-5">
-                                    <div className="mb-2 flex flex-wrap gap-2">
-                                      <${Badge} tone="warn">Compatibility note</${Badge}>
-                                    </div>
-                                    <div className="space-y-2 text-sm leading-7 text-amber-900">
-                                      <div>
-                                        当前 channel 使用的是
-                                        <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">
-                                          ${selectedChannel.tokenParam}
-                                        </code>
-                                        ，但官方示例 H5 客户端目前固定把认证参数追加成
-                                        <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">
-                                          token
-                                        </code>
-                                        。
-                                      </div>
-                                      <div>
-                                        如果你要直接给第三方接这个 H5 示例页，建议把 tokenParam 改回
-                                        <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">
-                                          token
-                                        </code>
-                                        ；否则请让对方使用下面的 Raw WS URL 或自定义客户端。
-                                      </div>
-                                    </div>
-                                  </div>
-                                `
-                              : null}
+                            <div className="flex gap-2 overflow-x-auto pb-1">
+                              ${selectedChannel ? html`<${TabButton} active=${activeTab === TAB_CONNECT} label="接入" onClick=${() => setActiveTab(TAB_CONNECT)} />` : null}
+                              ${selectedChannel ? html`<${TabButton} active=${activeTab === TAB_USERS} label="用户" onClick=${() => setActiveTab(TAB_USERS)} />` : null}
+                              <${TabButton} active=${activeTab === TAB_SETTINGS} label="设置" onClick=${() => setActiveTab(TAB_SETTINGS)} />
+                              ${selectedChannel ? html`<${TabButton} active=${activeTab === TAB_ACTIVITY} label="状态摘要" onClick=${() => setActiveTab(TAB_ACTIVITY)} />` : null}
+                            </div>
 
-                            <div className="grid gap-4 2xl:grid-cols-[1.05fr_0.95fr]">
+                            ${activeTab === TAB_CONNECT ? html`
                               <div className="grid gap-4">
-                                <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
-                                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 2A</div>
-                                      <h3 className="mt-1 text-xl font-semibold text-slate-950">OpenClaw 插件配置</h3>
-                                      <p className="mt-2 text-sm leading-7 text-slate-500">
-                                        这是运行在插件机器上的配置片段。把它写到 OpenClaw 的 channel 配置里。
-                                      </p>
+                                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                                  ${checklist.map((item) => html`
+                                    <div className="rounded-[22px] border border-slate-200 bg-white/80 p-4">
+                                      <div className="flex items-center gap-2">
+                                        <${Chip} tone=${item.ok ? "ok" : "warn"}>${item.ok ? "OK" : "TODO"}</${Chip}>
+                                        <div className="text-sm font-semibold text-slate-900">${item.label}</div>
+                                      </div>
+                                      <div className="mt-3 text-sm leading-6 text-slate-500">${item.hint}</div>
                                     </div>
-                                    <${Button}
-                                      tone="secondary"
-                                      onClick=${() => handleCopy("OpenClaw server config", buildOpenClawConfig(selectedChannel, gatewayState))}
-                                    >
-                                      Copy Config
-                                    </${Button}>
-                                  </div>
-                                  <pre className="overflow-auto rounded-[22px] bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">${buildOpenClawConfig(selectedChannel, gatewayState)}</pre>
+                                  `)}
                                 </div>
 
-                                <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
-                                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Quick URLs</div>
-                                      <h3 className="mt-1 text-xl font-semibold text-slate-950">入口和 relay block</h3>
-                                      <p className="mt-2 text-sm leading-7 text-slate-500">
-                                        这里只放最常复制的几个值，避免集成时到处找。
-                                      </p>
-                                    </div>
-                                  </div>
+                                ${(selectedChannel.tokenParam || "token") !== "token"
+                                  ? html`
+                                      <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-4">
+                                        <div className="mb-2 flex items-center gap-2">
+                                          <${Chip} tone="warn">Compatibility note</${Chip}>
+                                          <div className="text-sm font-semibold text-amber-900">官方 H5 示例页默认使用 <code>token</code> 参数</div>
+                                        </div>
+                                        <p className="text-sm leading-7 text-amber-900">
+                                          当前 channel 使用的是 <code>${selectedChannel.tokenParam}</code>。如果第三方直接接官方 H5 页面，建议改回 <code>token</code>；否则请让对方使用下面的 Raw WSS URL 或自定义客户端。
+                                        </p>
+                                      </div>
+                                    `
+                                  : null}
+
+                                <div className="grid gap-4 2xl:grid-cols-[1.05fr_0.95fr]">
                                   <div className="grid gap-4">
-                                    <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                                      <div className="mb-2 flex items-center justify-between gap-3">
-                                        <div className="text-sm font-semibold text-slate-900">Client serverUrl template</div>
-                                        <${Button}
-                                          tone="secondary"
-                                          onClick=${() => handleCopy("client URL", buildClientBaseUrl(selectedChannel))}
-                                        >
-                                          Copy URL
-                                        </${Button}>
+                                    <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
+                                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Public endpoints</div>
+                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">第三方应该连什么</h3>
+                                          <p className="mt-2 text-sm leading-7 text-slate-500">
+                                            这一块专门给外部集成方。页面本身是 HTTPS 时，这里永远生成 WSS 地址，避免 Mixed Content。
+                                          </p>
+                                        </div>
                                       </div>
-                                      <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
-                                        ${buildClientBaseUrl(selectedChannel)}
-                                      </code>
+                                      <div className="grid gap-4">
+                                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                          <div className="mb-2 flex items-center justify-between gap-3">
+                                            <div className="text-sm font-semibold text-slate-900">Client serverUrl</div>
+                                            <${Button} tone="secondary" onClick=${() => handleCopy("public client URL", buildClientBaseUrl(gatewayState, selectedChannel))}>Copy</${Button}>
+                                          </div>
+                                          <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                            ${buildClientBaseUrl(gatewayState, workspaceChannel)}
+                                          </code>
+                                        </div>
+                                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                          <div className="mb-2 flex items-center justify-between gap-3">
+                                            <div className="text-sm font-semibold text-slate-900">Admin page</div>
+                                            <${Button} tone="secondary" onClick=${() => handleCopy("admin URL", getPublicAdminUrl(gatewayState))}>Copy</${Button}>
+                                          </div>
+                                          <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                            ${getPublicAdminUrl(gatewayState)}
+                                          </code>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                                      <div className="mb-2 flex items-center justify-between gap-3">
-                                        <div className="text-sm font-semibold text-slate-900">Plugin backend URL</div>
-                                        <${Button}
-                                          tone="secondary"
-                                          onClick=${() => handleCopy("backend URL", buildRelayBackendUrl(gatewayState))}
-                                        >
-                                          Copy URL
-                                        </${Button}>
+
+                                    <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
+                                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Plugin setup</div>
+                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">OpenClaw 插件应该怎么写</h3>
+                                          <p className="mt-2 text-sm leading-7 text-slate-500">
+                                            这一块只给插件机器。backend 仍然应该走本机 <code>ws://127.0.0.1:18080/backend</code>，不要把插件连去公网域名。
+                                          </p>
+                                        </div>
+                                        <${Button} tone="secondary" onClick=${() => handleCopy("OpenClaw config", buildOpenClawConfig(gatewayState, workspaceChannel))}>Copy Config</${Button}>
                                       </div>
-                                      <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
-                                        ${buildRelayBackendUrl(gatewayState)}
-                                      </code>
-                                    </div>
-                                    <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                                      <div className="mb-2 flex items-center justify-between gap-3">
-                                        <div className="text-sm font-semibold text-slate-900">Relay block only</div>
-                                        <${Button}
-                                          tone="secondary"
-                                          onClick=${() => handleCopy("plugin relay block", buildRelayBlock(selectedChannel, gatewayState))}
-                                        >
-                                          Copy Snippet
-                                        </${Button}>
+                                      <pre className="overflow-auto rounded-[22px] bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">${buildOpenClawConfig(gatewayState, workspaceChannel)}</pre>
+                                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                          <div className="mb-2 flex items-center justify-between gap-3">
+                                            <div className="text-sm font-semibold text-slate-900">Plugin backend URL</div>
+                                            <${Button} tone="secondary" onClick=${() => handleCopy("plugin backend URL", buildPluginBackendUrl(gatewayState))}>Copy</${Button}>
+                                          </div>
+                                          <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                            ${buildPluginBackendUrl(gatewayState)}
+                                          </code>
+                                        </div>
+                                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                          <div className="mb-2 flex items-center justify-between gap-3">
+                                            <div className="text-sm font-semibold text-slate-900">Relay block only</div>
+                                            <${Button} tone="secondary" onClick=${() => handleCopy("plugin relay block", buildRelayBlock(gatewayState, workspaceChannel))}>Copy</${Button}>
+                                          </div>
+                                          <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildRelayBlock(gatewayState, workspaceChannel)}</pre>
+                                        </div>
                                       </div>
-                                      <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildRelayBlock(selectedChannel, gatewayState)}</pre>
                                     </div>
                                   </div>
-                                </div>
-                              </div>
 
-                              <div className="grid gap-4">
-                                <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
-                                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 2B</div>
-                                      <h3 className="mt-1 text-xl font-semibold text-slate-950">客户端字段怎么填</h3>
-                                      <p className="mt-2 text-sm leading-7 text-slate-500">
-                                        这里直接给出第三方 H5 页面每个输入框的填写值。你可以切换不同用户查看它们各自的 token 和默认 agent。
-                                      </p>
-                                    </div>
-                                    <${Button}
-                                      tone="secondary"
-                                      onClick=${() => handleCopy(
-                                        "client field guide",
-                                        buildClientGuide(selectedChannel, preferredUser)
-                                          .map((item) => `${item.key}: ${item.value}`)
-                                          .join("\n"),
-                                      )}
-                                    >
-                                      Copy Field Guide
-                                    </${Button}>
-                                  </div>
+                                  <div className="grid gap-4">
+                                    <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
+                                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Client guide</div>
+                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">第三方每个字段该怎么填</h3>
+                                          <p className="mt-2 text-sm leading-7 text-slate-500">
+                                            不要求对方理解协议，只要按字段填。你可以切换不同用户，把不同 token 的说明直接复制给不同接入方。
+                                          </p>
+                                        </div>
+                                        <${Button} tone="secondary" onClick=${() => handleCopy("client field guide", buildClientGuideText(gatewayState, selectedChannel, preferredUser))}>Copy Guide</${Button}>
+                                      </div>
 
-                                  <label className="mb-4 grid gap-2">
-                                    <span className="text-sm font-medium text-slate-700">Example user</span>
-                                    <select
-                                      className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                                      disabled=${selectedChannel.userCount === 0}
-                                      value=${preferredUser?.senderId || ""}
-                                      onChange=${(event) => {
-                                        setSelectedUserSenderId(event.target.value);
-                                        addActivity(`Client guide switched to ${event.target.value || "no user"}.`, "ok");
-                                        showToast(`Client guide switched to ${event.target.value || "no user"}.`, "ok");
-                                      }}
-                                    >
-                                      ${selectedChannel.userCount === 0
-                                        ? html`<option value="">No users configured</option>`
-                                        : selectedChannel.users.map((user) => html`
-                                            <option value=${user.senderId}>
-                                              ${user.senderId}${user.enabled === false ? " (disabled)" : ""}
-                                            </option>
-                                          `)}
-                                    </select>
-                                  </label>
+                                      <label className="grid gap-2">
+                                        <span className="text-sm font-medium text-slate-700">Which user are you handing this to?</span>
+                                        <select
+                                          className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                                          value=${preferredUser?.senderId || ""}
+                                          disabled=${selectedChannel.userCount === 0}
+                                          onChange=${(event) => {
+                                            setSelectedUserSenderId(event.target.value);
+                                            pushActivity(`Client guide switched to ${event.target.value || "no user"}.`, "ok");
+                                            pushToast(`Client guide switched to ${event.target.value || "no user"}.`, "ok");
+                                          }}
+                                        >
+                                          ${selectedChannel.userCount === 0
+                                            ? html`<option value="">No users configured</option>`
+                                            : selectedChannel.users.map((user) => html`
+                                                <option value=${user.senderId}>
+                                                  ${user.senderId}${user.enabled === false ? " (disabled)" : ""}
+                                                </option>
+                                              `)}
+                                        </select>
+                                      </label>
 
-                                  <div className="grid gap-3">
-                                    ${buildClientGuide(selectedChannel, preferredUser).map((item) => html`
-                                      <div className="grid gap-2 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                                          ${item.key}
+                                      <div className="mt-4 grid gap-3">
+                                        ${buildClientGuide(gatewayState, selectedChannel, preferredUser).map((item) => html`
+                                          <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">${item.key}</div>
+                                            <code className="mt-2 block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                              ${item.value}
+                                            </code>
+                                            <p className="mt-3 text-sm leading-6 text-slate-500">${item.note}</p>
+                                          </div>
+                                        `)}
+                                      </div>
+
+                                      <div className="mt-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                        <div className="mb-2 flex items-center justify-between gap-3">
+                                          <div className="text-sm font-semibold text-slate-900">Raw WSS URL</div>
+                                          <${Button} tone="secondary" onClick=${() => handleCopy("raw client URL", buildClientFullUrl(gatewayState, selectedChannel, preferredUser))}>Copy</${Button}>
                                         </div>
                                         <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
-                                          ${item.value}
+                                          ${buildClientFullUrl(gatewayState, selectedChannel, preferredUser)}
                                         </code>
-                                        <p className="text-sm leading-6 text-slate-500">${item.note}</p>
                                       </div>
-                                    `)}
-                                  </div>
 
-                                  <div className="mt-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                                    <div className="mb-2 flex items-center justify-between gap-3">
-                                      <div className="text-sm font-semibold text-slate-900">Raw WebSocket URL</div>
-                                      <${Button}
-                                        tone="secondary"
-                                        onClick=${() => handleCopy("raw client URL", buildClientFullUrl(selectedChannel, preferredUser))}
-                                      >
-                                        Copy Raw WS URL
-                                      </${Button}>
+                                      <div className="mt-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                        <div className="mb-2 flex items-center justify-between gap-3">
+                                          <div className="text-sm font-semibold text-slate-900">Full client template</div>
+                                          <${Button} tone="secondary" onClick=${() => handleCopy("client template", buildClientTemplate(gatewayState, selectedChannel, preferredUser))}>Copy</${Button}>
+                                        </div>
+                                        <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildClientTemplate(gatewayState, selectedChannel, preferredUser)}</pre>
+                                      </div>
                                     </div>
-                                    <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
-                                      ${buildClientFullUrl(selectedChannel, preferredUser)}
-                                    </code>
-                                    <p className="mt-3 text-sm leading-6 text-slate-500">
-                                      适合不想拆分字段、直接按完整 URL 连 WebSocket 的客户端。
-                                    </p>
                                   </div>
-                                </div>
-
-                                <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
-                                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 2C</div>
-                                      <h3 className="mt-1 text-xl font-semibold text-slate-950">完整客户端模板</h3>
-                                      <p className="mt-2 text-sm leading-7 text-slate-500">
-                                        如果对方不是看表单，而是看文本说明，就直接把这段发过去。
-                                      </p>
-                                    </div>
-                                    <${Button}
-                                      tone="secondary"
-                                      onClick=${() => handleCopy("client template", buildClientTemplate(selectedChannel, preferredUser))}
-                                    >
-                                      Copy Template
-                                    </${Button}>
-                                  </div>
-                                  <pre className="overflow-auto rounded-[22px] bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">${buildClientTemplate(selectedChannel, preferredUser)}</pre>
                                 </div>
                               </div>
-                            </div>
+                            ` : null}
+
+                            ${activeTab === TAB_USERS ? html`
+                              <div className="grid gap-4 2xl:grid-cols-[1.05fr_0.95fr]">
+                                <div className="grid gap-4">
+                                  <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
+                                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                      <div>
+                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Users</div>
+                                        <h3 className="mt-1 text-xl font-semibold text-slate-950">谁可以连这个服务器</h3>
+                                        <p className="mt-2 text-sm leading-7 text-slate-500">
+                                          这里按“用户粒度”维护 token。经常使用的动作应该是：搜索、复制 token、切换 guide、编辑用户。
+                                        </p>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        <${Button} tone="secondary" onClick=${startNewUser}>New User</${Button}>
+                                        <input
+                                          className="w-full min-w-[220px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm sm:w-auto"
+                                          type="search"
+                                          value=${userSearch}
+                                          onInput=${(event) => setUserSearch(event.target.value)}
+                                          placeholder="Search senderId, token, chatId..."
+                                        />
+                                      </div>
+                                    </div>
+
+                                    ${filteredUsers.length === 0
+                                      ? html`<${EmptyState}
+                                          title=${selectedChannel.userCount === 0 ? "No users yet" : "No users match"}
+                                          text=${selectedChannel.userCount === 0
+                                            ? "先创建一个 token，接入方就能开始按用户身份连接。"
+                                            : "换一个关键词，或者清空搜索。"}
+                                          action=${selectedChannel.userCount === 0 ? html`<${Button} onClick=${startNewUser}>Create First User</${Button}>` : null}
+                                        />`
+                                      : html`
+                                          <div className="grid gap-3">
+                                            ${filteredUsers.map((user) => {
+                                              const active = preferredUser?.senderId === user.senderId;
+                                              const agentLabel =
+                                                Array.isArray(user.allowAgents) && user.allowAgents.length > 0
+                                                  ? user.allowAgents.join(", ")
+                                                  : "all agents";
+                                              return html`
+                                                <div className=${`rounded-[24px] border p-4 ${active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-slate-50/80"}`}>
+                                                  <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <div>
+                                                      <div className="text-base font-semibold ${active ? "text-white" : "text-slate-950"}">${user.senderId}</div>
+                                                      <div className=${`font-mono text-xs ${active ? "text-white/70" : "text-slate-500"}`}>${user.id || "no explicit user id"}</div>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                      ${active ? html`<${Chip} tone="ok">guide target</${Chip}>` : null}
+                                                      <${Chip} tone=${user.enabled === false ? "danger" : "ok"}>
+                                                        ${user.enabled === false ? "disabled" : "enabled"}
+                                                      </${Chip}>
+                                                      <${Chip}>${agentLabel}</${Chip}>
+                                                    </div>
+                                                  </div>
+                                                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                                                    <span className=${`rounded-full px-3 py-1 ${active ? "bg-white/10 text-white/75" : "bg-white text-slate-500"}`}>Chat: ${user.chatId || "client controlled"}</span>
+                                                    <span className=${`rounded-full px-3 py-1 ${active ? "bg-white/10 text-white/75" : "bg-white text-slate-500"}`}>Token param: ${selectedChannel.tokenParam || "token"}</span>
+                                                  </div>
+                                                  <code className=${`mt-4 block overflow-auto rounded-2xl px-3 py-3 font-mono text-xs leading-6 ${active ? "bg-white/10 text-white" : "bg-white text-slate-700"}`}>
+                                                    ${user.token}
+                                                  </code>
+                                                  <div className="mt-4 flex flex-wrap gap-2">
+                                                    <${Button} tone=${active ? "primary" : "secondary"} onClick=${() => {
+                                                      setSelectedUserSenderId(user.senderId);
+                                                      pushActivity(`Client guide switched to ${user.senderId}.`, "ok");
+                                                      pushToast(`Client guide switched to ${user.senderId}.`, "ok");
+                                                    }}>
+                                                      ${active ? "In Guide" : "Use In Guide"}
+                                                    </${Button}>
+                                                    <${Button} tone="ghost" onClick=${() => handleCopy(`token for ${user.senderId}`, user.token)}>Copy Token</${Button}>
+                                                    <${Button} tone="secondary" onClick=${() => startEditUser(user)}>Edit</${Button}>
+                                                    <${Button} tone="danger" onClick=${() => removeUser(user)}>Delete</${Button}>
+                                                  </div>
+                                                </div>
+                                              `;
+                                            })}
+                                          </div>
+                                        `}
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-4">
+                                  <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
+                                    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                      <div>
+                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Editor</div>
+                                        <h3 className="mt-1 text-xl font-semibold text-slate-950">新增或编辑用户</h3>
+                                        <p className="mt-2 text-sm leading-7 text-slate-500">
+                                          表单默认隐藏，避免把页面变成一整片输入框。真正要编辑时再打开。
+                                        </p>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        ${showUserEditor
+                                          ? html`<${Button} tone="ghost" onClick=${() => {
+                                              setShowUserEditor(false);
+                                              setEditingUserSenderId("");
+                                            }}>Hide Editor</${Button}>`
+                                          : html`<${Button} tone="secondary" onClick=${startNewUser}>Open Editor</${Button}>`}
+                                      </div>
+                                    </div>
+
+                                    ${showUserEditor
+                                      ? html`
+                                          <form className="grid gap-4" onSubmit=${submitUser}>
+                                            <div className="grid gap-4 md:grid-cols-2">
+                                              <label className="grid gap-2">
+                                                <span className="text-sm font-medium text-slate-700">User ID</span>
+                                                <input
+                                                  className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                                                  autoComplete="off"
+                                                  value=${userDraft.id}
+                                                  onInput=${(event) => setUserDraft((current) => ({ ...current, id: event.target.value }))}
+                                                  placeholder="optional stable id"
+                                                />
+                                              </label>
+                                              <label className="grid gap-2">
+                                                <span className="text-sm font-medium text-slate-700">Sender ID</span>
+                                                <input
+                                                  className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                                                  autoComplete="off"
+                                                  value=${userDraft.senderId}
+                                                  onInput=${(event) => setUserDraft((current) => ({ ...current, senderId: event.target.value }))}
+                                                  placeholder="gc-test-user"
+                                                  required
+                                                />
+                                              </label>
+                                              <label className="grid gap-2">
+                                                <span className="text-sm font-medium text-slate-700">Fixed Chat ID</span>
+                                                <input
+                                                  className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                                                  autoComplete="off"
+                                                  value=${userDraft.chatId}
+                                                  onInput=${(event) => setUserDraft((current) => ({ ...current, chatId: event.target.value }))}
+                                                  placeholder="optional legacy binding"
+                                                />
+                                              </label>
+                                              <label className="grid gap-2">
+                                                <span className="text-sm font-medium text-slate-700">Token</span>
+                                                <input
+                                                  className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
+                                                  autoComplete="new-password"
+                                                  value=${userDraft.token}
+                                                  onInput=${(event) => setUserDraft((current) => ({ ...current, token: event.target.value }))}
+                                                  placeholder="auto-generate if empty"
+                                                />
+                                              </label>
+                                            </div>
+                                            <label className="grid gap-2">
+                                              <span className="text-sm font-medium text-slate-700">Allow Agents</span>
+                                              <input
+                                                className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                                                autoComplete="off"
+                                                value=${userDraft.allowAgents}
+                                                onInput=${(event) => setUserDraft((current) => ({ ...current, allowAgents: event.target.value }))}
+                                                placeholder="main,code,writer"
+                                              />
+                                            </label>
+                                            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                                              <input
+                                                type="checkbox"
+                                                checked=${userDraft.enabled}
+                                                onChange=${(event) => setUserDraft((current) => ({ ...current, enabled: event.target.checked }))}
+                                              />
+                                              <span className="text-sm font-medium text-slate-700">Enabled user</span>
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                              <${Button} type="submit">Save User</${Button}>
+                                              <${Button} tone="secondary" onClick=${() => setUserDraft((current) => ({ ...current, token: `gc_${randomToken()}` }))}>Generate Token</${Button}>
+                                              <${Button} tone="ghost" onClick=${() => {
+                                                setEditingUserSenderId("");
+                                                setUserDraft(createUserDraft());
+                                              }}>Reset Form</${Button}>
+                                            </div>
+                                          </form>
+                                        `
+                                      : html`<${EmptyState}
+                                          title="Editor hidden"
+                                          text="平时先看用户列表，需要新增或修改时再打开编辑器。这样移动端不会被大量表单挤满。"
+                                          action=${html`<${Button} onClick=${startNewUser}>Open User Editor</${Button}>`}
+                                        />`}
+                                  </div>
+                                </div>
+                              </div>
+                            ` : null}
+
+                            ${activeTab === TAB_SETTINGS ? html`
+                              <div className="grid gap-4 2xl:grid-cols-[1fr_0.92fr]">
+                                <div className="grid gap-4">
+                                  <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
+                                    <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                      <div>
+                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Server settings</div>
+                                        <h3 className="mt-1 text-xl font-semibold text-slate-950">服务器配置</h3>
+                                        <p className="mt-2 text-sm leading-7 text-slate-500">
+                                          修改 channel 元数据、secret 和 tokenParam。这里是管理员操作，默认也保持收起，减少误操作。
+                                        </p>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2">
+                                        ${showChannelEditor
+                                          ? html`<${Button} tone="ghost" onClick=${() => setShowChannelEditor(false)}>Hide Editor</${Button}>`
+                                          : html`<${Button} tone="secondary" onClick=${startEditServer}>Open Editor</${Button}>`}
+                                      </div>
+                                    </div>
+
+                                    ${showChannelEditor
+                                      ? html`
+                                          <form className="grid gap-4" onSubmit=${submitChannel}>
+                                            <label className="grid gap-2">
+                                              <span className="text-sm font-medium text-slate-700">Channel ID</span>
+                                              <input
+                                                className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                                                autoComplete="off"
+                                                value=${channelDraft.channelId}
+                                                onInput=${(event) => setChannelDraft((current) => ({ ...current, channelId: event.target.value }))}
+                                                placeholder="gc-relay-test"
+                                                required
+                                              />
+                                            </label>
+                                            <label className="grid gap-2">
+                                              <span className="text-sm font-medium text-slate-700">Label</span>
+                                              <input
+                                                className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                                                autoComplete="off"
+                                                value=${channelDraft.label}
+                                                onInput=${(event) => setChannelDraft((current) => ({ ...current, label: event.target.value }))}
+                                                placeholder="Singapore Main Gateway"
+                                              />
+                                            </label>
+                                            <label className="grid gap-2">
+                                              <span className="text-sm font-medium text-slate-700">Backend Secret</span>
+                                              <input
+                                                className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
+                                                autoComplete="new-password"
+                                                value=${channelDraft.secret}
+                                                onInput=${(event) => setChannelDraft((current) => ({ ...current, secret: event.target.value }))}
+                                                placeholder="auto-generate if empty"
+                                              />
+                                            </label>
+                                            <label className="grid gap-2">
+                                              <span className="text-sm font-medium text-slate-700">Client Token Param</span>
+                                              <input
+                                                className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
+                                                autoComplete="off"
+                                                value=${channelDraft.tokenParam}
+                                                onInput=${(event) => setChannelDraft((current) => ({ ...current, tokenParam: event.target.value }))}
+                                                placeholder="token"
+                                              />
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                              <${Button} type="submit">Save Server</${Button}>
+                                              <${Button} tone="secondary" onClick=${() => setChannelDraft((current) => ({ ...current, secret: randomToken() }))}>Generate Secret</${Button}>
+                                              <${Button} tone="ghost" onClick=${() => handleCopy("backend secret", channelDraft.secret)} disabled=${!channelDraft.secret}>Copy Secret</${Button}>
+                                            </div>
+                                          </form>
+                                        `
+                                      : html`<${EmptyState}
+                                          title="Editor hidden"
+                                          text="配置区默认隐藏，减少日常浏览时的视觉噪音。要修改时再打开。"
+                                          action=${html`<${Button} onClick=${startEditServer}>Open Server Editor</${Button}>`}
+                                        />`}
+                                  </div>
+
+                                  <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
+                                    <div className="mb-4 space-y-1">
+                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Route preview</div>
+                                      <h3 className="text-xl font-semibold text-slate-950">这个服务器现在的路由长什么样</h3>
+                                      <p className="text-sm leading-7 text-slate-500">
+                                        把“给谁看”的信息分开：公网入口给第三方，backend 地址只给插件机器。
+                                      </p>
+                                    </div>
+                                    <div className="grid gap-3">
+                                      <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                        <div className="text-sm font-semibold text-slate-900">Public client URL</div>
+                                        <code className="mt-2 block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                          ${buildClientBaseUrl(gatewayState, workspaceChannel)}
+                                        </code>
+                                      </div>
+                                      <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                        <div className="text-sm font-semibold text-slate-900">Plugin backend URL</div>
+                                        <code className="mt-2 block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                          ${buildPluginBackendUrl(gatewayState)}
+                                        </code>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="grid gap-4">
+                                  ${selectedChannel ? html`
+                                    <div className="rounded-[26px] border border-rose-200 bg-rose-50/70 p-5">
+                                      <div className="mb-3 space-y-1">
+                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">Danger zone</div>
+                                        <h3 className="text-xl font-semibold text-rose-900">删除服务器</h3>
+                                        <p className="text-sm leading-7 text-rose-800">
+                                          删除会移除当前 channel、断开 backend，并清掉该服务器下的用户 token。
+                                        </p>
+                                      </div>
+                                      <${Button} tone="danger" onClick=${() => removeChannel(selectedChannel)}>Delete ${selectedChannel.channelId}</${Button}>
+                                    </div>
+                                  ` : html`
+                                    <div className="rounded-[26px] border border-amber-200 bg-amber-50/80 p-5">
+                                      <div className="mb-3 space-y-1">
+                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">Before saving</div>
+                                        <h3 className="text-xl font-semibold text-amber-950">新服务器还没有落盘</h3>
+                                        <p className="text-sm leading-7 text-amber-900">
+                                          这是一个本地草稿。保存后它才会出现在左侧列表，并且才能开始配置用户 token 与第三方接入说明。
+                                        </p>
+                                      </div>
+                                      <${Button} tone="ghost" onClick=${() => {
+                                        setShowChannelEditor(false);
+                                        setChannelDraft(createChannelDraft());
+                                        setActiveTab(TAB_CONNECT);
+                                      }}>Discard Draft</${Button}>
+                                    </div>
+                                  `}
+                                </div>
+                              </div>
+                            ` : null}
+
+                            ${activeTab === TAB_ACTIVITY ? html`
+                              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                ${checklist.map((item) => html`
+                                  <div className="rounded-[24px] border border-slate-200 bg-white/80 p-4">
+                                    <div className="flex items-center gap-2">
+                                      <${Chip} tone=${item.ok ? "ok" : "warn"}>${item.ok ? "OK" : "TODO"}</${Chip}>
+                                      <div className="text-sm font-semibold text-slate-900">${item.label}</div>
+                                    </div>
+                                    <div className="mt-3 text-sm leading-6 text-slate-500">${item.hint}</div>
+                                  </div>
+                                `)}
+                              </div>
+                            ` : null}
                           </div>
                         `
-                      : html`<${EmptyState} title="Select or create a server" text="Pick a server on the left. This area will show the plugin config, client field guide, and the safest next step." />`}
-                  </${Panel}>
-
-                  <div className="grid gap-6 2xl:grid-cols-[0.92fr_1.08fr]">
-                    <${Panel}
-                      title="Step 3. 修改服务器配置"
-                      subtitle="新建 channel 或更新当前 channel。这里改的是 relay-gateway 管理配置。"
-                    >
-                      <form className="grid gap-4" onSubmit=${submitChannel}>
-                        <label className="grid gap-2">
-                          <span className="text-sm font-medium text-slate-700">Channel ID</span>
-                          <input
-                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                            autoComplete="off"
-                            value=${channelForm.channelId}
-                            onInput=${(event) => setChannelForm((current) => ({ ...current, channelId: event.target.value }))}
-                            placeholder="gc-relay-test"
-                            required
-                          />
-                        </label>
-                        <label className="grid gap-2">
-                          <span className="text-sm font-medium text-slate-700">Label</span>
-                          <input
-                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                            autoComplete="off"
-                            value=${channelForm.label}
-                            onInput=${(event) => setChannelForm((current) => ({ ...current, label: event.target.value }))}
-                            placeholder="Singapore Main Gateway"
-                          />
-                        </label>
-                        <label className="grid gap-2">
-                          <span className="text-sm font-medium text-slate-700">Backend Secret</span>
-                          <input
-                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
-                            autoComplete="new-password"
-                            value=${channelForm.secret}
-                            onInput=${(event) => setChannelForm((current) => ({ ...current, secret: event.target.value }))}
-                            placeholder="auto-generate if empty"
-                          />
-                        </label>
-                        <label className="grid gap-2">
-                          <span className="text-sm font-medium text-slate-700">Client Token Param</span>
-                          <input
-                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
-                            autoComplete="off"
-                            value=${channelForm.tokenParam}
-                            onInput=${(event) => setChannelForm((current) => ({ ...current, tokenParam: event.target.value }))}
-                            placeholder="token"
-                          />
-                        </label>
-
-                        <div className="flex flex-wrap gap-2">
-                          <${Button} type="submit">Save Server</${Button}>
-                          <${Button}
-                            tone="secondary"
-                            onClick=${() => setChannelForm((current) => ({ ...current, secret: randomToken() }))}
-                          >
-                            Generate Secret
-                          </${Button}>
-                          <${Button}
-                            tone="ghost"
-                            onClick=${() => handleCopy("backend secret", channelForm.secret)}
-                            disabled=${!channelForm.secret}
-                          >
-                            Copy Secret
-                          </${Button}>
-                        </div>
-                      </form>
-                    </${Panel}>
-
-                    <${Panel}
-                      title="Step 4. 管理用户 token"
-                      subtitle="给每个调用方一个用户和 token。这里的用户存在于网关，不要求插件本地再配一份 auth.users。"
-                    >
-                      ${selectedChannel && selectedChannel.userCount === 0
-                        ? html`
-                            <div className="mb-4 rounded-[24px] border border-amber-200 bg-amber-50/90 p-4 text-sm leading-7 text-amber-900">
-                              当前服务器还没有任何用户。只要有人知道入口地址，就可能尝试连上来。
-                            </div>
-                          `
-                        : null}
-
-                      <form className="grid gap-4" onSubmit=${submitUser}>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <label className="grid gap-2">
-                            <span className="text-sm font-medium text-slate-700">User ID</span>
-                            <input
-                              className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                              autoComplete="off"
-                              value=${userForm.id}
-                              onInput=${(event) => setUserForm((current) => ({ ...current, id: event.target.value }))}
-                              placeholder="optional stable id"
-                            />
-                          </label>
-                          <label className="grid gap-2">
-                            <span className="text-sm font-medium text-slate-700">Sender ID</span>
-                            <input
-                              className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                              autoComplete="off"
-                              value=${userForm.senderId}
-                              onInput=${(event) => setUserForm((current) => ({ ...current, senderId: event.target.value }))}
-                              placeholder="gc-test-user"
-                              required
-                            />
-                          </label>
-                          <label className="grid gap-2">
-                            <span className="text-sm font-medium text-slate-700">Fixed Chat ID</span>
-                            <input
-                              className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                              autoComplete="off"
-                              value=${userForm.chatId}
-                              onInput=${(event) => setUserForm((current) => ({ ...current, chatId: event.target.value }))}
-                              placeholder="optional legacy binding"
-                            />
-                          </label>
-                          <label className="grid gap-2">
-                            <span className="text-sm font-medium text-slate-700">Token</span>
-                            <input
-                              className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
-                              autoComplete="new-password"
-                              value=${userForm.token}
-                              onInput=${(event) => setUserForm((current) => ({ ...current, token: event.target.value }))}
-                              placeholder="auto-generate if empty"
-                            />
-                          </label>
-                        </div>
-
-                        <label className="grid gap-2">
-                          <span className="text-sm font-medium text-slate-700">Allow Agents</span>
-                          <input
-                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                            autoComplete="off"
-                            value=${userForm.allowAgents}
-                            onInput=${(event) => setUserForm((current) => ({ ...current, allowAgents: event.target.value }))}
-                            placeholder="main,code,writer"
-                          />
-                        </label>
-
-                        <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked=${userForm.enabled}
-                            onChange=${(event) => setUserForm((current) => ({ ...current, enabled: event.target.checked }))}
-                          />
-                          <span className="text-sm font-medium text-slate-700">Enabled user</span>
-                        </label>
-
-                        <div className="flex flex-wrap gap-2">
-                          <${Button} type="submit" disabled=${!selectedChannel}>Save User</${Button}>
-                          <${Button}
-                            tone="secondary"
-                            onClick=${() => setUserForm((current) => ({ ...current, token: `gc_${randomToken()}` }))}
-                          >
-                            Generate Token
-                          </${Button}>
-                          <${Button}
-                            tone="ghost"
-                            onClick=${() => setUserForm(createDefaultUserForm())}
-                          >
-                            New User Draft
-                          </${Button}>
-                        </div>
-                      </form>
-
-                      <div className="mt-6 space-y-4 border-t border-slate-200 pt-6">
-                        <div className="flex flex-wrap items-end justify-between gap-3">
-                          <div>
-                            <div className="text-base font-semibold text-slate-900">Configured users</div>
-                            <div className="mt-1 text-sm leading-6 text-slate-500">
-                              选中某个用户后，右上“客户端字段说明”会自动切换成它的 token 和 agent。
-                            </div>
-                          </div>
-                          <input
-                            className="w-full max-w-xs rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                            type="search"
-                            value=${userQuery}
-                            onInput=${(event) => setUserQuery(event.target.value)}
-                            placeholder="Search by senderId, token, chatId..."
-                          />
-                        </div>
-
-                        ${!selectedChannel
-                          ? html`<${EmptyState} title="No server selected" text="Select a server first, then create or manage its users." />`
-                          : visibleUsers.length === 0
-                            ? html`<${EmptyState} title="No users found" text=${selectedChannel.userCount === 0 ? "Create the first token for this server." : "Try a shorter search keyword."} />`
-                            : html`
-                                <div className="grid gap-3">
-                                  ${visibleUsers.map((user) => {
-                                    const active = preferredUser?.senderId === user.senderId;
-                                    return html`
-                                      <article className=${`rounded-[24px] border p-4 ${
-                                        active ? "border-emerald-300 bg-emerald-50/70" : "border-slate-200 bg-white/80"
-                                      }`}>
-                                        <div className="flex flex-wrap items-start justify-between gap-3">
-                                          <div>
-                                            <div className="text-base font-semibold text-slate-900">${user.senderId}</div>
-                                            <div className="font-mono text-xs text-slate-500">${user.id || "no explicit user id"}</div>
-                                          </div>
-                                          <div className="flex flex-wrap gap-2">
-                                            ${active ? html`<${Badge} tone="ok">client preset</${Badge}>` : null}
-                                            <${Badge} tone=${user.enabled === false ? "danger" : "ok"}>
-                                              ${user.enabled === false ? "disabled" : "enabled"}
-                                            </${Badge}>
-                                            <${Badge}>
-                                              ${Array.isArray(user.allowAgents) && user.allowAgents.length ? user.allowAgents.join(", ") : "all agents"}
-                                            </${Badge}>
-                                          </div>
-                                        </div>
-
-                                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
-                                          <span className="rounded-full bg-slate-100 px-3 py-1">
-                                            Chat: ${user.chatId || "client controlled"}
-                                          </span>
-                                          <span className="rounded-full bg-slate-100 px-3 py-1">
-                                            Token param: ${selectedChannel.tokenParam || "token"}
-                                          </span>
-                                        </div>
-
-                                        <div className="mt-4 rounded-[20px] bg-slate-950 px-4 py-3 font-mono text-xs leading-6 text-slate-100">
-                                          ${user.token}
-                                        </div>
-
-                                        <div className="mt-4 flex flex-wrap gap-2">
-                                          <${Button}
-                                            tone=${active ? "primary" : "secondary"}
-                                            onClick=${() => {
-                                              setSelectedUserSenderId(user.senderId);
-                                              addActivity(`Client guide switched to ${user.senderId}.`, "ok");
-                                              showToast(`Client guide switched to ${user.senderId}.`, "ok");
-                                            }}
-                                          >
-                                            ${active ? "In Guide" : "Use In Guide"}
-                                          </${Button}>
-                                          <${Button}
-                                            tone="ghost"
-                                            onClick=${() => handleCopy(`token for ${user.senderId}`, user.token)}
-                                          >
-                                            Copy Token
-                                          </${Button}>
-                                          <${Button} tone="secondary" onClick=${() => startEditingUser(user)}>Edit</${Button}>
-                                          <${Button} tone="danger" onClick=${() => deleteUser(user)}>Delete</${Button}>
-                                        </div>
-                                      </article>
-                                    `;
-                                  })}
-                                </div>
-                              `}
-                      </div>
-                    </${Panel}>
-                  </div>
+                      : html`<${EmptyState}
+                          title="Select a server to start"
+                          text="先从左边选择一个服务器。右边工作区会自动切换到它的接入配置、用户管理和设置。"
+                          action=${html`<${Button} onClick=${startNewChannel}>Create New Server</${Button}>`}
+                        />`}
+                  </${SectionCard}>
                 </div>
-              </section>
+              </div>
             </div>
 
-            <div className="pointer-events-none fixed bottom-4 right-4 z-50 grid gap-2 md:bottom-6 md:right-6">
+            <div className="pointer-events-none fixed inset-x-4 bottom-4 z-50 grid gap-2 sm:left-auto sm:right-5 sm:w-[320px]">
               ${toasts.map((toast) => html`
                 <div
                   key=${toast.id}
-                  className=${`min-w-[240px] rounded-2xl border px-4 py-3 text-sm shadow-float ${
+                  className=${`rounded-2xl border px-4 py-3 text-sm shadow-float ${
                     toast.tone === "ok"
                       ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                       : toast.tone === "warn"
