@@ -3,7 +3,7 @@ import type { z } from "zod";
 
 export type GenericChannelConfig = z.infer<typeof GenericChannelConfigSchema>;
 
-export type GenericConnectionMode = "websocket" | "webhook";
+export type GenericConnectionMode = "websocket" | "webhook" | "relay";
 
 export type ResolvedGenericAccount = {
   accountId: string;
@@ -68,6 +68,7 @@ export type GenericProbeResult = {
   error?: string;
   mode?: GenericConnectionMode;
   port?: number;
+  relayUrl?: string;
 };
 
 export type ChannelStatusRequest = {

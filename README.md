@@ -1,8 +1,8 @@
 # Generic Channel
 
-Generic WebSocket/Webhook channel plugin for [OpenClaw](https://github.com/openclaw/openclaw).
+Generic WebSocket/Relay/Webhook channel plugin for [OpenClaw](https://github.com/openclaw/openclaw).
 
-A flexible channel plugin that allows H5 pages to connect directly without depending on third-party platforms. The current recommended and E2E-verified access path is `websocket`.
+A flexible channel plugin that allows H5 pages to connect directly or through a relay gateway without depending on third-party platforms. The simplest local path is `websocket`; for public deployments, the recommended path is `relay` plus token auth.
 
 [English](#english) | [中文](#中文)
 
@@ -28,9 +28,13 @@ npm install @restry/generic-channel
 channels:
   generic-channel:
     enabled: true
-    connectionMode: "websocket"  # or "webhook"
+    connectionMode: "websocket"  # or "relay" / "webhook"
     wsPort: 8080
     wsPath: "/ws"
+    relay:
+      url: "ws://relay.example.com:19080/backend"
+      channelId: "demo"
+      secret: "replace-me"
     auth:
       enabled: true
       tokenParam: "token"
@@ -61,9 +65,10 @@ openclaw config set channels.generic-channel.wsPort 8080
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `enabled` | boolean | `false` | Enable/disable the generic channel |
-| `connectionMode` | enum | `"websocket"` | Connection mode: `"websocket"` or `"webhook"` |
+| `connectionMode` | enum | `"websocket"` | Connection mode: `"websocket"`, `"relay"`, or `"webhook"` |
 | `wsPort` | number | `8080` | WebSocket server port |
 | `wsPath` | string | `"/ws"` | WebSocket endpoint path |
+| `relay` | object | - | Relay backend config: `url`, `channelId`, `secret`, optional `instanceId` / reconnect timeouts |
 | `auth` | object | - | Optional per-user WebSocket token authentication |
 | `webhookPath` | string | `"/generic/events"` | Webhook endpoint path |
 | `webhookPort` | number | `3000` | Webhook server port |
@@ -78,7 +83,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 ### Features
 
 #### Core Features
-- **Primary Access Path**: WebSocket is the current recommended and E2E-verified access mode
+- **Primary Access Paths**: Direct `websocket` is simplest for local/private networks; `relay` is the recommended public deployment path
 - **Multi-Client Management**: Support for multiple simultaneous WebSocket connections
 - **Multi-Agent Selection**: Clients can list configured agents and explicitly select one per WebSocket session
 - **Direct Message & Group Chat**: Handle both DM and group conversations
@@ -112,17 +117,31 @@ openclaw config set channels.generic-channel.connectionMode websocket
 openclaw config set channels.generic-channel.wsPort 8080
 ```
 
-2. Open `examples/h5-client.html` in your browser to test the connection
+2. Choose one connection path
+   - Direct WebSocket: `ws://host:8080/ws`
+   - Relay client: `ws://relay-host:19080/client?channelId=demo`
+
+3. Open `examples/h5-client.html` in your browser to test the connection
    - The example page is a static file only. The page opening successfully does **not** mean the Generic Channel WebSocket is reachable yet.
-   - If you use a remote gateway, replace the default `ws://localhost:8080/ws` with your real remote `ws://host:port/ws`.
+   - If you use relay mode, put the client endpoint into `serverUrl`, for example `ws://relay-host:19080/client?channelId=demo`.
    - The page stores `serverUrl` / `chatId` / `userName` and connection history in browser `localStorage`; if you previously tested another environment, clear the cached config or reselect the correct history entry before reconnecting.
 
-3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your name, and token if enabled, then click "Connect"
+4. Enter the WebSocket URL (for example `ws://localhost:8080/ws` or `ws://relay-host:19080/client?channelId=demo`), your name, and token if enabled, then click "Connect"
    - `chatId` is now an optional initial conversation. After connection, the client may switch between multiple conversations on the same socket.
    - When auth is enabled, the token always binds the user identity (`senderId`). If the config also sets a legacy fixed `chatId`, that token remains restricted to that one conversation.
+   - The example page writes the auth token into the `token` query param. If your server uses a custom token param, put it directly into `serverUrl`.
 
-4. For direct H5 / App / WeChat Mini Program integration, see `docs/INTEGRATION_GUIDE.md`
-5. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html`
+5. For direct H5 / App / WeChat Mini Program integration, see `docs/INTEGRATION_GUIDE.md`
+6. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html` -> `relay-gateway/README.md`
+
+### Relay Gateway
+
+`relay-gateway/` is a standalone forwarding service for public deployments.
+
+- Plugin backend connects to `/backend`
+- Third-party clients connect to `/client`
+- The relay only forwards JSON frames and does not interpret generic-channel business events
+- See `relay-gateway/README.md` for environment variables, health checks, and deployment examples
 
 ### Message Protocol
 
@@ -390,9 +409,13 @@ npm install @restry/generic-channel
 channels:
   generic-channel:
     enabled: true
-    connectionMode: "websocket"  # 或 "webhook"
+    connectionMode: "websocket"  # 或 "relay" / "webhook"
     wsPort: 8080
     wsPath: "/ws"
+    relay:
+      url: "ws://relay.example.com:19080/backend"
+      channelId: "demo"
+      secret: "replace-me"
     auth:
       enabled: true
       tokenParam: "token"
@@ -423,9 +446,10 @@ openclaw config set channels.generic-channel.wsPort 8080
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `enabled` | boolean | `false` | 启用/禁用通用频道 |
-| `connectionMode` | enum | `"websocket"` | 连接模式：`"websocket"` 或 `"webhook"` |
+| `connectionMode` | enum | `"websocket"` | 连接模式：`"websocket"`、`"relay"` 或 `"webhook"` |
 | `wsPort` | number | `8080` | WebSocket 服务器端口 |
 | `wsPath` | string | `"/ws"` | WebSocket 端点路径 |
+| `relay` | object | - | Relay 反连配置：`url`、`channelId`、`secret`，以及可选的 `instanceId` / 重连超时参数 |
 | `auth` | object | - | 可选的按用户 WebSocket Token 认证配置 |
 | `webhookPath` | string | `"/generic/events"` | Webhook 端点路径 |
 | `webhookPort` | number | `3000` | Webhook 服务器端口 |
@@ -440,7 +464,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 ### 功能特性
 
 #### 核心功能
-- **主接入路径**：当前推荐且已完成 E2E 验证的是 WebSocket
+- **主接入路径**：内网/本地调试优先直连 `websocket`，公网部署优先 `relay`
 - **多客户端管理**：支持多个 WebSocket 连接同时在线
 - **多 Agent 选择**：客户端可以列出服务端已配置 agent，并按连接或按消息显式选择
 - **私聊与群聊**：处理私聊和群组对话
@@ -474,18 +498,26 @@ openclaw config set channels.generic-channel.connectionMode websocket
 openclaw config set channels.generic-channel.wsPort 8080
 ```
 
-2. 在浏览器中打开 `examples/h5-client.html` 测试连接
+2. 先选连接方式
+   - 直连 WebSocket：`ws://host:8080/ws`
+   - Relay 客户端入口：`ws://relay-host:19080/client?channelId=demo`
 
-3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、名称；如果服务端启用了认证，再输入 token，然后点击"连接"
+3. 如果你是第三方集成方，直接看 `docs/INTEGRATION_GUIDE.md` 里的“`0. 快速接入`”
 
-4. H5 / 聊天 App / 微信小程序的真实接入方式见 `docs/INTEGRATION_GUIDE.md`
-5. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html` 的顺序阅读
+4. 如果你只是想先 smoke test，再在浏览器中打开 `examples/h5-client.html` 测试连接
+   - 输入 WebSocket URL（如 `ws://localhost:8080/ws` 或 `ws://relay-host:19080/client?channelId=demo`）、名称；如果服务端启用了认证，再输入 token，然后点击"连接"
+   - 示例页的 token 输入框只会写入 `token` 查询参数。如果你服务端用了自定义 token 参数名，请直接把它写进 `serverUrl`
+
+5. H5 / 聊天 App / 微信小程序的真实接入方式见 `docs/INTEGRATION_GUIDE.md`
+6. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html -> relay-gateway/README.md` 的顺序阅读
 
 ### 接入说明
 
 - 当前真实配置键是 `channels.generic-channel`
 - 当前 H5 参考实现只有 `examples/h5-client.html`
-- 客户端统一通过 `ws://host:port/ws` 建连；如果启用了简单认证，再额外带上 `token`
+- 客户端可以直连 `ws://host:port/ws`，也可以连 relay 客户端入口 `ws://relay-host:19080/client?channelId=demo`
+- relay 模式下，插件主动反连 `/backend`，第三方客户端只连 `/client`
+- 如果启用了简单认证，再额外带上 `token`
 - `chatId` 现在代表“会话 / 线程 / 群聊房间”，可以在连接建立后按消息或按会话切换，不再要求一个 token 固定只聊一个 chat
 - 如果服务端配置了多个 agent，客户端可通过 `agent.list.get` / `agent.select` 列出并切换 agent，也可在建连时额外带 `agentId`
 - 客户端可以通过 `conversation.list.get` 拉当前用户在当前 agent 视角下的会话列表，再通过 `history.get` 拉指定会话的历史消息
@@ -496,6 +528,15 @@ openclaw config set channels.generic-channel.wsPort 8080
 - `reaction.add` / `reaction.remove` 的 emoji reaction 协议已支持，但当前 H5 示例页没有 reaction UI
 - 图片、音频、语音都通过 `mediaUrl + mimeType + messageType` 传入
 - 多用户并发场景建议把 `session.dmScope` 设为 `per-account-channel-peer`
+
+### Relay 网关
+
+`relay-gateway/` 是用于公网部署的独立中转服务。
+
+- 插件主动反连 `/backend`
+- 第三方客户端连接 `/client`
+- 网关只做 JSON 帧转发，不解析 `generic-channel` 业务消息
+- 环境变量、健康检查和部署示例见 `relay-gateway/README.md`
 
 ### 自动语音/音频转写
 

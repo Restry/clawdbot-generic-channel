@@ -167,9 +167,39 @@ channels:
     textChunkLimit: 4000
 ```
 
-### Example 2: Webhook Mode
+### Example 2: Relay Mode (Recommended for Public Deployments)
 
-This example is kept only for configuration completeness. The current recommended and E2E-verified access path is still `websocket`.
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "relay"
+    relay:
+      url: "ws://127.0.0.1:19080/backend"
+      channelId: "demo"
+      secret: "replace-me"
+      instanceId: "openclaw-sg-1"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - senderId: "user-42"
+          token: "gc_user42_xxxxxxxxx"
+```
+
+Companion relay-gateway:
+
+```bash
+cd relay-gateway
+npm install
+RELAY_PORT=19080 \\
+RELAY_CHANNELS_JSON='{"demo":{"secret":"replace-me"}}' \\
+npm start
+```
+
+### Example 3: Webhook Mode
+
+This example is kept only for configuration completeness. Current recommended paths are direct `websocket` for local/private networks and `relay` for public deployments.
 
 ```yaml
 channels:
@@ -184,7 +214,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-### Example 3: With Allowlist (Restricted Access)
+### Example 4: With Allowlist (Restricted Access)
 
 ```yaml
 channels:
@@ -202,7 +232,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-### Example 4: Pairing Mode (Approval Required)
+### Example 5: Pairing Mode (Approval Required)
 
 ```yaml
 channels:
@@ -216,7 +246,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-### Example 5: Auto-transcribe voice/audio with faster-whisper
+### Example 6: Auto-transcribe voice/audio with faster-whisper
 
 ```yaml
 channels:

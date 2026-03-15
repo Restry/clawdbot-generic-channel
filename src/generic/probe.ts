@@ -1,5 +1,4 @@
 import type { GenericChannelConfig, GenericProbeResult } from "./types.js";
-import { getGenericWSManager } from "./client.js";
 
 export async function probeGeneric(cfg?: GenericChannelConfig): Promise<GenericProbeResult> {
   if (!cfg) {
@@ -19,7 +18,6 @@ export async function probeGeneric(cfg?: GenericChannelConfig): Promise<GenericP
   const mode = cfg.connectionMode ?? "websocket";
 
   if (mode === "websocket") {
-    const wsManager = getGenericWSManager();
     const port = cfg.wsPort ?? 8080;
 
     return {
@@ -27,7 +25,20 @@ export async function probeGeneric(cfg?: GenericChannelConfig): Promise<GenericP
       mode,
       port,
     };
-  } else {
+  }
+
+  if (mode === "relay") {
+    return {
+      ok: Boolean(cfg.relay?.url && cfg.relay?.channelId && cfg.relay?.secret),
+      mode,
+      relayUrl: cfg.relay?.url,
+      error: cfg.relay?.url && cfg.relay?.channelId && cfg.relay?.secret
+        ? undefined
+        : "Relay config incomplete",
+    };
+  }
+
+  {
     const port = cfg.webhookPort ?? 3000;
     return {
       ok: true,

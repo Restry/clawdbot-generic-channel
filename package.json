@@ -2,7 +2,7 @@
   "name": "@restry/generic-channel",
   "version": "2.0.0",
   "type": "module",
-  "description": "Generic WebSocket/Webhook channel plugin for OpenClaw",
+  "description": "Generic WebSocket/Relay/Webhook channel plugin for OpenClaw",
   "license": "MIT",
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -35,10 +35,10 @@
     "channel": {
       "id": "generic-channel",
       "label": "Generic Channel",
-      "selectionLabel": "Generic Channel (WebSocket/Webhook)",
+      "selectionLabel": "Generic Channel (WebSocket/Relay/Webhook)",
       "docsPath": "/channels/generic-channel",
       "docsLabel": "generic-channel",
-      "blurb": "Generic WebSocket/Webhook channel for H5 pages.",
+      "blurb": "Generic WebSocket/Relay/Webhook channel for H5 pages.",
       "aliases": [],
       "order": 100
     },

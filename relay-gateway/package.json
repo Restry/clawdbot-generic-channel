@@ -1,0 +1,13 @@
+{
+  "name": "@restry/generic-channel-relay-gateway",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "Relay gateway for clawdbot generic-channel",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.19.0"
+  }
+}

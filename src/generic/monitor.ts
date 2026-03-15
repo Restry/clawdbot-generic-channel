@@ -52,7 +52,7 @@ export async function monitorGenericProvider(opts: MonitorGenericOpts = {}): Pro
 
   const connectionMode = genericCfg.connectionMode ?? "websocket";
 
-  if (connectionMode === "websocket") {
+  if (connectionMode === "websocket" || connectionMode === "relay") {
     return monitorWebSocket({ cfg, genericCfg, runtime: opts.runtime, abortSignal: opts.abortSignal });
   }
 
@@ -69,7 +69,8 @@ async function monitorWebSocket(params: {
   const log = runtime?.log ?? console.log;
   const error = runtime?.error ?? console.error;
 
-  log("generic: starting WebSocket server...");
+  const modeLabel = genericCfg.connectionMode === "relay" ? "relay client" : "WebSocket server";
+  log(`generic: starting ${modeLabel}...`);
 
   const wsManager = createGenericWSManager(genericCfg);
   currentWSManager = wsManager;

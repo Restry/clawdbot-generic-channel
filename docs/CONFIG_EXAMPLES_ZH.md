@@ -167,9 +167,39 @@ channels:
     textChunkLimit: 4000
 ```
 
-### 示例 2：Webhook 模式
+### 示例 2：Relay 模式（公网推荐）
 
-这里保留 `webhook` 配置字段只是为了完整性说明；当前推荐且已经完成 E2E 验证的接入主路径仍然是 `websocket`。
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "relay"
+    relay:
+      url: "ws://127.0.0.1:19080/backend"
+      channelId: "demo"
+      secret: "replace-me"
+      instanceId: "openclaw-sg-1"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - senderId: "user-42"
+          token: "gc_user42_xxxxxxxxx"
+```
+
+配套 relay-gateway：
+
+```bash
+cd relay-gateway
+npm install
+RELAY_PORT=19080 \\
+RELAY_CHANNELS_JSON='{"demo":{"secret":"replace-me"}}' \\
+npm start
+```
+
+### 示例 3：Webhook 模式
+
+这里保留 `webhook` 配置字段只是为了完整性说明；当前推荐路径是本地/内网直连 `websocket`，公网部署走 `relay`。
 
 ```yaml
 channels:
@@ -184,7 +214,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-### 示例 3：使用白名单（限制访问）
+### 示例 4：使用白名单（限制访问）
 
 ```yaml
 channels:
@@ -202,7 +232,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-### 示例 4：配对模式（需要审批）
+### 示例 5：配对模式（需要审批）
 
 ```yaml
 channels:
@@ -216,7 +246,7 @@ channels:
     textChunkLimit: 4000
 ```
 
-### 示例 5：使用 faster-whisper 自动转写语音/音频
+### 示例 6：使用 faster-whisper 自动转写语音/音频
 
 ```yaml
 channels:
@@ -267,9 +297,10 @@ session:
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `enabled` | boolean | `false` | 启用/禁用通用频道 |
-| `connectionMode` | enum | `"websocket"` | 连接模式：`"websocket"` 或 `"webhook"` |
+| `connectionMode` | enum | `"websocket"` | 连接模式：`"websocket"`、`"relay"` 或 `"webhook"` |
 | `wsPort` | number | `8080` | WebSocket 服务器端口 |
 | `wsPath` | string | `"/ws"` | WebSocket 端点路径 |
+| `relay` | object | - | relay 反连配置：`url`、`channelId`、`secret` 等 |
 | `auth` | object | - | 可选的一用户一 Token WebSocket 鉴权配置 |
 | `webhookPath` | string | `"/generic/events"` | Webhook 端点路径 |
 | `webhookPort` | number | `3000` | Webhook 服务器端口 |

@@ -8,10 +8,10 @@ import { sendMessageGeneric } from "./send.js";
 const meta = {
   id: "generic-channel",
   label: "Generic Channel",
-  selectionLabel: "Generic Channel (WebSocket/Webhook)",
+  selectionLabel: "Generic Channel (WebSocket/Relay/Webhook)",
   docsPath: "/channels/generic-channel",
   docsLabel: "generic-channel",
-  blurb: "Generic channel supporting WebSocket and Webhook connections.",
+  blurb: "Generic channel supporting WebSocket, Relay, and Webhook connections.",
   aliases: [],
   order: 100,
 } as const;
@@ -64,7 +64,7 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
       additionalProperties: false,
       properties: {
         enabled: { type: "boolean" },
-        connectionMode: { type: "string", enum: ["websocket", "webhook"] },
+        connectionMode: { type: "string", enum: ["websocket", "webhook", "relay"] },
         wsPort: { type: "integer", minimum: 1 },
         wsPath: { type: "string" },
         auth: {
@@ -93,6 +93,18 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
         webhookPath: { type: "string" },
         webhookPort: { type: "integer", minimum: 1 },
         webhookSecret: { type: "string" },
+        relay: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            url: { type: "string" },
+            channelId: { type: "string" },
+            secret: { type: "string" },
+            instanceId: { type: "string" },
+            reconnectIntervalMs: { type: "integer", minimum: 1 },
+            connectTimeoutMs: { type: "integer", minimum: 1 },
+          },
+        },
         dmPolicy: { type: "string", enum: ["open", "pairing", "allowlist"] },
         allowFrom: { type: "array", items: { type: "string" } },
         historyLimit: { type: "integer", minimum: 0 },
@@ -219,9 +231,12 @@ export const genericPlugin: ChannelPlugin<ResolvedGenericAccount> = {
     startAccount: async (ctx) => {
       const { monitorGenericProvider } = await import("./monitor.js");
       const genericCfg = ctx.cfg.channels?.["generic-channel"] as GenericChannelConfig | undefined;
-      const port = genericCfg?.connectionMode === "websocket" 
-        ? genericCfg?.wsPort ?? 8080 
-        : genericCfg?.webhookPort ?? 3000;
+      const port =
+        genericCfg?.connectionMode === "websocket"
+          ? genericCfg?.wsPort ?? 8080
+          : genericCfg?.connectionMode === "webhook"
+            ? genericCfg?.webhookPort ?? 3000
+            : null;
       ctx.setStatus({ accountId: ctx.accountId, port });
       ctx.log?.info(`starting generic provider (mode: ${genericCfg?.connectionMode ?? "websocket"})`);
       return monitorGenericProvider({

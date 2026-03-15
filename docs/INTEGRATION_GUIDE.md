@@ -1,18 +1,138 @@
 # Generic Channel 接入指南
 
-这份文档只讲一件事: 你的 H5 页面、聊天 App、uni-app、Taro、微信小程序，怎样直接接入 `generic-channel`，把前端会话接到 OpenClaw。
+这份文档面向第三方接入方：你的 H5 页面、聊天 App、uni-app、Taro、微信小程序，怎样直接接入 `generic-channel`，把前端会话接到 OpenClaw。
 
-如果你只想先跑通，请先看这三项:
+当前已经完成真实 E2E 的接入路径有两条：
+
+- `websocket` 直连
+- `relay` 转发
+
+如果是公网或半公网部署，优先走 `relay`；如果只是本地或内网调试，直连 `websocket` 更简单。
+
+## 0. 快速接入
+
+如果你是第三方集成方，先看这一节，不需要先读全文。
+
+### 0.1 最短路径
 
 1. 服务端开启 `channels.generic-channel`
-2. 客户端用 WebSocket 连接 `ws://host:port/ws`
-3. 客户端按协议发送 `message.receive` 事件
-4. 如果服务端配置了多个 agent，客户端可额外用 `agent.list.get` / `agent.select` 做显式入口选择
-5. 如果服务端启用了 user-token 认证，客户端还要在连接 URL 上额外带 `token`
+2. 本地/内网调试时，客户端直连 `ws://host:port/ws`
+3. 公网部署时，插件改成 `connectionMode: "relay"`，客户端连接 `ws://relay-host:19080/client?channelId=<channelId>`
+4. 客户端发送 `message.receive`
+5. 客户端处理 `connection.open`、`history.sync`、`message.send`
+6. 如果启用了 token 认证，连接 URL 额外带 `token`
+7. 如果服务端配置了多个 agent，可选接 `agent.list.get` / `agent.select`
 
-这份接入指南只覆盖当前真实可用且已完成 E2E 的 `websocket` 路径。
+### 0.2 服务端最小配置
 
-## 0.1 H5 示例页的真实接入经验
+最小直连 WebSocket 配置：
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    dmPolicy: "open"
+    historyLimit: 20
+```
+
+如果端口要暴露到公网或半公网，建议直接用 relay，而不是把插件的 `wsPort` 暴露出去。
+
+插件改成 relay 模式：
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "relay"
+    relay:
+      url: "ws://127.0.0.1:19080/backend"
+      channelId: "demo"
+      secret: "replace-me"
+      instanceId: "openclaw-sg-1"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - senderId: "user-42"
+          token: "gc_user42_xxxxxxxxx"
+          allowAgents: ["main", "code"]
+```
+
+`relay-gateway` 的最小环境变量：
+
+```bash
+RELAY_PORT=19080
+RELAY_CHANNELS_JSON='{"demo":{"secret":"replace-me"}}'
+```
+
+如果你暂时还要直连暴露端口，建议一开始就开 token 认证：
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "websocket"
+    wsPort: 18080
+    wsPath: "/ws"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - senderId: "user-42"
+          token: "gc_user42_xxxxxxxxx"
+          allowAgents: ["main", "code"]
+```
+
+多用户接入时，建议同时加上：
+
+```yaml
+session:
+  dmScope: "per-account-channel-peer"
+```
+
+### 0.3 客户端最小示例
+
+```javascript
+const ws = new WebSocket("ws://localhost:18080/ws?token=gc_user42_xxxxxxxxx");
+
+ws.onopen = () => {
+  ws.send(JSON.stringify({
+    type: "message.receive",
+    data: {
+      messageId: "msg-" + Date.now(),
+      chatId: "conv-10001",
+      chatType: "direct",
+      senderId: "user-42",
+      senderName: "Leway",
+      messageType: "text",
+      content: "你好",
+      timestamp: Date.now()
+    }
+  }));
+};
+
+ws.onmessage = (event) => {
+  const packet = JSON.parse(event.data);
+  if (packet.type === "message.send") {
+    console.log("AI 回复:", packet.data.content);
+  }
+};
+```
+
+### 0.4 先记住这几个规则
+
+- `chatId` = 这条消息属于哪个会话
+- `senderId` = 当前是谁在发言
+- `token` 绑定的是用户身份，不默认绑定固定 `chatId`
+- `channelId` = relay 网关里把一组客户端路由到哪个插件实例
+- 如果连接显式选中了 `agentId`，`history.sync` 和 `history.get` 会按 `chatId + agentId` 过滤
+- `examples/h5-client.html` 是参考页，不是协议规范本身
+- relay 模式下，客户端只连 `/client`，不能连 `/backend`
+
+## 0.5 H5 示例页排障
 
 这次接入里，最容易混淆的是：`http://127.0.0.1:4173/examples/h5-client.html` 能打开，只代表静态页面服务正常，不代表后端 WebSocket 一定可连。
 
@@ -24,7 +144,10 @@
 python3 -m http.server 4173
 ```
 
-2. 再确认页面里填写的 `serverUrl` 是真实的 WebSocket 端点，而不是示例页默认值 `ws://localhost:8080/ws`
+2. 再确认页面里填写的 `serverUrl` 是真实的 WebSocket 端点
+
+   - 直连模式示例：`ws://host:18080/ws`
+   - relay 模式示例：`ws://relay-host:19080/client?channelId=demo`
 
 3. 如果服务端启用了 user-token 认证，先确认 token 对应的是正确用户；只有在兼容旧模式、显式配置了固定 `chatId` 时，才需要检查 URL 里的 `chatId` 是否与它一致
 
@@ -42,9 +165,17 @@ python3 -m http.server 4173
 
 这次实测已确认：重新启动本地 `4173` 静态服务后，`examples/h5-client.html` 仍可正常连到远端 `generic-channel`，问题排查重点应放在 `serverUrl`、token 对应的用户身份、浏览器缓存，以及当前会话 ID 是否填对，而不是先怀疑静态页本身。
 
-## 1. 服务端最小配置
+## 1. 服务端详细配置
+
+如果你只想尽快接通，前面的 `0.2 服务端最小配置` 已经够用。这一节补充的是更完整的认证兼容模式、会话隔离建议和转写配置。
 
 当前真实频道 ID 是 `generic-channel`，不是 `generic`。
+
+如果你准备公网部署，建议把“插件服务”和“外部暴露端口”拆开：
+
+- OpenClaw 插件只主动连 relay backend
+- 第三方客户端只连 relay client
+- 外部网络不再直接访问 OpenClaw 所在主机的插件端口
 
 ```yaml
 channels:
@@ -58,7 +189,29 @@ channels:
     mediaMaxMb: 30
 ```
 
-如果你要把端口暴露到公网或半公网，建议从一开始就加上最简单的一用户一 token 认证：
+如果你要公网部署，建议改成 relay：
+
+```yaml
+channels:
+  generic-channel:
+    enabled: true
+    connectionMode: "relay"
+    relay:
+      url: "ws://127.0.0.1:19080/backend"
+      channelId: "demo"
+      secret: "replace-me"
+      instanceId: "openclaw-sg-1"
+    auth:
+      enabled: true
+      tokenParam: "token"
+      users:
+        - senderId: "user-42"
+          chatId: "conv-10001" # 可选，仅用于兼容旧的一 token 一 chat 模式
+          token: "gc_user42_xxxxxxxxx"
+          allowAgents: ["main", "code"]
+```
+
+如果你要把插件端口直接暴露到公网或半公网，建议至少加上一用户一 token 认证：
 
 ```yaml
 channels:
@@ -132,7 +285,8 @@ channels:
 
 | 字段 | 作用 | 建议来源 |
 |------|------|----------|
-| `serverUrl` | WebSocket 地址 | 例如 `ws://host:18080/ws` |
+| `serverUrl` | WebSocket 地址 | 例如 `ws://host:18080/ws` 或 `ws://relay-host:19080/client?channelId=demo` |
+| `channelId` | relay 路由键 | 仅 relay 模式需要；用于定位后端插件实例 |
 | `chatId` | 会话 / 线程 / 群聊房间 ID | 私聊线程用线程 ID，群聊用群 ID |
 | `token` | 连接认证凭证 | 服务端启用 auth 时必填 |
 | `senderId` | 当前发言用户 ID | 业务系统里的用户主键 |
@@ -144,7 +298,8 @@ channels:
 - H5 示例页为了最简化，默认把 `senderId` 直接写成了 `chatId`
 - 真实 App 接入时，不要机械照搬这个简化写法
 - 如果“用户 ID”和“会话 ID”不是一个东西，就必须分开传
-- `serverUrl` 应该只是 WebSocket 端点本身，`chatId` 现在可以作为“当前活跃会话”的动态字段，既可以放在建连查询参数里当初始会话，也可以在后续消息和 `history.get` 请求里按需切换
+- `serverUrl` 可以只是 WebSocket 端点本身；在 relay 模式下，通常还会固定带上 `channelId`
+- `chatId` 现在可以作为“当前活跃会话”的动态字段，既可以放在建连查询参数里当初始会话，也可以在后续消息和 `history.get` 请求里按需切换
 
 推荐映射方式:
 

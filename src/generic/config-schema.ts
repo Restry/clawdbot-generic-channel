@@ -2,7 +2,7 @@ import { z } from "zod";
 export { z };
 
 const DmPolicySchema = z.enum(["open", "pairing", "allowlist"]);
-const GenericConnectionModeSchema = z.enum(["websocket", "webhook"]);
+const GenericConnectionModeSchema = z.enum(["websocket", "webhook", "relay"]);
 const GenericAuthUserSchema = z
   .object({
     id: z.string().optional(),
@@ -34,6 +34,16 @@ const GenericTranscriptionConfigSchema = z
     timeoutMs: z.number().int().positive().optional().default(120000),
   })
   .strict();
+const GenericRelayConfigSchema = z
+  .object({
+    url: z.string().url(),
+    channelId: z.string().min(1),
+    secret: z.string().min(1),
+    instanceId: z.string().optional(),
+    reconnectIntervalMs: z.number().int().positive().optional().default(3000),
+    connectTimeoutMs: z.number().int().positive().optional().default(10000),
+  })
+  .strict();
 
 export const GenericChannelConfigSchema = z
   .object({
@@ -51,6 +61,9 @@ export const GenericChannelConfigSchema = z
     webhookPath: z.string().optional().default("/generic/events"),
     webhookPort: z.number().int().positive().optional().default(3000),
     webhookSecret: z.string().optional(),
+
+    // Relay configuration
+    relay: GenericRelayConfigSchema.optional(),
 
     // Message policy
     dmPolicy: DmPolicySchema.optional().default("open"),
