@@ -419,10 +419,18 @@
         `;
       }
 
+      function getQueryAdminToken() {
+        return new URLSearchParams(window.location.search).get("adminToken")?.trim() || "";
+      }
+
+      function getInitialAdminToken() {
+        return getQueryAdminToken() || localStorage.getItem(STORAGE_KEY) || "";
+      }
+
       function App() {
-        const savedToken = localStorage.getItem(STORAGE_KEY) || "";
-        const [adminToken, setAdminToken] = useState(savedToken);
-        const [adminInput, setAdminInput] = useState(savedToken);
+        const initialToken = getInitialAdminToken();
+        const [adminToken, setAdminToken] = useState(initialToken);
+        const [adminInput, setAdminInput] = useState(initialToken);
         const [showAdminToken, setShowAdminToken] = useState(false);
         const [gatewayState, setGatewayState] = useState(null);
         const [isLoading, setIsLoading] = useState(false);
@@ -577,7 +585,15 @@
         }, [showUserEditor, editingUserSenderId, selectedChannel?.channelId, gatewayState?.timestamp]);
 
         useEffect(() => {
-          loadState(false, savedToken);
+          const queryToken = getQueryAdminToken();
+          if (queryToken) {
+            localStorage.setItem(STORAGE_KEY, queryToken);
+          }
+          if (initialToken) {
+            loadState(false, initialToken);
+            return;
+          }
+          loadMeta();
         }, []);
 
         function pushActivity(message, tone = "slate") {
@@ -633,7 +649,18 @@
           } catch (error) {
             const message = String(error.message || error);
             if (message.includes("admin auth required")) {
-              setGatewayState(null);
+              setGatewayState((current) =>
+                current
+                  ? {
+                      ...current,
+                      channels: [],
+                      stats: {
+                        backendCount: 0,
+                        clientCount: 0,
+                      },
+                    }
+                  : null,
+              );
               setErrorMessage("Admin token required");
               if (announce) {
                 pushActivity("Admin token required before state can be loaded.", "warn");
@@ -648,6 +675,27 @@
             }
           } finally {
             setIsLoading(false);
+          }
+        }
+
+        async function loadMeta() {
+          try {
+            const data = await requestJson("/api/meta", "");
+            setGatewayState((current) => ({
+              ...(current || {}),
+              ...data,
+              channels: Array.isArray(current?.channels) ? current.channels : [],
+              stats: current?.stats || {
+                backendCount: 0,
+                clientCount: 0,
+              },
+            }));
+            setErrorMessage(data.adminAuthEnabled ? "Admin token required" : "");
+            if (!data.adminAuthEnabled) {
+              await loadState(false, "");
+            }
+          } catch (error) {
+            setErrorMessage(String(error.message || error));
           }
         }
 

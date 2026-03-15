@@ -586,6 +586,16 @@ async function handleAdminState(response) {
   });
 }
 
+async function handlePublicMeta(response) {
+  writeJson(response, 200, {
+    ok: true,
+    adminAuthEnabled: Boolean(adminToken),
+    publicBaseUrl,
+    pluginBackendUrl,
+    timestamp: Date.now(),
+  });
+}
+
 async function handleUpsertChannel(request, response) {
   const body = await parseJsonBody(request);
   const channelId = normalizeNonEmpty(body.channelId);
@@ -724,6 +734,11 @@ server.on("request", async (request, response) => {
       return;
     }
     await handleAdminState(response);
+    return;
+  }
+
+  if (pathname === "/api/meta") {
+    await handlePublicMeta(response);
     return;
   }
 
