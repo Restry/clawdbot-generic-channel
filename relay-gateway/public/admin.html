@@ -163,18 +163,18 @@
         return `${buildClientBaseUrl(channel)}&${encodeURIComponent(tokenParam)}=${encodeURIComponent(token)}`;
       }
 
-      function buildRelayBackendUrl() {
-        return `${getWsOrigin()}/backend`;
+      function buildRelayBackendUrl(gatewayState) {
+        return gatewayState?.pluginBackendUrl || "ws://127.0.0.1:18080/backend";
       }
 
-      function buildOpenClawConfig(channel) {
+      function buildOpenClawConfig(channel, gatewayState) {
         return [
           "channels:",
           "  generic-channel:",
           "    enabled: true",
           '    connectionMode: "relay"',
           "    relay:",
-          `      url: "${buildRelayBackendUrl()}"`,
+          `      url: "${buildRelayBackendUrl(gatewayState)}"`,
           `      channelId: "${channel.channelId}"`,
           `      secret: "${channel.secret}"`,
           '      instanceId: "openclaw-node-1"',
@@ -183,11 +183,11 @@
         ].join("\n");
       }
 
-      function buildRelayBlock(channel) {
+      function buildRelayBlock(channel, gatewayState) {
         return [
           'connectionMode: "relay"',
           "relay:",
-          `  url: "${buildRelayBackendUrl()}"`,
+          `  url: "${buildRelayBackendUrl(gatewayState)}"`,
           `  channelId: "${channel.channelId}"`,
           `  secret: "${channel.secret}"`,
         ].join("\n");
@@ -952,12 +952,12 @@
                                     </div>
                                     <${Button}
                                       tone="secondary"
-                                      onClick=${() => handleCopy("OpenClaw server config", buildOpenClawConfig(selectedChannel))}
+                                      onClick=${() => handleCopy("OpenClaw server config", buildOpenClawConfig(selectedChannel, gatewayState))}
                                     >
                                       Copy Config
                                     </${Button}>
                                   </div>
-                                  <pre className="overflow-auto rounded-[22px] bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">${buildOpenClawConfig(selectedChannel)}</pre>
+                                  <pre className="overflow-auto rounded-[22px] bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">${buildOpenClawConfig(selectedChannel, gatewayState)}</pre>
                                 </div>
 
                                 <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
@@ -990,13 +990,13 @@
                                         <div className="text-sm font-semibold text-slate-900">Plugin backend URL</div>
                                         <${Button}
                                           tone="secondary"
-                                          onClick=${() => handleCopy("backend URL", buildRelayBackendUrl())}
+                                          onClick=${() => handleCopy("backend URL", buildRelayBackendUrl(gatewayState))}
                                         >
                                           Copy URL
                                         </${Button}>
                                       </div>
                                       <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
-                                        ${buildRelayBackendUrl()}
+                                        ${buildRelayBackendUrl(gatewayState)}
                                       </code>
                                     </div>
                                     <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
@@ -1004,12 +1004,12 @@
                                         <div className="text-sm font-semibold text-slate-900">Relay block only</div>
                                         <${Button}
                                           tone="secondary"
-                                          onClick=${() => handleCopy("plugin relay block", buildRelayBlock(selectedChannel))}
+                                          onClick=${() => handleCopy("plugin relay block", buildRelayBlock(selectedChannel, gatewayState))}
                                         >
                                           Copy Snippet
                                         </${Button}>
                                       </div>
-                                      <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildRelayBlock(selectedChannel)}</pre>
+                                      <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildRelayBlock(selectedChannel, gatewayState)}</pre>
                                     </div>
                                   </div>
                                 </div>

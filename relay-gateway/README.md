@@ -51,6 +51,7 @@ npm start
 | `RELAY_CHANNELS_JSON` | `{}` | 首次启动的种子配置，兼容旧格式 `{"channel-id":{"secret":"xxx"}}` |
 | `RELAY_CONFIG_PATH` | `relay-gateway/data/relay-config.json` | 持久化配置文件路径 |
 | `RELAY_ADMIN_TOKEN` | - | 可选管理台/API 管理 token |
+| `RELAY_PLUGIN_BACKEND_URL` | `ws://127.0.0.1:<RELAY_PORT>/backend` | 管理页里展示给 OpenClaw 插件的 backend 地址，默认指向本机回环 |
 
 ## 接入路径
 
