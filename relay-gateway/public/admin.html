@@ -4,1050 +4,77 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Relay Gateway Admin</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ink: "#142132",
+              sand: "#f6efe4",
+              accent: "#0f766e",
+              amberish: "#c56a18",
+            },
+            boxShadow: {
+              float: "0 24px 60px rgba(20, 33, 50, 0.12)",
+            },
+            fontFamily: {
+              sans: [
+                "Avenir Next",
+                "Segoe UI",
+                "PingFang SC",
+                "Hiragino Sans GB",
+                "Microsoft YaHei",
+                "sans-serif",
+              ],
+              mono: [
+                "IBM Plex Mono",
+                "JetBrains Mono",
+                "SFMono-Regular",
+                "ui-monospace",
+                "monospace",
+              ],
+            },
+          },
+        },
+      };
+    </script>
     <style>
-      :root {
-        color-scheme: light;
-        --bg: #f4efe6;
-        --panel: rgba(255, 252, 245, 0.9);
-        --panel-strong: #fffdf8;
-        --ink: #15202b;
-        --muted: #657180;
-        --line: rgba(38, 54, 74, 0.12);
-        --line-strong: rgba(38, 54, 74, 0.2);
-        --accent: #0f766e;
-        --accent-soft: rgba(15, 118, 110, 0.12);
-        --accent-2: #c26b10;
-        --accent-2-soft: rgba(194, 107, 16, 0.14);
-        --danger: #b42318;
-        --danger-soft: rgba(180, 35, 24, 0.12);
-        --ok: #0f766e;
-        --shadow: 0 24px 60px rgba(20, 32, 43, 0.08);
-        --radius: 22px;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      html {
-        scroll-behavior: smooth;
-      }
-
       body {
-        margin: 0;
-        color: var(--ink);
-        font-family:
-          "Avenir Next",
-          "Segoe UI",
-          "PingFang SC",
-          "Hiragino Sans GB",
-          "Microsoft YaHei",
-          sans-serif;
         background:
-          radial-gradient(circle at 0% 0%, rgba(194, 107, 16, 0.16), transparent 24rem),
-          radial-gradient(circle at 100% 0%, rgba(15, 118, 110, 0.12), transparent 28rem),
-          linear-gradient(180deg, #f7f2e9 0%, var(--bg) 100%);
-      }
-
-      button,
-      input,
-      textarea,
-      select,
-      label,
-      p,
-      td,
-      th {
-        font: inherit;
-      }
-
-      code,
-      pre,
-      .mono {
-        font-family:
-          "IBM Plex Mono",
-          "JetBrains Mono",
-          "SF Mono",
-          ui-monospace,
-          monospace;
-      }
-
-      main {
-        max-width: 1440px;
-        margin: 0 auto;
-        padding: 28px;
-      }
-
-      h1,
-      h2,
-      h3,
-      h4 {
-        margin: 0;
-      }
-
-      p {
-        margin: 0;
-      }
-
-      .shell {
-        display: grid;
-        gap: 18px;
-      }
-
-      .panel {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(14px);
-      }
-
-      .hero {
-        display: grid;
-        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
-        gap: 18px;
-        padding: 18px;
-      }
-
-      .hero-card,
-      .auth-card {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.38));
-        border: 1px solid rgba(255, 255, 255, 0.42);
-        border-radius: 18px;
-        padding: 20px;
-      }
-
-      .hero-copy {
-        display: grid;
-        gap: 14px;
-      }
-
-      .eyebrow {
-        color: var(--accent);
-        text-transform: uppercase;
-        letter-spacing: 0.14em;
-        font-size: 12px;
-        font-weight: 700;
-      }
-
-      .hero-title {
-        display: grid;
-        gap: 10px;
-      }
-
-      .hero-title h1 {
-        font-size: clamp(28px, 4vw, 42px);
-        line-height: 1.02;
-      }
-
-      .hero-title p,
-      .hint,
-      .meta {
-        color: var(--muted);
-      }
-
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      .stat-card {
-        padding: 14px;
-        border-radius: 16px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.75);
-        display: grid;
-        gap: 8px;
-      }
-
-      .stat-label {
-        color: var(--muted);
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-      }
-
-      .stat-value {
-        font-size: 26px;
-        font-weight: 700;
-      }
-
-      .stat-note {
-        color: var(--muted);
-        font-size: 13px;
-      }
-
-      .auth-card {
-        display: grid;
-        gap: 14px;
-        align-content: start;
-      }
-
-      .auth-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .auth-actions,
-      .button-row,
-      .chip-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-
-      .grid {
-        display: grid;
-        gap: 18px;
-        grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
-      }
-
-      .sidebar,
-      .workspace {
-        display: grid;
-        gap: 18px;
-        align-content: start;
-      }
-
-      .sidebar-panel,
-      .workspace-panel {
-        padding: 18px;
-      }
-
-      .section-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: flex-start;
-        margin-bottom: 14px;
-      }
-
-      .section-copy {
-        display: grid;
-        gap: 6px;
-      }
-
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 5px 10px;
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.85);
-        color: var(--muted);
-        font-size: 12px;
-        white-space: nowrap;
-      }
-
-      .badge.ok {
-        color: var(--ok);
-        border-color: rgba(15, 118, 110, 0.24);
-        background: rgba(15, 118, 110, 0.08);
-      }
-
-      .badge.warn {
-        color: var(--accent-2);
-        border-color: rgba(194, 107, 16, 0.24);
-        background: rgba(194, 107, 16, 0.1);
-      }
-
-      .badge.danger {
-        color: var(--danger);
-        border-color: rgba(180, 35, 24, 0.24);
-        background: rgba(180, 35, 24, 0.08);
-      }
-
-      .notice {
-        display: grid;
-        grid-template-columns: auto 1fr;
-        gap: 12px;
-        align-items: start;
-        padding: 14px 16px;
-        border-radius: 16px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.76);
-      }
-
-      .notice[data-tone="error"] {
-        background: rgba(180, 35, 24, 0.08);
-        border-color: rgba(180, 35, 24, 0.16);
-      }
-
-      .notice[data-tone="success"] {
-        background: rgba(15, 118, 110, 0.08);
-        border-color: rgba(15, 118, 110, 0.16);
-      }
-
-      .notice[data-tone="warn"] {
-        background: rgba(194, 107, 16, 0.08);
-        border-color: rgba(194, 107, 16, 0.16);
-      }
-
-      .notice-title {
-        font-weight: 700;
-      }
-
-      .field-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      .field {
-        display: grid;
-        gap: 6px;
-      }
-
-      .field.full {
-        grid-column: 1 / -1;
-      }
-
-      .field-inline {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .field-inline input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-      }
-
-      .field label {
-        font-size: 13px;
-        font-weight: 600;
-      }
-
-      input,
-      textarea,
-      select,
-      button {
-        width: 100%;
-        border-radius: 14px;
-        border: 1px solid var(--line);
-        background: #ffffff;
-        color: var(--ink);
-        padding: 12px 14px;
-        transition:
-          border-color 160ms ease,
-          transform 160ms ease,
-          box-shadow 160ms ease,
-          background 160ms ease;
-      }
-
-      input:focus,
-      textarea:focus,
-      select:focus {
-        outline: none;
-        border-color: rgba(15, 118, 110, 0.45);
-        box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.08);
-      }
-
-      button {
-        cursor: pointer;
-        background: linear-gradient(135deg, #fed7a0, #f3b466);
-        border-color: rgba(194, 107, 16, 0.2);
-        font-weight: 600;
-      }
-
-      button:hover {
-        transform: translateY(-1px);
-      }
-
-      button.secondary {
-        background: #ffffff;
-      }
-
-      button.ghost {
-        background: rgba(255, 255, 255, 0.55);
-      }
-
-      button.danger {
-        background: rgba(180, 35, 24, 0.08);
-        color: var(--danger);
-        border-color: rgba(180, 35, 24, 0.18);
-      }
-
-      .stack {
-        display: grid;
-        gap: 12px;
-      }
-
-      .search-wrap {
-        display: grid;
-        gap: 10px;
-      }
-
-      .server-list,
-      .user-list {
-        display: grid;
-        gap: 12px;
-      }
-
-      .server-card,
-      .user-card,
-      .overview-card,
-      .snippet-card,
-      .log-row {
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.78);
-      }
-
-      .server-card {
-        padding: 14px;
-        display: grid;
-        gap: 12px;
-        cursor: pointer;
-      }
-
-      .server-card.selected {
-        border-color: rgba(15, 118, 110, 0.34);
-        box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.18);
-        background:
-          linear-gradient(180deg, rgba(15, 118, 110, 0.06), rgba(255, 255, 255, 0.92)),
-          rgba(255, 255, 255, 0.92);
-      }
-
-      .server-card:hover,
-      .user-card:hover {
-        border-color: var(--line-strong);
-      }
-
-      .card-head,
-      .row-between {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-      }
-
-      .server-title,
-      .user-title {
-        display: grid;
-        gap: 4px;
-      }
-
-      .server-title strong,
-      .user-title strong {
-        font-size: 18px;
-      }
-
-      .server-stats {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-      }
-
-      .mini-stat {
-        padding: 10px;
-        border-radius: 14px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.82);
-        display: grid;
-        gap: 4px;
-      }
-
-      .mini-stat span {
-        color: var(--muted);
-        font-size: 12px;
-      }
-
-      .mini-stat strong {
-        font-size: 16px;
-      }
-
-      .workspace-top {
-        display: grid;
-        gap: 18px;
-      }
-
-      .workspace-header {
-        display: grid;
-        gap: 12px;
-      }
-
-      .overview-grid,
-      .snippet-grid,
-      .split-grid,
-      .user-toolbar {
-        display: grid;
-        gap: 14px;
-      }
-
-      .overview-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-
-      .overview-card,
-      .snippet-card {
-        padding: 14px;
-        display: grid;
-        gap: 10px;
-      }
-
-      .snippet-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-      }
-
-      .snippet-value,
-      .code-block {
-        padding: 12px;
-        border-radius: 14px;
-        background: #f7f3ec;
-        border: 1px solid rgba(38, 54, 74, 0.08);
-        overflow: auto;
-      }
-
-      .snippet-value {
-        font-size: 13px;
-      }
-
-      .code-block {
-        white-space: pre-wrap;
-        font-size: 12px;
-        line-height: 1.55;
-      }
-
-      .guide-grid {
-        display: grid;
-        gap: 14px;
-        grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-      }
-
-      .guide-table {
-        display: grid;
-        gap: 10px;
-      }
-
-      .guide-row {
-        display: grid;
-        grid-template-columns: 140px minmax(0, 1fr);
-        gap: 12px;
-        align-items: start;
-        padding: 12px;
-        border-radius: 14px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.76);
-      }
-
-      .guide-key {
-        color: var(--muted);
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        padding-top: 2px;
-      }
-
-      .guide-value {
-        display: grid;
-        gap: 6px;
-      }
-
-      .guide-note {
-        color: var(--muted);
-        font-size: 12px;
-        line-height: 1.5;
-      }
-
-      .split-grid {
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-      }
-
-      .subpanel {
-        padding: 18px;
-      }
-
-      .subpanel-head {
-        display: grid;
-        gap: 6px;
-        margin-bottom: 14px;
-      }
-
-      .security-banner {
-        padding: 14px 16px;
-        border-radius: 16px;
-        border: 1px solid rgba(194, 107, 16, 0.18);
-        background: rgba(194, 107, 16, 0.08);
-        color: #7c4710;
-      }
-
-      .security-banner.hidden {
-        display: none;
-      }
-
-      .user-toolbar {
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: start;
-        margin-bottom: 14px;
-      }
-
-      .user-card {
-        padding: 14px;
-        display: grid;
-        gap: 12px;
-      }
-
-      .token-block {
-        display: grid;
-        gap: 6px;
-      }
-
-      .token-block code {
-        display: block;
-        padding: 12px;
-        border-radius: 14px;
-        background: #f7f3ec;
-        border: 1px solid rgba(38, 54, 74, 0.08);
-        font-size: 12px;
-        overflow-wrap: anywhere;
-      }
-
-      .pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
-        border-radius: 999px;
-        background: rgba(15, 118, 110, 0.08);
-        color: var(--accent);
-        font-size: 12px;
-      }
-
-      .pill.soft {
-        background: rgba(38, 54, 74, 0.08);
-        color: var(--muted);
-      }
-
-      .empty-state {
-        min-height: 260px;
-        display: grid;
-        place-items: center;
-        padding: 32px 20px;
-        text-align: center;
-        border: 1px dashed rgba(38, 54, 74, 0.16);
-        border-radius: 20px;
-        background: rgba(255, 255, 255, 0.42);
-      }
-
-      .empty-state strong {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 22px;
-      }
-
-      .logs {
-        display: grid;
-        gap: 10px;
-      }
-
-      .log-row {
-        padding: 12px 14px;
-        display: grid;
-        gap: 6px;
-      }
-
-      .log-row time {
-        color: var(--muted);
-        font-size: 12px;
-      }
-
-      .toast-stack {
-        position: fixed;
-        right: 20px;
-        bottom: 20px;
-        display: grid;
-        gap: 10px;
-        z-index: 20;
-        pointer-events: none;
-      }
-
-      .toast {
-        min-width: 260px;
-        max-width: 360px;
-        padding: 12px 14px;
-        border-radius: 16px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.92);
-        box-shadow: 0 20px 40px rgba(20, 32, 43, 0.16);
-        animation: toast-in 180ms ease;
-      }
-
-      .toast[data-tone="error"] {
-        border-color: rgba(180, 35, 24, 0.18);
-        background: rgba(255, 247, 247, 0.96);
-      }
-
-      .toast[data-tone="success"] {
-        border-color: rgba(15, 118, 110, 0.18);
-        background: rgba(245, 255, 252, 0.96);
-      }
-
-      @keyframes toast-in {
-        from {
-          opacity: 0;
-          transform: translateY(8px);
-        }
-
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .hidden {
-        display: none !important;
-      }
-
-      @media (max-width: 1240px) {
-        .hero,
-        .grid,
-        .split-grid,
-        .snippet-grid,
-        .overview-grid,
-        .guide-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .stats-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .user-toolbar {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      @media (max-width: 760px) {
-        main {
-          padding: 16px;
-        }
-
-        .field-grid,
-        .server-stats,
-        .stats-grid,
-        .guide-row {
-          grid-template-columns: 1fr;
-        }
-
-        .hero,
-        .sidebar-panel,
-        .workspace-panel,
-        .subpanel {
-          padding: 16px;
-        }
-
-        .toast-stack {
-          left: 16px;
-          right: 16px;
-          bottom: 16px;
-        }
-
-        .toast {
-          min-width: 0;
-          max-width: none;
-        }
+          radial-gradient(circle at 0 0, rgba(197, 106, 24, 0.18), transparent 26rem),
+          radial-gradient(circle at 100% 0, rgba(15, 118, 110, 0.12), transparent 30rem),
+          linear-gradient(180deg, #fbf7ef 0%, #f4ede3 100%);
       }
     </style>
   </head>
-  <body>
-    <main>
-      <div class="shell">
-        <section class="panel hero">
-          <div class="hero-card hero-copy">
-            <div class="hero-title">
-              <div class="eyebrow">Relay Gateway Control Room</div>
-              <h1>Operate channels, relay auth, and client onboarding from one screen.</h1>
-              <p>
-                The gateway owns channel secrets and optional user tokens. When a channel has users,
-                the gateway authenticates the client first and the plugin trusts that identity.
-              </p>
-            </div>
-            <div id="statusNotice" class="notice" data-tone="info">
-              <span class="badge" id="summaryBadge">Booting</span>
-              <div>
-                <div class="notice-title" id="summaryTitle">Waiting for relay state</div>
-                <div class="hint" id="summaryText">Refresh to load current channels and connectivity.</div>
-              </div>
-            </div>
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-label">Channels</div>
-                <div class="stat-value" id="statChannels">0</div>
-                <div class="stat-note" id="statProtected">0 protected</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Backends Online</div>
-                <div class="stat-value" id="statBackends">0</div>
-                <div class="stat-note" id="statOffline">0 offline</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Clients Connected</div>
-                <div class="stat-value" id="statClients">0</div>
-                <div class="stat-note" id="statTraffic">Live sessions through relay</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-label">Managed Users</div>
-                <div class="stat-value" id="statUsers">0</div>
-                <div class="stat-note" id="statConfigPath">Config path pending</div>
-              </div>
-            </div>
-          </div>
+  <body class="min-h-screen text-ink antialiased">
+    <div id="app"></div>
 
-          <div class="auth-card">
-            <div class="auth-top">
-              <div class="section-copy">
-                <div class="eyebrow">Admin Access</div>
-                <h2>Unlock management APIs</h2>
-              </div>
-              <span class="badge" id="authBadge">Unknown</span>
-            </div>
-            <div class="field">
-              <label for="adminToken">Admin Token</label>
-              <input id="adminToken" type="password" placeholder="optional if relay admin auth is enabled" />
-            </div>
-            <div class="auth-actions">
-              <button id="saveAdminTokenBtn" type="button" class="secondary">Save Token</button>
-              <button id="toggleAdminTokenBtn" type="button" class="ghost">Show Token</button>
-              <button id="refreshBtn" type="button">Refresh State</button>
-            </div>
-            <div class="chip-row">
-              <span class="badge" id="lastRefreshBadge">Never refreshed</span>
-              <span class="badge" id="selectionBadge">No channel selected</span>
-            </div>
-            <p class="hint">
-              Use this page to create channels, copy client/backend endpoints, and manage per-user
-              tokens without touching plugin-side auth tables.
-            </p>
-          </div>
-        </section>
+    <script type="module">
+      import React, { useEffect, useState } from "https://esm.sh/react@19.2.0";
+      import { createRoot } from "https://esm.sh/react-dom@19.2.0/client";
+      import htm from "https://esm.sh/htm@3.1.1";
 
-        <section class="grid">
-          <aside class="sidebar">
-            <div class="panel sidebar-panel">
-              <div class="section-head">
-                <div class="section-copy">
-                  <h2>Servers</h2>
-                  <p class="hint">Each server is one relay channel backed by a single plugin instance.</p>
-                </div>
-                <span class="badge" id="channelCountBadge">0 channels</span>
-              </div>
-              <div class="search-wrap">
-                <div class="field">
-                  <label for="serverSearch">Find server</label>
-                  <input id="serverSearch" type="search" placeholder="Search by label, channelId, status..." />
-                </div>
-                <div class="button-row">
-                  <button id="newChannelBtn" type="button" class="secondary">Create New Server</button>
-                </div>
-              </div>
-              <div id="servers" class="server-list" style="margin-top: 14px;"></div>
-            </div>
-
-            <div class="panel sidebar-panel">
-              <div class="section-copy">
-                <h3>Activity</h3>
-                <p class="hint">Recent admin actions and fetch results.</p>
-              </div>
-              <div id="messages" class="logs" style="margin-top: 14px;"></div>
-            </div>
-          </aside>
-
-          <section class="workspace">
-            <div class="panel workspace-panel workspace-top">
-              <div id="workspaceContent"></div>
-            </div>
-
-            <div class="split-grid">
-              <div class="panel subpanel">
-                <div class="subpanel-head">
-                  <h3>Server Config</h3>
-                  <p class="hint">Create or update one relay channel. Saving an existing channel updates the same record.</p>
-                </div>
-                <form id="channelForm" class="field-grid">
-                  <div class="field">
-                    <label for="channelId">Channel ID</label>
-                    <input id="channelId" name="channelId" placeholder="gc-relay-test" required />
-                  </div>
-                  <div class="field">
-                    <label for="channelLabel">Label</label>
-                    <input id="channelLabel" name="label" placeholder="Singapore Main Gateway" />
-                  </div>
-                  <div class="field">
-                    <label for="channelSecret">Backend Secret</label>
-                    <input id="channelSecret" name="secret" placeholder="auto-generate if empty" />
-                  </div>
-                  <div class="field">
-                    <label for="tokenParam">Client Token Param</label>
-                    <input id="tokenParam" name="tokenParam" value="token" />
-                  </div>
-                  <div class="field full">
-                    <div class="button-row">
-                      <button type="submit">Save Server</button>
-                      <button type="button" class="secondary" id="generateSecretBtn">Generate Secret</button>
-                      <button type="button" class="ghost" id="copySecretBtn">Copy Secret</button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-
-              <div class="panel subpanel">
-                <div class="subpanel-head">
-                  <h3>User Access</h3>
-                  <p class="hint">Gateway-side tokens are checked before traffic reaches the plugin.</p>
-                </div>
-                <div id="securityBanner" class="security-banner hidden">
-                  This server has no users yet. Any client that knows the channel entrypoint can try to connect.
-                </div>
-                <form id="userForm" class="field-grid" style="margin-top: 14px;">
-                  <div class="field">
-                    <label for="userId">User ID</label>
-                    <input id="userId" name="id" placeholder="optional stable id" />
-                  </div>
-                  <div class="field">
-                    <label for="senderId">Sender ID</label>
-                    <input id="senderId" name="senderId" placeholder="gc-test-user" required />
-                  </div>
-                  <div class="field">
-                    <label for="chatId">Fixed Chat ID</label>
-                    <input id="chatId" name="chatId" placeholder="optional legacy binding" />
-                  </div>
-                  <div class="field">
-                    <label for="userToken">Token</label>
-                    <input id="userToken" name="token" placeholder="auto-generate if empty" />
-                  </div>
-                  <div class="field full">
-                    <label for="allowAgents">Allow Agents</label>
-                    <input id="allowAgents" name="allowAgents" placeholder="main,code,writer" />
-                  </div>
-                  <div class="field full">
-                    <label class="field-inline">
-                      <input id="userEnabled" name="enabled" type="checkbox" checked />
-                      <span>Enabled user</span>
-                    </label>
-                  </div>
-                  <div class="field full">
-                    <div class="button-row">
-                      <button type="submit">Save User</button>
-                      <button type="button" class="secondary" id="generateTokenBtn">Generate Token</button>
-                      <button type="button" class="ghost" id="clearUserFormBtn">New User Draft</button>
-                    </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-
-            <div class="panel workspace-panel">
-              <div class="section-head">
-                <div class="section-copy">
-                  <h3>Users</h3>
-                  <p class="hint">Copy tokens, edit permissions, or delete access per selected server.</p>
-                </div>
-                <span class="badge" id="userCountBadge">0 users</span>
-              </div>
-              <div class="user-toolbar">
-                <div class="field">
-                  <label for="userSearch">Find user</label>
-                  <input id="userSearch" type="search" placeholder="Search by senderId, chatId, token, or agent..." />
-                </div>
-                <div class="button-row" style="align-self: end;">
-                  <button id="copyClientUrlBtn" type="button" class="secondary">Copy Client URL</button>
-                  <button id="copyBackendSnippetBtn" type="button" class="ghost">Copy Plugin Snippet</button>
-                </div>
-              </div>
-              <div id="usersTableWrap" class="user-list"></div>
-            </div>
-          </section>
-        </section>
-      </div>
-    </main>
-
-    <div id="toastStack" class="toast-stack" aria-live="polite"></div>
-
-    <script>
-      const state = {
-        adminToken: localStorage.getItem("relay-admin-token") || "",
-        channels: [],
-        selectedChannelId: "",
-        selectedUserSenderId: "",
-        serverQuery: "",
-        userQuery: "",
-        messages: [],
-        configPath: "",
-        stats: {
-          backendCount: 0,
-          clientCount: 0,
-        },
-        adminAuthEnabled: false,
+      const html = htm.bind(React.createElement);
+      const STORAGE_KEY = "relay-admin-token";
+      const DEFAULT_CHANNEL_FORM = {
+        channelId: "",
+        label: "",
+        secret: "",
+        tokenParam: "token",
       };
+      const createDefaultUserForm = () => ({
+        id: "",
+        senderId: "",
+        chatId: "",
+        token: `gc_${randomToken()}`,
+        allowAgents: "",
+        enabled: true,
+      });
 
-      const elements = {
-        adminToken: document.getElementById("adminToken"),
-        saveAdminTokenBtn: document.getElementById("saveAdminTokenBtn"),
-        toggleAdminTokenBtn: document.getElementById("toggleAdminTokenBtn"),
-        refreshBtn: document.getElementById("refreshBtn"),
-        summaryBadge: document.getElementById("summaryBadge"),
-        summaryTitle: document.getElementById("summaryTitle"),
-        summaryText: document.getElementById("summaryText"),
-        statusNotice: document.getElementById("statusNotice"),
-        authBadge: document.getElementById("authBadge"),
-        lastRefreshBadge: document.getElementById("lastRefreshBadge"),
-        selectionBadge: document.getElementById("selectionBadge"),
-        statChannels: document.getElementById("statChannels"),
-        statProtected: document.getElementById("statProtected"),
-        statBackends: document.getElementById("statBackends"),
-        statOffline: document.getElementById("statOffline"),
-        statClients: document.getElementById("statClients"),
-        statTraffic: document.getElementById("statTraffic"),
-        statUsers: document.getElementById("statUsers"),
-        statConfigPath: document.getElementById("statConfigPath"),
-        channelCountBadge: document.getElementById("channelCountBadge"),
-        userCountBadge: document.getElementById("userCountBadge"),
-        serverSearch: document.getElementById("serverSearch"),
-        userSearch: document.getElementById("userSearch"),
-        newChannelBtn: document.getElementById("newChannelBtn"),
-        servers: document.getElementById("servers"),
-        workspaceContent: document.getElementById("workspaceContent"),
-        securityBanner: document.getElementById("securityBanner"),
-        channelForm: document.getElementById("channelForm"),
-        channelId: document.getElementById("channelId"),
-        channelLabel: document.getElementById("channelLabel"),
-        channelSecret: document.getElementById("channelSecret"),
-        tokenParam: document.getElementById("tokenParam"),
-        generateSecretBtn: document.getElementById("generateSecretBtn"),
-        copySecretBtn: document.getElementById("copySecretBtn"),
-        userForm: document.getElementById("userForm"),
-        userId: document.getElementById("userId"),
-        senderId: document.getElementById("senderId"),
-        chatId: document.getElementById("chatId"),
-        userToken: document.getElementById("userToken"),
-        allowAgents: document.getElementById("allowAgents"),
-        userEnabled: document.getElementById("userEnabled"),
-        generateTokenBtn: document.getElementById("generateTokenBtn"),
-        clearUserFormBtn: document.getElementById("clearUserFormBtn"),
-        copyClientUrlBtn: document.getElementById("copyClientUrlBtn"),
-        copyBackendSnippetBtn: document.getElementById("copyBackendSnippetBtn"),
-        usersTableWrap: document.getElementById("usersTableWrap"),
-        messages: document.getElementById("messages"),
-        toastStack: document.getElementById("toastStack"),
-      };
-
-      elements.adminToken.value = state.adminToken;
-
-      function escapeHtml(value) {
-        return String(value ?? "")
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#39;");
-      }
-
-      function randomToken(prefix = "") {
-        return `${prefix}${crypto.randomUUID().replaceAll("-", "")}`;
+      function randomToken() {
+        return crypto.randomUUID().replaceAll("-", "");
       }
 
       function formatTime(value) {
@@ -1061,73 +88,36 @@
         }
       }
 
-      function pushMessage(message, tone = "info") {
-        state.messages.unshift({
-          id: `${Date.now()}-${Math.random()}`,
-          tone,
-          message,
-          time: Date.now(),
-        });
-        state.messages = state.messages.slice(0, 12);
-        renderMessages();
+      function getWsOrigin() {
+        return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
       }
 
-      function showToast(message, tone = "info") {
-        const toast = document.createElement("div");
-        toast.className = "toast";
-        toast.dataset.tone = tone;
-        toast.textContent = message;
-        elements.toastStack.appendChild(toast);
-        window.setTimeout(() => {
-          toast.remove();
-        }, 2800);
-      }
-
-      function notify(message, tone = "info") {
-        const badgeTone = tone === "error" ? "danger" : tone === "warn" ? "warn" : tone === "success" ? "ok" : "";
-        elements.statusNotice.dataset.tone = tone;
-        elements.summaryBadge.className = badgeTone ? `badge ${badgeTone}` : "badge";
-        elements.summaryBadge.textContent =
-          tone === "error" ? "Attention" : tone === "warn" ? "Review" : tone === "success" ? "Updated" : "Ready";
-        elements.summaryTitle.textContent = message;
-        pushMessage(message, tone);
-        showToast(message, tone);
-      }
-
-      async function copyText(value, label) {
-        const text = String(value ?? "");
+      async function copyText(text) {
         if (!text) {
-          notify(`Nothing to copy for ${label}.`, "warn");
+          throw new Error("Nothing to copy");
+        }
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
           return;
         }
-
-        try {
-          if (navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(text);
-          } else {
-            const input = document.createElement("textarea");
-            input.value = text;
-            input.setAttribute("readonly", "");
-            input.style.position = "fixed";
-            input.style.opacity = "0";
-            document.body.appendChild(input);
-            input.select();
-            document.execCommand("copy");
-            input.remove();
-          }
-          notify(`Copied ${label}.`, "success");
-        } catch (error) {
-          notify(`Failed to copy ${label}: ${String(error.message || error)}`, "error");
-        }
+        const input = document.createElement("textarea");
+        input.value = text;
+        input.setAttribute("readonly", "");
+        input.style.position = "fixed";
+        input.style.opacity = "0";
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
       }
 
-      async function request(path, init = {}) {
+      async function requestJson(path, adminToken, init = {}) {
         const headers = new Headers(init.headers || {});
         if (init.body && !headers.has("content-type")) {
           headers.set("content-type", "application/json");
         }
-        if (state.adminToken) {
-          headers.set("x-relay-admin-token", state.adminToken);
+        if (adminToken) {
+          headers.set("x-relay-admin-token", adminToken);
         }
 
         const response = await fetch(path, {
@@ -1141,114 +131,40 @@
         return data;
       }
 
-      function getWsOrigin() {
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        return `${protocol}//${window.location.host}`;
-      }
-
-      function getSelectedChannel() {
-        return state.channels.find((channel) => channel.channelId === state.selectedChannelId);
-      }
-
-      function getPreferredUser(channel) {
+      function pickPreferredUser(channel, selectedUserSenderId) {
         const users = Array.isArray(channel?.users) ? channel.users : [];
         if (users.length === 0) {
-          return undefined;
+          return null;
         }
-
-        const selected = users.find((user) => user.senderId === state.selectedUserSenderId);
-        if (selected) {
-          return selected;
-        }
-
-        return users.find((user) => user.enabled !== false) || users[0];
+        return (
+          users.find((item) => item.senderId === selectedUserSenderId) ||
+          users.find((item) => item.enabled !== false) ||
+          users[0]
+        );
       }
 
-      function syncSelectedUser(channel) {
-        const nextUser = getPreferredUser(channel);
-        state.selectedUserSenderId = nextUser?.senderId || "";
+      function buildClientBaseUrl(channel) {
+        return `${getWsOrigin()}/client?channelId=${encodeURIComponent(channel.channelId)}`;
       }
 
-      function getVisibleChannels() {
-        const query = state.serverQuery.trim().toLowerCase();
-        return state.channels
-          .slice()
-          .sort((left, right) => {
-            if (left.channelId === state.selectedChannelId) {
-              return -1;
-            }
-            if (right.channelId === state.selectedChannelId) {
-              return 1;
-            }
-            if (left.backendConnected !== right.backendConnected) {
-              return left.backendConnected ? -1 : 1;
-            }
-            return (left.label || left.channelId).localeCompare(right.label || right.channelId);
-          })
-          .filter((channel) => {
-            if (!query) {
-              return true;
-            }
-            const haystack = [
-              channel.channelId,
-              channel.label,
-              channel.backendConnected ? "online" : "offline",
-              channel.userCount > 0 ? "protected" : "open",
-              channel.instanceId,
-            ]
-              .filter(Boolean)
-              .join(" ")
-              .toLowerCase();
-            return haystack.includes(query);
-          });
+      function buildClientFullUrl(channel, user) {
+        const tokenParam = channel.tokenParam || "token";
+        const token = user?.token || "<user-token>";
+        return `${buildClientBaseUrl(channel)}&${encodeURIComponent(tokenParam)}=${encodeURIComponent(token)}`;
       }
 
-      function getVisibleUsers(channel) {
-        const users = Array.isArray(channel?.users) ? channel.users.slice() : [];
-        const query = state.userQuery.trim().toLowerCase();
-        return users
-          .sort((left, right) => {
-            if ((left.enabled === false) !== (right.enabled === false)) {
-              return left.enabled === false ? 1 : -1;
-            }
-            return left.senderId.localeCompare(right.senderId);
-          })
-          .filter((user) => {
-            if (!query) {
-              return true;
-            }
-            const haystack = [
-              user.id,
-              user.senderId,
-              user.chatId,
-              user.token,
-              Array.isArray(user.allowAgents) ? user.allowAgents.join(",") : "",
-              user.enabled === false ? "disabled" : "enabled",
-            ]
-              .filter(Boolean)
-              .join(" ")
-              .toLowerCase();
-            return haystack.includes(query);
-          });
-      }
-
-      function getChannelClientUrl(channel) {
-        const tokenParam = channel?.tokenParam || "token";
-        return `${getWsOrigin()}/client?channelId=${encodeURIComponent(channel.channelId)}&${encodeURIComponent(tokenParam)}=<user-token>`;
-      }
-
-      function getChannelBackendUrl() {
+      function buildRelayBackendUrl() {
         return `${getWsOrigin()}/backend`;
       }
 
-      function getChannelOpenClawConfigSnippet(channel) {
+      function buildOpenClawConfig(channel) {
         return [
           "channels:",
           "  generic-channel:",
           "    enabled: true",
           '    connectionMode: "relay"',
           "    relay:",
-          `      url: "${getChannelBackendUrl()}"`,
+          `      url: "${buildRelayBackendUrl()}"`,
           `      channelId: "${channel.channelId}"`,
           `      secret: "${channel.secret}"`,
           '      instanceId: "openclaw-node-1"',
@@ -1257,36 +173,31 @@
         ].join("\n");
       }
 
-      function getChannelBackendSnippet(channel) {
+      function buildRelayBlock(channel) {
         return [
           'connectionMode: "relay"',
           "relay:",
-          `  url: "${getChannelBackendUrl()}"`,
+          `  url: "${buildRelayBackendUrl()}"`,
           `  channelId: "${channel.channelId}"`,
           `  secret: "${channel.secret}"`,
         ].join("\n");
       }
 
-      function getChannelClientPreset(channel, user) {
-        const preferredAgent =
-          Array.isArray(user?.allowAgents) && user.allowAgents.length > 0 ? user.allowAgents[0] : "main";
+      function buildClientPreset(channel, user) {
         return {
-          serverUrl: `${getWsOrigin()}/client?channelId=${encodeURIComponent(channel.channelId)}`,
-          userName: user?.senderId || "your-user-name",
+          serverUrl: buildClientBaseUrl(channel),
           token: user?.token || "<create-user-token-first>",
+          userName: user?.senderId || "your-user-name",
           chatId: user?.chatId || "<optional, can stay empty>",
-          agentId: preferredAgent,
+          agentId:
+            Array.isArray(user?.allowAgents) && user.allowAgents.length > 0
+              ? user.allowAgents[0]
+              : "main",
         };
       }
 
-      function getChannelRawClientUrl(channel, user) {
-        const tokenParam = channel?.tokenParam || "token";
-        const token = user?.token || "<user-token>";
-        return `${getWsOrigin()}/client?channelId=${encodeURIComponent(channel.channelId)}&${encodeURIComponent(tokenParam)}=${encodeURIComponent(token)}`;
-      }
-
-      function getChannelClientSnippet(channel, user) {
-        const preset = getChannelClientPreset(channel, user);
+      function buildClientTemplate(channel, user) {
+        const preset = buildClientPreset(channel, user);
         return [
           `serverUrl = "${preset.serverUrl}"`,
           `userName = "${preset.userName}"`,
@@ -1298,803 +209,1178 @@
         ].join("\n");
       }
 
-      function getChannelClientGuide(channel, user) {
-        const preset = getChannelClientPreset(channel, user);
+      function buildClientGuide(channel, user) {
+        const preset = buildClientPreset(channel, user);
         return [
-          `serverUrl: ${preset.serverUrl}`,
-          `token: ${preset.token}`,
-          `userName: ${preset.userName}`,
-          `chatId: ${preset.chatId}`,
-          `agentId: ${preset.agentId}`,
-        ].join("\n");
+          { key: "serverUrl", value: preset.serverUrl, note: "填到 H5 客户端的 serverUrl 输入框。这里建议只保留 channelId，token 单独填。"},
+          { key: "token", value: preset.token, note: user ? `使用 ${user.senderId} 的网关 token。` : "先创建一个用户，再把它的 token 填到这里。"},
+          { key: "userName", value: preset.userName, note: "通常与 senderId 一致，聊天里看到的发送者名称就是它。"},
+          { key: "chatId", value: preset.chatId, note: "可留空。连接成功后，客户端还可以自由切换或新建多个会话。"},
+          { key: "agentId", value: preset.agentId, note: "可选。如果该用户限制了 agent，首次连接建议先填一个允许的 agentId。"},
+        ];
       }
 
-      function resetChannelForm(channel) {
-        elements.channelId.value = channel?.channelId || "";
-        elements.channelLabel.value = channel?.label || "";
-        elements.channelSecret.value = channel?.secret || "";
-        elements.tokenParam.value = channel?.tokenParam || "token";
-      }
-
-      function resetUserForm(user) {
-        elements.userId.value = user?.id || "";
-        elements.senderId.value = user?.senderId || "";
-        elements.chatId.value = user?.chatId || "";
-        elements.userToken.value = user?.token || `gc_${randomToken()}`;
-        elements.allowAgents.value = Array.isArray(user?.allowAgents) ? user.allowAgents.join(",") : "";
-        elements.userEnabled.checked = user?.enabled === false ? false : true;
-      }
-
-      function syncSelection() {
-        if (!state.selectedChannelId && state.channels[0]) {
-          state.selectedChannelId = state.channels[0].channelId;
+      function badgeToneClass(tone) {
+        if (tone === "ok") {
+          return "bg-emerald-50 text-emerald-700 ring-emerald-200";
         }
-        if (state.selectedChannelId && !getSelectedChannel()) {
-          state.selectedChannelId = state.channels[0]?.channelId || "";
+        if (tone === "warn") {
+          return "bg-amber-50 text-amber-700 ring-amber-200";
         }
-        syncSelectedUser(getSelectedChannel());
+        if (tone === "danger") {
+          return "bg-rose-50 text-rose-700 ring-rose-200";
+        }
+        return "bg-slate-100 text-slate-600 ring-slate-200";
       }
 
-      function selectChannel(channelId) {
-        state.selectedChannelId = channelId || "";
-        const channel = getSelectedChannel();
-        syncSelectedUser(channel);
-        resetChannelForm(channel);
-        resetUserForm();
-        renderAll();
+      function Button({ tone = "primary", className = "", type = "button", ...props }) {
+        const toneClass =
+          tone === "primary"
+            ? "bg-amber-400 text-slate-950 hover:bg-amber-300"
+            : tone === "danger"
+              ? "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200 hover:bg-rose-100"
+              : tone === "ghost"
+                ? "bg-white/70 text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-white"
+                : "bg-white text-slate-800 ring-1 ring-inset ring-slate-200 hover:bg-slate-50";
+
+        return html`
+          <button
+            ...${props}
+            type=${type}
+            className=${`inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${toneClass} ${className}`.trim()}
+          />
+        `;
       }
 
-      function renderMessages() {
-        if (state.messages.length === 0) {
-          elements.messages.innerHTML = '<div class="log-row"><div>No activity yet.</div></div>';
-          return;
-        }
-
-        elements.messages.innerHTML = state.messages
-          .map((entry) => {
-            return `
-              <div class="log-row">
-                <time>${escapeHtml(formatTime(entry.time))}</time>
-                <div>${escapeHtml(entry.message)}</div>
-              </div>
-            `;
-          })
-          .join("");
+      function Badge({ tone = "slate", children }) {
+        return html`
+          <span className=${`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset ${badgeToneClass(tone)}`}>
+            ${children}
+          </span>
+        `;
       }
 
-      function renderStats() {
-        const protectedCount = state.channels.filter((channel) => channel.userCount > 0).length;
-        const offlineCount = state.channels.filter((channel) => !channel.backendConnected).length;
-        const totalUsers = state.channels.reduce((sum, channel) => sum + (channel.userCount || 0), 0);
-
-        elements.statChannels.textContent = String(state.channels.length);
-        elements.statProtected.textContent = `${protectedCount} protected`;
-        elements.statBackends.textContent = String(state.stats.backendCount || 0);
-        elements.statOffline.textContent = `${offlineCount} offline`;
-        elements.statClients.textContent = String(state.stats.clientCount || 0);
-        elements.statTraffic.textContent =
-          state.stats.clientCount > 0 ? "Traffic is currently flowing" : "No live client sessions";
-        elements.statUsers.textContent = String(totalUsers);
-        elements.statConfigPath.textContent = state.configPath || "Config path unavailable";
-
-        elements.channelCountBadge.textContent = `${state.channels.length} channels`;
-        elements.authBadge.className = state.adminAuthEnabled ? "badge ok" : "badge warn";
-        elements.authBadge.textContent = state.adminAuthEnabled ? "Admin auth on" : "Admin auth off";
+      function Panel({ title, subtitle, actions = null, children, className = "" }) {
+        return html`
+          <section className=${`rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-float backdrop-blur ${className}`.trim()}>
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-slate-900">${title}</h2>
+                ${subtitle ? html`<p className="text-sm leading-6 text-slate-500">${subtitle}</p>` : null}
+              </div>
+              ${actions}
+            </div>
+            ${children}
+          </section>
+        `;
       }
 
-      function renderServers() {
-        const channels = getVisibleChannels();
-        if (state.channels.length === 0) {
-          elements.servers.innerHTML = `
-            <div class="empty-state">
-              <div>
-                <strong>No channels yet</strong>
-                <p class="hint">Create your first relay server from the form on the right.</p>
-              </div>
-            </div>
-          `;
-          return;
-        }
-
-        if (channels.length === 0) {
-          elements.servers.innerHTML = `
-            <div class="empty-state">
-              <div>
-                <strong>No matches</strong>
-                <p class="hint">Try a shorter keyword or clear the search field.</p>
-              </div>
-            </div>
-          `;
-          return;
-        }
-
-        elements.servers.innerHTML = channels
-          .map((channel) => {
-            const selected = state.selectedChannelId === channel.channelId;
-            const protectionBadge = channel.userCount > 0
-              ? '<span class="badge ok">token protected</span>'
-              : '<span class="badge warn">open access</span>';
-            const backendBadge = channel.backendConnected
-              ? '<span class="badge ok">backend online</span>'
-              : '<span class="badge warn">backend offline</span>';
-
-            return `
-              <article class="server-card ${selected ? "selected" : ""}" data-select-channel="${escapeHtml(channel.channelId)}">
-                <div class="card-head">
-                  <div class="server-title">
-                    <strong>${escapeHtml(channel.label || channel.channelId)}</strong>
-                    <div class="meta mono">${escapeHtml(channel.channelId)}</div>
-                  </div>
-                  <div class="chip-row">
-                    ${backendBadge}
-                    ${protectionBadge}
-                  </div>
-                </div>
-                <div class="server-stats">
-                  <div class="mini-stat">
-                    <span>Clients</span>
-                    <strong>${escapeHtml(channel.clientCount)}</strong>
-                  </div>
-                  <div class="mini-stat">
-                    <span>Users</span>
-                    <strong>${escapeHtml(channel.userCount)}</strong>
-                  </div>
-                  <div class="mini-stat">
-                    <span>Token Param</span>
-                    <strong>${escapeHtml(channel.tokenParam || "token")}</strong>
-                  </div>
-                </div>
-                <div class="meta">
-                  Instance: ${escapeHtml(channel.instanceId || "-")}<br />
-                  Last seen: ${escapeHtml(channel.backendConnected ? formatTime(channel.lastConnectedAt) : formatTime(channel.lastDisconnectedAt || channel.lastConnectedAt))}
-                </div>
-                <div class="button-row">
-                  <button type="button" class="secondary" data-action="select" data-channel="${escapeHtml(channel.channelId)}">Manage</button>
-                  <button type="button" class="ghost" data-action="copy-client-url" data-channel="${escapeHtml(channel.channelId)}">Copy Client URL</button>
-                  <button type="button" class="danger" data-action="delete" data-channel="${escapeHtml(channel.channelId)}">Delete</button>
-                </div>
-              </article>
-            `;
-          })
-          .join("");
-      }
-
-      function renderWorkspace() {
-        const channel = getSelectedChannel();
-        elements.selectionBadge.textContent = channel ? `Selected: ${channel.channelId}` : "No channel selected";
-        elements.copyClientUrlBtn.disabled = !channel;
-        elements.copyBackendSnippetBtn.disabled = !channel;
-        elements.copySecretBtn.disabled = !elements.channelSecret.value.trim();
-
-        if (!channel) {
-          elements.workspaceContent.innerHTML = `
-            <div class="empty-state">
-              <div>
-                <strong>Select or create a server</strong>
-                <p class="hint">
-                  Pick a server on the left to inspect endpoints and manage user tokens, or create a new one from the form below.
-                </p>
-              </div>
-            </div>
-          `;
-          elements.securityBanner.classList.add("hidden");
-          return;
-        }
-
-        const clientUrl = getChannelClientUrl(channel);
-        const backendUrl = getChannelBackendUrl();
-        const backendSnippet = getChannelBackendSnippet(channel);
-        const openClawConfigSnippet = getChannelOpenClawConfigSnippet(channel);
-        const exampleUser = getPreferredUser(channel);
-        const clientSnippet = getChannelClientSnippet(channel, exampleUser);
-        const clientPreset = getChannelClientPreset(channel, exampleUser);
-        const rawClientUrl = getChannelRawClientUrl(channel, exampleUser);
-        const selectedUserOptions = Array.isArray(channel.users) && channel.users.length > 0
-          ? channel.users
-              .map((user) => `
-                <option value="${escapeHtml(user.senderId)}" ${user.senderId === state.selectedUserSenderId ? "selected" : ""}>
-                  ${escapeHtml(user.senderId)}${user.enabled === false ? " (disabled)" : ""}
-                </option>
-              `)
-              .join("")
-          : '<option value="">No users configured</option>';
-        const accessBadge = channel.userCount > 0
-          ? '<span class="badge ok">Gateway auth enforced</span>'
-          : '<span class="badge warn">No users configured</span>';
-        const tokenParamWarning = channel.tokenParam && channel.tokenParam !== "token"
-          ? `
-            <div class="notice" data-tone="warn">
-              <span class="badge warn">Heads up</span>
-              <div>
-                <div class="notice-title">Current H5 client expects <code>token</code></div>
-                <div class="hint">
-                  This channel uses <code>${escapeHtml(channel.tokenParam)}</code>. The official example H5 page appends auth as <code>token=...</code>,
-                  so either change this channel back to <code>token</code> or use the raw WebSocket URL below in a custom client.
-                </div>
-              </div>
-            </div>
-          `
-          : "";
-
-        elements.workspaceContent.innerHTML = `
-          <div class="workspace-header">
-            <div class="row-between">
-              <div class="section-copy">
-                <div class="eyebrow">Current Server</div>
-                <h2>${escapeHtml(channel.label || channel.channelId)}</h2>
-                <p class="hint mono">${escapeHtml(channel.channelId)}</p>
-              </div>
-              <div class="chip-row">
-                ${channel.backendConnected ? '<span class="badge ok">backend online</span>' : '<span class="badge warn">backend offline</span>'}
-                ${accessBadge}
-              </div>
-            </div>
-
-            <div class="overview-grid">
-              <div class="overview-card">
-                <div class="stat-label">Backend secret</div>
-                <div class="stat-value mono" style="font-size: 18px;">${escapeHtml(channel.secretMasked)}</div>
-                <div class="button-row">
-                  <button type="button" class="secondary" data-action="copy-secret" data-channel="${escapeHtml(channel.channelId)}">Copy Secret</button>
-                </div>
-              </div>
-              <div class="overview-card">
-                <div class="stat-label">Client token param</div>
-                <div class="stat-value mono" style="font-size: 18px;">${escapeHtml(channel.tokenParam || "token")}</div>
-                <div class="stat-note">Clients pass user token through this query key.</div>
-              </div>
-              <div class="overview-card">
-                <div class="stat-label">Live clients</div>
-                <div class="stat-value">${escapeHtml(channel.clientCount)}</div>
-                <div class="stat-note">${channel.backendConnected ? "Backend is ready to forward traffic." : "Client connects will be rejected until backend returns."}</div>
-              </div>
-              <div class="overview-card">
-                <div class="stat-label">Users</div>
-                <div class="stat-value">${escapeHtml(channel.userCount)}</div>
-                <div class="stat-note">${channel.userCount > 0 ? "Relay-side token auth is active." : "Add at least one user to protect this channel."}</div>
-              </div>
-            </div>
-
-            <div class="snippet-grid">
-              <div class="snippet-card">
-                <div class="row-between">
-                  <div>
-                    <h3>Client entrypoint</h3>
-                    <p class="hint">Use this as the H5 <code>serverUrl</code> template.</p>
-                  </div>
-                  <button type="button" class="secondary" data-action="copy-client-url" data-channel="${escapeHtml(channel.channelId)}">Copy URL</button>
-                </div>
-                <div class="snippet-value mono">${escapeHtml(clientUrl)}</div>
-              </div>
-              <div class="snippet-card">
-                <div class="row-between">
-                  <div>
-                    <h3>Backend endpoint</h3>
-                    <p class="hint">Your plugin connects here in relay mode.</p>
-                  </div>
-                  <button type="button" class="secondary" data-action="copy-backend-url">Copy URL</button>
-                </div>
-                <div class="snippet-value mono">${escapeHtml(backendUrl)}</div>
-              </div>
-              <div class="snippet-card">
-                <div class="row-between">
-                  <div>
-                    <h3>Plugin relay block</h3>
-                    <p class="hint">Paste into plugin config and update the rest of the channel settings around it.</p>
-                  </div>
-                  <button type="button" class="secondary" data-action="copy-backend-snippet" data-channel="${escapeHtml(channel.channelId)}">Copy Snippet</button>
-                </div>
-                <pre class="code-block">${escapeHtml(backendSnippet)}</pre>
-              </div>
-            </div>
-
-            ${tokenParamWarning}
-
-            <div class="guide-grid">
-              <div class="snippet-card">
-                <div class="row-between">
-                  <div>
-                    <h3>OpenClaw server config</h3>
-                    <p class="hint">Paste this into the plugin-side config file on the machine that runs OpenClaw.</p>
-                  </div>
-                  <button type="button" class="secondary" data-action="copy-openclaw-config" data-channel="${escapeHtml(channel.channelId)}">Copy Config</button>
-                </div>
-                <pre class="code-block">${escapeHtml(openClawConfigSnippet)}</pre>
-              </div>
-
-              <div class="snippet-card">
-                <div class="stack">
-                  <div class="row-between">
-                    <div>
-                      <h3>Client form guide</h3>
-                      <p class="hint">Show the H5 integrator exactly what to fill into each field.</p>
-                    </div>
-                    <button type="button" class="secondary" data-action="copy-client-form" data-channel="${escapeHtml(channel.channelId)}">Copy Field Guide</button>
-                  </div>
-                  <div class="field">
-                    <label for="exampleUserSelect">Example user</label>
-                    <select id="exampleUserSelect" ${channel.userCount === 0 ? "disabled" : ""}>
-                      ${selectedUserOptions}
-                    </select>
-                  </div>
-                  <div class="guide-table">
-                    <div class="guide-row">
-                      <div class="guide-key">serverUrl</div>
-                      <div class="guide-value">
-                        <code class="mono">${escapeHtml(clientPreset.serverUrl)}</code>
-                        <div class="guide-note">Fill the client <code>serverUrl</code> input with this value. Keep only <code>channelId</code> in the URL; the token is filled separately in H5.</div>
-                      </div>
-                    </div>
-                    <div class="guide-row">
-                      <div class="guide-key">token</div>
-                      <div class="guide-value">
-                        <code class="mono">${escapeHtml(clientPreset.token)}</code>
-                        <div class="guide-note">${exampleUser ? `Use the token of ${escapeHtml(exampleUser.senderId)}.` : "Create a user above first, then use its token here."}</div>
-                      </div>
-                    </div>
-                    <div class="guide-row">
-                      <div class="guide-key">userName</div>
-                      <div class="guide-value">
-                        <code class="mono">${escapeHtml(clientPreset.userName)}</code>
-                        <div class="guide-note">Usually use the same value as <code>senderId</code>. This becomes the sender name shown in chat.</div>
-                      </div>
-                    </div>
-                    <div class="guide-row">
-                      <div class="guide-key">chatId</div>
-                      <div class="guide-value">
-                        <code class="mono">${escapeHtml(clientPreset.chatId)}</code>
-                        <div class="guide-note">Can stay empty. After connecting, the client can switch or create multiple conversations freely.</div>
-                      </div>
-                    </div>
-                    <div class="guide-row">
-                      <div class="guide-key">agentId</div>
-                      <div class="guide-value">
-                        <code class="mono">${escapeHtml(clientPreset.agentId)}</code>
-                        <div class="guide-note">Optional. If this user is restricted, start with one allowed agent; otherwise leave it blank or set it in the client later.</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="button-row">
-                    <button type="button" class="secondary" data-action="copy-raw-client-url" data-channel="${escapeHtml(channel.channelId)}">Copy Raw WS URL</button>
-                  </div>
-                  <div class="snippet-value mono">${escapeHtml(rawClientUrl)}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="snippet-card">
-              <div class="row-between">
-                <div>
-                  <h3>Third-party client template</h3>
-                  <p class="hint">Hand this snippet to the H5 integrator. <code>chatId</code> and <code>agentId</code> stay client-controlled.</p>
-                </div>
-                <button type="button" class="secondary" data-action="copy-client-snippet" data-channel="${escapeHtml(channel.channelId)}">Copy Template</button>
-              </div>
-              <pre class="code-block">${escapeHtml(clientSnippet)}</pre>
+      function EmptyState({ title, text }) {
+        return html`
+          <div className="grid min-h-[220px] place-items-center rounded-[24px] border border-dashed border-slate-200 bg-white/50 px-6 py-10 text-center">
+            <div className="space-y-3">
+              <div className="text-xl font-semibold text-slate-900">${title}</div>
+              <p className="max-w-md text-sm leading-6 text-slate-500">${text}</p>
             </div>
           </div>
         `;
-
-        if (channel.userCount > 0) {
-          elements.securityBanner.classList.add("hidden");
-        } else {
-          elements.securityBanner.classList.remove("hidden");
-        }
       }
 
-      function renderUsers() {
-        const channel = getSelectedChannel();
-        if (!channel) {
-          elements.userCountBadge.textContent = "0 users";
-          elements.usersTableWrap.innerHTML = `
-            <div class="empty-state">
-              <div>
-                <strong>No server selected</strong>
-                <p class="hint">Select a server to manage its gateway users.</p>
-              </div>
-            </div>
-          `;
-          return;
-        }
+      function App() {
+        const [adminToken, setAdminToken] = useState(localStorage.getItem(STORAGE_KEY) || "");
+        const [adminInput, setAdminInput] = useState(localStorage.getItem(STORAGE_KEY) || "");
+        const [tokenVisible, setTokenVisible] = useState(false);
+        const [gatewayState, setGatewayState] = useState(null);
+        const [selectedChannelId, setSelectedChannelId] = useState("");
+        const [selectedUserSenderId, setSelectedUserSenderId] = useState("");
+        const [serverQuery, setServerQuery] = useState("");
+        const [userQuery, setUserQuery] = useState("");
+        const [channelForm, setChannelForm] = useState(DEFAULT_CHANNEL_FORM);
+        const [userForm, setUserForm] = useState(createDefaultUserForm());
+        const [isLoading, setIsLoading] = useState(false);
+        const [errorMessage, setErrorMessage] = useState("");
+        const [activity, setActivity] = useState([]);
+        const [toasts, setToasts] = useState([]);
 
-        const users = getVisibleUsers(channel);
-        elements.userCountBadge.textContent = `${Array.isArray(channel.users) ? channel.users.length : 0} users`;
-        if (!Array.isArray(channel.users) || channel.users.length === 0) {
-          elements.usersTableWrap.innerHTML = `
-            <div class="empty-state">
-              <div>
-                <strong>No users configured</strong>
-                <p class="hint">Create the first user token for this server from the form above.</p>
-              </div>
-            </div>
-          `;
-          return;
-        }
-
-        if (users.length === 0) {
-          elements.usersTableWrap.innerHTML = `
-            <div class="empty-state">
-              <div>
-                <strong>No user matches</strong>
-                <p class="hint">Clear the search box to see every configured user.</p>
-              </div>
-            </div>
-          `;
-          return;
-        }
-
-        elements.usersTableWrap.innerHTML = users
-          .map((user) => {
-            const agentLabel = Array.isArray(user.allowAgents) && user.allowAgents.length ? user.allowAgents.join(", ") : "all agents";
-            const isPreset = user.senderId === state.selectedUserSenderId;
-            return `
-              <article class="user-card">
-                <div class="card-head">
-                  <div class="user-title">
-                    <strong>${escapeHtml(user.senderId)}</strong>
-                    <div class="meta mono">${escapeHtml(user.id || "no explicit user id")}</div>
-                  </div>
-                  <div class="chip-row">
-                    ${isPreset ? '<span class="badge ok">client preset</span>' : ""}
-                    <span class="badge ${user.enabled === false ? "danger" : "ok"}">${user.enabled === false ? "disabled" : "enabled"}</span>
-                    <span class="badge">${escapeHtml(agentLabel)}</span>
-                  </div>
-                </div>
-                <div class="chip-row">
-                  <span class="pill soft">Chat: ${escapeHtml(user.chatId || "client controlled")}</span>
-                  <span class="pill soft">Token param: ${escapeHtml(channel.tokenParam || "token")}</span>
-                </div>
-                <div class="token-block">
-                  <div class="meta">User token</div>
-                  <code>${escapeHtml(user.token)}</code>
-                </div>
-                <div class="button-row">
-                  <button type="button" class="ghost" data-action="use-user-preset" data-sender="${escapeHtml(user.senderId)}">Use In Guide</button>
-                  <button type="button" class="secondary" data-action="copy-user-token" data-sender="${escapeHtml(user.senderId)}">Copy Token</button>
-                  <button type="button" class="ghost" data-action="edit-user" data-sender="${escapeHtml(user.senderId)}">Edit</button>
-                  <button type="button" class="danger" data-action="delete-user" data-sender="${escapeHtml(user.senderId)}">Delete</button>
-                </div>
-              </article>
-            `;
-          })
-          .join("");
-      }
-
-      function renderAll() {
-        syncSelection();
-        renderStats();
-        renderServers();
-        renderWorkspace();
-        renderUsers();
-      }
-
-      async function loadState() {
-        const data = await request("/api/state");
-        state.channels = Array.isArray(data.channels) ? data.channels : [];
-        state.stats = data.stats || { backendCount: 0, clientCount: 0 };
-        state.configPath = data.configPath || "";
-        state.adminAuthEnabled = Boolean(data.adminAuthEnabled);
-        syncSelection();
-        elements.lastRefreshBadge.textContent = `Refreshed ${formatTime(data.timestamp)}`;
-        renderAll();
-      }
-
-      elements.saveAdminTokenBtn.addEventListener("click", async () => {
-        state.adminToken = elements.adminToken.value.trim();
-        localStorage.setItem("relay-admin-token", state.adminToken);
-        notify("Admin token saved locally.", "success");
-        try {
-          await loadState();
-        } catch (error) {
-          notify(String(error.message || error), "error");
-        }
-      });
-
-      elements.toggleAdminTokenBtn.addEventListener("click", () => {
-        const nextType = elements.adminToken.type === "password" ? "text" : "password";
-        elements.adminToken.type = nextType;
-        elements.toggleAdminTokenBtn.textContent = nextType === "password" ? "Show Token" : "Hide Token";
-      });
-
-      elements.refreshBtn.addEventListener("click", async () => {
-        try {
-          await loadState();
-          notify("Relay state refreshed.", "success");
-        } catch (error) {
-          notify(String(error.message || error), "error");
-        }
-      });
-
-      elements.serverSearch.addEventListener("input", (event) => {
-        state.serverQuery = event.target.value || "";
-        renderServers();
-      });
-
-      elements.userSearch.addEventListener("input", (event) => {
-        state.userQuery = event.target.value || "";
-        renderUsers();
-      });
-
-      elements.newChannelBtn.addEventListener("click", () => {
-        state.selectedChannelId = "";
-        resetChannelForm();
-        resetUserForm();
-        renderAll();
-        notify("Server form reset for a new channel.", "success");
-        elements.channelId.focus();
-      });
-
-      elements.generateSecretBtn.addEventListener("click", () => {
-        elements.channelSecret.value = randomToken();
-        elements.copySecretBtn.disabled = false;
-        notify("Generated a new backend secret.", "success");
-      });
-
-      elements.copySecretBtn.addEventListener("click", async () => {
-        await copyText(elements.channelSecret.value.trim(), "backend secret");
-      });
-
-      elements.generateTokenBtn.addEventListener("click", () => {
-        elements.userToken.value = `gc_${randomToken()}`;
-        notify("Generated a new user token.", "success");
-      });
-
-      elements.clearUserFormBtn.addEventListener("click", () => {
-        resetUserForm();
-        notify("User form cleared for a new token.", "success");
-        elements.senderId.focus();
-      });
-
-      elements.copyClientUrlBtn.addEventListener("click", async () => {
-        const channel = getSelectedChannel();
-        if (!channel) {
-          notify("Select a server first.", "warn");
-          return;
-        }
-        await copyText(getChannelClientUrl(channel), "client URL");
-      });
-
-      elements.copyBackendSnippetBtn.addEventListener("click", async () => {
-        const channel = getSelectedChannel();
-        if (!channel) {
-          notify("Select a server first.", "warn");
-          return;
-        }
-        await copyText(getChannelBackendSnippet(channel), "plugin relay snippet");
-      });
-
-      elements.channelForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const payload = {
-          channelId: elements.channelId.value.trim(),
-          label: elements.channelLabel.value.trim(),
-          secret: elements.channelSecret.value.trim(),
-          tokenParam: elements.tokenParam.value.trim() || "token",
-        };
-
-        try {
-          await request("/api/channels", {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-          await loadState();
-          selectChannel(payload.channelId);
-          notify(`Saved server ${payload.channelId}.`, "success");
-        } catch (error) {
-          notify(String(error.message || error), "error");
-        }
-      });
-
-      elements.userForm.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        const channel = getSelectedChannel();
-        if (!channel) {
-          notify("Select a server before saving users.", "warn");
-          return;
-        }
-
-        const payload = {
-          id: elements.userId.value.trim(),
-          senderId: elements.senderId.value.trim(),
-          chatId: elements.chatId.value.trim(),
-          token: elements.userToken.value.trim(),
-          allowAgents: elements.allowAgents.value.trim(),
-          enabled: elements.userEnabled.checked,
-        };
-
-        try {
-          await request(`/api/channels/${encodeURIComponent(channel.channelId)}/users`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-          await loadState();
-          resetUserForm();
-          notify(`Saved user ${payload.senderId}.`, "success");
-        } catch (error) {
-          notify(String(error.message || error), "error");
-        }
-      });
-
-      elements.servers.addEventListener("click", async (event) => {
-        const card = event.target.closest("[data-select-channel]");
-        if (card && !event.target.closest("button[data-action]")) {
-          selectChannel(card.dataset.selectChannel);
-          notify(`Selected ${card.dataset.selectChannel}.`, "success");
-          return;
-        }
-
-        const button = event.target.closest("button[data-action]");
-        if (!button) {
-          return;
-        }
-
-        const channelId = button.dataset.channel;
-        const action = button.dataset.action;
-        const channel = state.channels.find((item) => item.channelId === channelId);
-
-        if (action === "select" && channelId) {
-          selectChannel(channelId);
-          notify(`Selected ${channelId}.`, "success");
-          return;
-        }
-
-        if (action === "copy-client-url" && channel) {
-          await copyText(getChannelClientUrl(channel), "client URL");
-          return;
-        }
-
-        if (action === "delete" && channelId) {
-          if (!window.confirm(`Delete channel ${channelId}?`)) {
-            return;
-          }
-          try {
-            await request(`/api/channels/${encodeURIComponent(channelId)}`, { method: "DELETE" });
-            if (state.selectedChannelId === channelId) {
-              state.selectedChannelId = "";
+        const channels = Array.isArray(gatewayState?.channels) ? gatewayState.channels : [];
+        const selectedChannel = channels.find((item) => item.channelId === selectedChannelId) || null;
+        const filteredChannels = channels
+          .filter((item) => {
+            const query = serverQuery.trim().toLowerCase();
+            if (!query) {
+              return true;
             }
-            await loadState();
-            notify(`Deleted channel ${channelId}.`, "success");
-          } catch (error) {
-            notify(String(error.message || error), "error");
-          }
-        }
-      });
+            return [item.channelId, item.label, item.backendConnected ? "online" : "offline", item.userCount > 0 ? "protected" : "open", item.instanceId]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase()
+              .includes(query);
+          })
+          .sort((left, right) => {
+            if (left.channelId === selectedChannelId) {
+              return -1;
+            }
+            if (right.channelId === selectedChannelId) {
+              return 1;
+            }
+            if (left.backendConnected !== right.backendConnected) {
+              return left.backendConnected ? -1 : 1;
+            }
+            return (left.label || left.channelId).localeCompare(right.label || right.channelId);
+          });
+        const preferredUser = pickPreferredUser(selectedChannel, selectedUserSenderId);
+        const visibleUsers = (Array.isArray(selectedChannel?.users) ? selectedChannel.users : [])
+          .filter((item) => {
+            const query = userQuery.trim().toLowerCase();
+            if (!query) {
+              return true;
+            }
+            return [item.senderId, item.id, item.chatId, item.token, Array.isArray(item.allowAgents) ? item.allowAgents.join(",") : "", item.enabled === false ? "disabled" : "enabled"]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase()
+              .includes(query);
+          })
+          .sort((left, right) => {
+            if ((left.enabled === false) !== (right.enabled === false)) {
+              return left.enabled === false ? 1 : -1;
+            }
+            return left.senderId.localeCompare(right.senderId);
+          });
+        const summary = {
+          channelCount: channels.length,
+          protectedCount: channels.filter((item) => item.userCount > 0).length,
+          backendCount: gatewayState?.stats?.backendCount || 0,
+          offlineCount: channels.filter((item) => !item.backendConnected).length,
+          clientCount: gatewayState?.stats?.clientCount || 0,
+          userCount: channels.reduce((sum, item) => sum + (item.userCount || 0), 0),
+        };
+        const nextStep = !selectedChannel
+          ? "先选择一个服务器，或者新建一个 channel。"
+          : selectedChannel.userCount === 0
+            ? "先创建至少一个用户 token，避免任何拿到入口的人都能连接。"
+            : !selectedChannel.backendConnected
+              ? "把右侧 OpenClaw 配置写到插件机器上，确保插件以 relay 模式连回网关。"
+              : selectedChannel.tokenParam !== "token"
+                ? "如果你要直接用官方 H5 示例页，建议把 tokenParam 改回 token。"
+                : "配置已经比较完整，接下来把客户端字段说明交给接入方即可。";
 
-      elements.workspaceContent.addEventListener("click", async (event) => {
-        const button = event.target.closest("button[data-action]");
-        if (!button) {
-          return;
-        }
-
-        const channel = button.dataset.channel ? state.channels.find((item) => item.channelId === button.dataset.channel) : getSelectedChannel();
-        if (!channel && button.dataset.action !== "copy-backend-url") {
-          notify("Select a server first.", "warn");
-          return;
-        }
-
-        if (button.dataset.action === "copy-secret") {
-          await copyText(channel.secret, "backend secret");
-          return;
-        }
-
-        if (button.dataset.action === "copy-client-url") {
-          await copyText(getChannelClientUrl(channel), "client URL");
-          return;
-        }
-
-        if (button.dataset.action === "copy-backend-url") {
-          await copyText(getChannelBackendUrl(), "backend URL");
-          return;
-        }
-
-        if (button.dataset.action === "copy-backend-snippet") {
-          await copyText(getChannelBackendSnippet(channel), "plugin relay snippet");
-          return;
-        }
-
-        if (button.dataset.action === "copy-openclaw-config") {
-          await copyText(getChannelOpenClawConfigSnippet(channel), "OpenClaw server config");
-          return;
-        }
-
-        if (button.dataset.action === "copy-client-form") {
-          await copyText(getChannelClientGuide(channel, getPreferredUser(channel)), "client field guide");
-          return;
-        }
-
-        if (button.dataset.action === "copy-raw-client-url") {
-          await copyText(getChannelRawClientUrl(channel, getPreferredUser(channel)), "raw client URL");
-          return;
-        }
-
-        if (button.dataset.action === "copy-client-snippet") {
-          await copyText(getChannelClientSnippet(channel, getPreferredUser(channel)), "client template");
-        }
-      });
-
-      elements.workspaceContent.addEventListener("change", (event) => {
-        const select = event.target.closest("#exampleUserSelect");
-        if (!select) {
-          return;
-        }
-        state.selectedUserSenderId = select.value || "";
-        renderWorkspace();
-        renderUsers();
-        if (state.selectedUserSenderId) {
-          notify(`Client guide switched to ${state.selectedUserSenderId}.`, "success");
-        }
-      });
-
-      elements.usersTableWrap.addEventListener("click", async (event) => {
-        const button = event.target.closest("button[data-action]");
-        const channel = getSelectedChannel();
-        if (!button || !channel) {
-          return;
-        }
-
-        const senderId = button.dataset.sender;
-        const user = Array.isArray(channel.users) ? channel.users.find((item) => item.senderId === senderId) : undefined;
-        if (!user) {
-          return;
-        }
-
-        if (button.dataset.action === "copy-user-token") {
-          await copyText(user.token, `token for ${senderId}`);
-          return;
-        }
-
-        if (button.dataset.action === "use-user-preset") {
-          state.selectedUserSenderId = senderId;
-          renderWorkspace();
-          renderUsers();
-          notify(`Client guide switched to ${senderId}.`, "success");
-          return;
-        }
-
-        if (button.dataset.action === "edit-user") {
-          resetUserForm(user);
-          notify(`Loaded ${senderId} into the user form.`, "success");
-          elements.senderId.focus();
-          return;
-        }
-
-        if (button.dataset.action === "delete-user") {
-          if (!window.confirm(`Delete user ${senderId}?`)) {
+        useEffect(() => {
+          if (!channels.length) {
+            if (selectedChannelId) {
+              setSelectedChannelId("");
+            }
             return;
           }
+          if (selectedChannel) {
+            const user = pickPreferredUser(selectedChannel, selectedUserSenderId);
+            if ((user?.senderId || "") !== selectedUserSenderId) {
+              setSelectedUserSenderId(user?.senderId || "");
+            }
+          }
+        }, [channels, selectedChannelId, selectedUserSenderId, selectedChannel]);
+
+        useEffect(() => {
+          if (!selectedChannel) {
+            return;
+          }
+          setChannelForm({
+            channelId: selectedChannel.channelId || "",
+            label: selectedChannel.label || "",
+            secret: selectedChannel.secret || "",
+            tokenParam: selectedChannel.tokenParam || "token",
+          });
+        }, [selectedChannelId, gatewayState?.timestamp]);
+
+        useEffect(() => {
+          if (!adminToken) {
+            loadState(false);
+            return;
+          }
+          loadState(false);
+        }, []);
+
+        function addActivity(message, tone = "slate") {
+          setActivity((current) => [
+            { id: `${Date.now()}-${Math.random()}`, message, tone, time: Date.now() },
+            ...current,
+          ].slice(0, 10));
+        }
+
+        function showToast(message, tone = "slate") {
+          const id = `${Date.now()}-${Math.random()}`;
+          setToasts((current) => [...current, { id, message, tone }]);
+          window.setTimeout(() => {
+            setToasts((current) => current.filter((item) => item.id !== id));
+          }, 2600);
+        }
+
+        async function runAction(work, successMessage, errorPrefix = "Request failed") {
           try {
-            await request(`/api/channels/${encodeURIComponent(channel.channelId)}/users/${encodeURIComponent(senderId)}`, {
-              method: "DELETE",
-            });
-            await loadState();
-            notify(`Deleted user ${senderId}.`, "success");
+            setErrorMessage("");
+            const result = await work();
+            if (successMessage) {
+              addActivity(successMessage, "ok");
+              showToast(successMessage, "ok");
+            }
+            return result;
           } catch (error) {
-            notify(String(error.message || error), "error");
+            const message = `${errorPrefix}: ${String(error.message || error)}`;
+            setErrorMessage(message);
+            addActivity(message, "danger");
+            showToast(message, "danger");
+            throw error;
           }
         }
-      });
 
-      loadState()
-        .then(() => {
-          notify("Relay admin ready.", "success");
-        })
-        .catch((error) => {
-          const message = String(error.message || error);
-          if (message.includes("admin auth required")) {
-            elements.statusNotice.dataset.tone = "warn";
-            elements.summaryBadge.className = "badge warn";
-            elements.summaryBadge.textContent = "Locked";
-            elements.summaryTitle.textContent = "Admin token required";
-            elements.summaryText.textContent = "Enter the relay admin token above, then refresh.";
-            elements.authBadge.className = "badge warn";
-            elements.authBadge.textContent = "Waiting for token";
-            pushMessage("Admin token required before state can be loaded.", "warn");
-            renderMessages();
-            renderAll();
+        async function loadState(announce = true) {
+          setIsLoading(true);
+          try {
+            const data = await requestJson("/api/state", adminToken);
+            setGatewayState(data);
+            const nextChannels = Array.isArray(data.channels) ? data.channels : [];
+            setSelectedChannelId((current) => {
+              if (current && nextChannels.some((item) => item.channelId === current)) {
+                return current;
+              }
+              return nextChannels[0]?.channelId || "";
+            });
+            setErrorMessage("");
+            if (announce) {
+              addActivity("Relay state refreshed.", "ok");
+              showToast("Relay state refreshed.", "ok");
+            }
+          } catch (error) {
+            const message = String(error.message || error);
+            if (message.includes("admin auth required")) {
+              setGatewayState(null);
+              setErrorMessage("Admin token required");
+              if (announce) {
+                addActivity("Admin token required before state can be loaded.", "warn");
+                showToast("Admin token required.", "warn");
+              }
+              return;
+            }
+            setErrorMessage(message);
+            if (announce) {
+              addActivity(message, "danger");
+              showToast(message, "danger");
+            }
+          } finally {
+            setIsLoading(false);
+          }
+        }
+
+        async function saveAdminToken(event) {
+          event.preventDefault();
+          const nextToken = adminInput.trim();
+          localStorage.setItem(STORAGE_KEY, nextToken);
+          setAdminToken(nextToken);
+          addActivity("Admin token saved locally.", "ok");
+          showToast("Admin token saved locally.", "ok");
+          await loadState(false);
+        }
+
+        function prepareNewChannel() {
+          setSelectedChannelId("");
+          setChannelForm(DEFAULT_CHANNEL_FORM);
+          setUserForm(createDefaultUserForm());
+          addActivity("Server form reset for a new channel.", "ok");
+          showToast("Server form reset for a new channel.", "ok");
+        }
+
+        function startEditingUser(user) {
+          setSelectedUserSenderId(user.senderId);
+          setUserForm({
+            id: user.id || "",
+            senderId: user.senderId || "",
+            chatId: user.chatId || "",
+            token: user.token || `gc_${randomToken()}`,
+            allowAgents: Array.isArray(user.allowAgents) ? user.allowAgents.join(",") : "",
+            enabled: user.enabled === false ? false : true,
+          });
+          addActivity(`Loaded ${user.senderId} into user form.`, "ok");
+          showToast(`Loaded ${user.senderId} into user form.`, "ok");
+        }
+
+        async function submitChannel(event) {
+          event.preventDefault();
+          const payload = {
+            channelId: channelForm.channelId.trim(),
+            label: channelForm.label.trim(),
+            secret: channelForm.secret.trim(),
+            tokenParam: channelForm.tokenParam.trim() || "token",
+          };
+          if (!payload.channelId) {
+            setErrorMessage("channelId is required");
+            showToast("channelId is required", "danger");
             return;
           }
-          notify(message, "error");
-        });
+          await runAction(
+            async () => {
+              await requestJson("/api/channels", adminToken, {
+                method: "POST",
+                body: JSON.stringify(payload),
+              });
+              await loadState(false);
+              setSelectedChannelId(payload.channelId);
+            },
+            `Saved server ${payload.channelId}.`,
+            "Failed to save server",
+          );
+        }
+
+        async function submitUser(event) {
+          event.preventDefault();
+          if (!selectedChannel) {
+            setErrorMessage("Select a server before saving users");
+            showToast("Select a server before saving users.", "warn");
+            return;
+          }
+          const payload = {
+            id: userForm.id.trim(),
+            senderId: userForm.senderId.trim(),
+            chatId: userForm.chatId.trim(),
+            token: userForm.token.trim(),
+            allowAgents: userForm.allowAgents.trim(),
+            enabled: userForm.enabled,
+          };
+          if (!payload.senderId) {
+            setErrorMessage("senderId is required");
+            showToast("senderId is required", "danger");
+            return;
+          }
+          await runAction(
+            async () => {
+              await requestJson(`/api/channels/${encodeURIComponent(selectedChannel.channelId)}/users`, adminToken, {
+                method: "POST",
+                body: JSON.stringify(payload),
+              });
+              await loadState(false);
+              setSelectedUserSenderId(payload.senderId);
+              setUserForm(createDefaultUserForm());
+            },
+            `Saved user ${payload.senderId}.`,
+            "Failed to save user",
+          );
+        }
+
+        async function deleteChannel(channel) {
+          if (!window.confirm(`Delete channel ${channel.channelId}?`)) {
+            return;
+          }
+          await runAction(
+            async () => {
+              await requestJson(`/api/channels/${encodeURIComponent(channel.channelId)}`, adminToken, {
+                method: "DELETE",
+              });
+              if (selectedChannelId === channel.channelId) {
+                setSelectedChannelId("");
+              }
+              await loadState(false);
+            },
+            `Deleted channel ${channel.channelId}.`,
+            "Failed to delete channel",
+          );
+        }
+
+        async function deleteUser(user) {
+          if (!selectedChannel) {
+            return;
+          }
+          if (!window.confirm(`Delete user ${user.senderId}?`)) {
+            return;
+          }
+          await runAction(
+            async () => {
+              await requestJson(
+                `/api/channels/${encodeURIComponent(selectedChannel.channelId)}/users/${encodeURIComponent(user.senderId)}`,
+                adminToken,
+                { method: "DELETE" },
+              );
+              await loadState(false);
+            },
+            `Deleted user ${user.senderId}.`,
+            "Failed to delete user",
+          );
+        }
+
+        async function handleCopy(label, value) {
+          await runAction(
+            async () => {
+              await copyText(value);
+            },
+            `Copied ${label}.`,
+            `Failed to copy ${label}`,
+          );
+        }
+
+        return html`
+          <div className="mx-auto max-w-[1500px] px-4 py-6 md:px-6 md:py-8">
+            <div className="grid gap-6">
+              <section className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr]">
+                <div className="rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-float backdrop-blur">
+                  <div className="mb-6 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                    Relay Gateway Control Room
+                  </div>
+                  <div className="grid gap-6">
+                    <div className="space-y-3">
+                      <h1 className="max-w-3xl text-3xl font-semibold leading-tight text-slate-950 md:text-5xl">
+                        把网关运维和第三方接入说明放到一张页面里。
+                      </h1>
+                      <p className="max-w-3xl text-sm leading-7 text-slate-500 md:text-base">
+                        这个页面现在分成明确的几个阶段：先登录，再选择服务器，然后拿到插件配置和客户端字段说明，最后管理用户 token。主次分层清楚，接入方和运维方都能直接照着填。
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Channels</div>
+                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.channelCount}</div>
+                        <div className="mt-2 text-sm text-slate-500">${summary.protectedCount} protected</div>
+                      </div>
+                      <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Backends Online</div>
+                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.backendCount}</div>
+                        <div className="mt-2 text-sm text-slate-500">${summary.offlineCount} offline</div>
+                      </div>
+                      <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Clients Connected</div>
+                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.clientCount}</div>
+                        <div className="mt-2 text-sm text-slate-500">
+                          ${summary.clientCount > 0 ? "Relay traffic is live" : "No live client sessions"}
+                        </div>
+                      </div>
+                      <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
+                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Managed Users</div>
+                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.userCount}</div>
+                        <div className="mt-2 truncate text-sm text-slate-500">
+                          ${gatewayState?.configPath || "Config path unavailable"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[28px] border border-slate-200 bg-white/75 p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <${Badge} tone=${errorMessage ? "warn" : "ok"}>${errorMessage ? "Attention" : "Ready"}</${Badge}>
+                        <${Badge}>${selectedChannel ? `Selected: ${selectedChannel.channelId}` : "No channel selected"}</${Badge}>
+                        <${Badge}>${gatewayState?.timestamp ? `Refreshed ${formatTime(gatewayState.timestamp)}` : "Never refreshed"}</${Badge}>
+                      </div>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">${errorMessage || nextStep}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[32px] border border-white/70 bg-white/80 p-6 shadow-float backdrop-blur">
+                  <form className="grid gap-4" onSubmit=${saveAdminToken}>
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 0</div>
+                      <h2 className="text-2xl font-semibold text-slate-950">先拿到管理权限</h2>
+                      <p className="text-sm leading-7 text-slate-500">
+                        管理接口需要 admin token 时，在这里保存。token 只保存在当前浏览器本地。
+                      </p>
+                    </div>
+                    <label className="grid gap-2">
+                      <span className="text-sm font-medium text-slate-700">Admin Token</span>
+                      <input
+                        className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm shadow-sm"
+                        type=${tokenVisible ? "text" : "password"}
+                        autoComplete="new-password"
+                        value=${adminInput}
+                        onInput=${(event) => setAdminInput(event.target.value)}
+                        placeholder="optional if relay admin auth is enabled"
+                      />
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <${Button} type="submit">Save Token</${Button}>
+                      <${Button} tone="secondary" onClick=${() => setTokenVisible((value) => !value)}>
+                        ${tokenVisible ? "Hide Token" : "Show Token"}
+                      </${Button}>
+                      <${Button} tone="ghost" onClick=${() => loadState(true)} disabled=${isLoading}>
+                        ${isLoading ? "Refreshing..." : "Refresh State"}
+                      </${Button}>
+                    </div>
+                    <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 text-sm leading-7 text-slate-600">
+                      <div className="mb-2 flex flex-wrap gap-2">
+                        <${Badge} tone=${gatewayState?.adminAuthEnabled ? "ok" : "warn"}>
+                          ${gatewayState?.adminAuthEnabled ? "Admin auth on" : "Waiting for token or auth disabled"}
+                        </${Badge}>
+                      </div>
+                      这个页面会展示：
+                      <br />
+                      1. 插件端配置文件应该怎样写
+                      <br />
+                      2. 客户端每个字段应该怎样填
+                      <br />
+                      3. 当前服务器有哪些用户、token 和 agent 限制
+                    </div>
+                  </form>
+                </div>
+              </section>
+
+              <section className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+                <div className="grid gap-6">
+                  <${Panel}
+                    title="Step 1. 选择服务器"
+                    subtitle="左侧先选 channel。右侧会切换成该服务器的配置、接入说明和用户管理。"
+                    actions=${html`<${Badge}>${channels.length} channels</${Badge}>`}
+                  >
+                    <div className="grid gap-3">
+                      <input
+                        className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm shadow-sm"
+                        type="search"
+                        value=${serverQuery}
+                        onInput=${(event) => setServerQuery(event.target.value)}
+                        placeholder="Search by label, channelId, status..."
+                      />
+                      <${Button} tone="secondary" onClick=${prepareNewChannel}>Create New Server</${Button}>
+                    </div>
+
+                    <div className="mt-4 grid gap-3">
+                      ${filteredChannels.length === 0
+                        ? html`<${EmptyState} title="No channels yet" text="Create the first relay server from the form on the right." />`
+                        : filteredChannels.map((channel) => {
+                            const selected = channel.channelId === selectedChannelId;
+                            return html`
+                              <article
+                                className=${`rounded-[24px] border p-4 transition ${
+                                  selected
+                                    ? "border-emerald-300 bg-emerald-50/70 shadow-sm"
+                                    : "border-slate-200 bg-white/80 hover:border-slate-300 hover:bg-white"
+                                }`}
+                              >
+                                <div className="space-y-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <div className="text-base font-semibold text-slate-900">
+                                        ${channel.label || channel.channelId}
+                                      </div>
+                                      <div className="font-mono text-xs text-slate-500">
+                                        ${channel.channelId}
+                                      </div>
+                                    </div>
+                                    <div className="flex flex-wrap justify-end gap-2">
+                                      <${Badge} tone=${channel.backendConnected ? "ok" : "warn"}>
+                                        ${channel.backendConnected ? "backend online" : "backend offline"}
+                                      </${Badge}>
+                                      <${Badge} tone=${channel.userCount > 0 ? "ok" : "warn"}>
+                                        ${channel.userCount > 0 ? "token protected" : "open access"}
+                                      </${Badge}>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                                    <div className="rounded-2xl border border-slate-200 bg-white/90 px-3 py-2">
+                                      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Clients</div>
+                                      <div className="mt-1 font-semibold text-slate-900">${channel.clientCount}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-slate-200 bg-white/90 px-3 py-2">
+                                      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Users</div>
+                                      <div className="mt-1 font-semibold text-slate-900">${channel.userCount}</div>
+                                    </div>
+                                    <div className="rounded-2xl border border-slate-200 bg-white/90 px-3 py-2">
+                                      <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">Param</div>
+                                      <div className="mt-1 font-semibold text-slate-900">${channel.tokenParam || "token"}</div>
+                                    </div>
+                                  </div>
+
+                                  <div className="text-xs leading-6 text-slate-500">
+                                    <div>Instance: ${channel.instanceId || "-"}</div>
+                                    <div>
+                                      Last seen:
+                                      ${formatTime(channel.backendConnected ? channel.lastConnectedAt : channel.lastDisconnectedAt || channel.lastConnectedAt)}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-wrap gap-2">
+                                    <${Button} tone=${selected ? "primary" : "secondary"} onClick=${() => {
+                                      setSelectedChannelId(channel.channelId);
+                                      addActivity(`Selected ${channel.channelId}.`, "ok");
+                                      showToast(`Selected ${channel.channelId}.`, "ok");
+                                    }}>
+                                      ${selected ? "Selected" : "Manage"}
+                                    </${Button}>
+                                    <${Button}
+                                      tone="ghost"
+                                      onClick=${() => handleCopy("client URL", buildClientBaseUrl(channel))}
+                                    >
+                                      Copy Client URL
+                                    </${Button}>
+                                    <${Button} tone="danger" onClick=${() => deleteChannel(channel)}>Delete</${Button}>
+                                  </div>
+                                </div>
+                              </article>
+                            `;
+                          })}
+                    </div>
+                  </${Panel}>
+
+                  <${Panel} title="Activity" subtitle="最近的管理动作和验证结果会显示在这里。">
+                    <div className="grid gap-3">
+                      ${activity.length === 0
+                        ? html`<div className="rounded-[20px] border border-dashed border-slate-200 bg-white/50 px-4 py-6 text-sm text-slate-500">No activity yet.</div>`
+                        : activity.map((item) => html`
+                            <div className="rounded-[20px] border border-slate-200 bg-white/70 px-4 py-3">
+                              <div className="mb-1 text-xs text-slate-400">${formatTime(item.time)}</div>
+                              <div className="text-sm leading-6 text-slate-700">${item.message}</div>
+                            </div>
+                          `)}
+                    </div>
+                  </${Panel}>
+                </div>
+
+                <div className="grid gap-6">
+                  <${Panel}
+                    title="Step 2. 先看接入路径，再做修改"
+                    subtitle="每个服务器的“插件侧配置”和“客户端字段填写说明”都在这里，接入方可以直接照着复制。"
+                  >
+                    ${selectedChannel
+                      ? html`
+                          <div className="grid gap-4">
+                            <div className="flex flex-wrap items-start justify-between gap-4 rounded-[28px] border border-slate-200 bg-white/70 p-5">
+                              <div className="space-y-2">
+                                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Current server</div>
+                                <div className="text-2xl font-semibold text-slate-950">
+                                  ${selectedChannel.label || selectedChannel.channelId}
+                                </div>
+                                <div className="font-mono text-sm text-slate-500">${selectedChannel.channelId}</div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <${Badge} tone=${selectedChannel.backendConnected ? "ok" : "warn"}>
+                                  ${selectedChannel.backendConnected ? "backend online" : "backend offline"}
+                                </${Badge}>
+                                <${Badge} tone=${selectedChannel.userCount > 0 ? "ok" : "warn"}>
+                                  ${selectedChannel.userCount > 0 ? "gateway auth enforced" : "no users configured"}
+                                </${Badge}>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-3 md:grid-cols-4">
+                              <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
+                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">Backend Secret</div>
+                                <div className="mt-2 font-mono text-sm font-semibold text-slate-900">
+                                  ${selectedChannel.secretMasked}
+                                </div>
+                                <div className="mt-3">
+                                  <${Button}
+                                    tone="secondary"
+                                    className="w-full"
+                                    onClick=${() => handleCopy("backend secret", selectedChannel.secret)}
+                                  >
+                                    Copy Secret
+                                  </${Button}>
+                                </div>
+                              </div>
+                              <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
+                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">Token Param</div>
+                                <div className="mt-2 font-mono text-sm font-semibold text-slate-900">
+                                  ${selectedChannel.tokenParam || "token"}
+                                </div>
+                                <div className="mt-3 text-sm text-slate-500">H5 客户端把用户 token 通过这个 query 参数带上来。</div>
+                              </div>
+                              <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
+                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">Users</div>
+                                <div className="mt-2 text-3xl font-semibold text-slate-950">
+                                  ${selectedChannel.userCount}
+                                </div>
+                                <div className="mt-3 text-sm text-slate-500">
+                                  ${selectedChannel.userCount > 0 ? "Relay-side token auth is active." : "当前没有任何 token 保护。"}
+                                </div>
+                              </div>
+                              <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4">
+                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">Live Clients</div>
+                                <div className="mt-2 text-3xl font-semibold text-slate-950">
+                                  ${selectedChannel.clientCount}
+                                </div>
+                                <div className="mt-3 text-sm text-slate-500">
+                                  ${selectedChannel.backendConnected ? "Backend is ready to forward traffic." : "Backend offline: clients will be rejected."}
+                                </div>
+                              </div>
+                            </div>
+
+                            ${selectedChannel.tokenParam !== "token"
+                              ? html`
+                                  <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-5">
+                                    <div className="mb-2 flex flex-wrap gap-2">
+                                      <${Badge} tone="warn">Compatibility note</${Badge}>
+                                    </div>
+                                    <div className="space-y-2 text-sm leading-7 text-amber-900">
+                                      <div>
+                                        当前 channel 使用的是
+                                        <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">
+                                          ${selectedChannel.tokenParam}
+                                        </code>
+                                        ，但官方示例 H5 客户端目前固定把认证参数追加成
+                                        <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">
+                                          token
+                                        </code>
+                                        。
+                                      </div>
+                                      <div>
+                                        如果你要直接给第三方接这个 H5 示例页，建议把 tokenParam 改回
+                                        <code className="rounded bg-white px-1.5 py-0.5 font-mono text-xs">
+                                          token
+                                        </code>
+                                        ；否则请让对方使用下面的 Raw WS URL 或自定义客户端。
+                                      </div>
+                                    </div>
+                                  </div>
+                                `
+                              : null}
+
+                            <div className="grid gap-4 2xl:grid-cols-[1.05fr_0.95fr]">
+                              <div className="grid gap-4">
+                                <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
+                                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 2A</div>
+                                      <h3 className="mt-1 text-xl font-semibold text-slate-950">OpenClaw 插件配置</h3>
+                                      <p className="mt-2 text-sm leading-7 text-slate-500">
+                                        这是运行在插件机器上的配置片段。把它写到 OpenClaw 的 channel 配置里。
+                                      </p>
+                                    </div>
+                                    <${Button}
+                                      tone="secondary"
+                                      onClick=${() => handleCopy("OpenClaw server config", buildOpenClawConfig(selectedChannel))}
+                                    >
+                                      Copy Config
+                                    </${Button}>
+                                  </div>
+                                  <pre className="overflow-auto rounded-[22px] bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">${buildOpenClawConfig(selectedChannel)}</pre>
+                                </div>
+
+                                <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
+                                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Quick URLs</div>
+                                      <h3 className="mt-1 text-xl font-semibold text-slate-950">入口和 relay block</h3>
+                                      <p className="mt-2 text-sm leading-7 text-slate-500">
+                                        这里只放最常复制的几个值，避免集成时到处找。
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="grid gap-4">
+                                    <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                      <div className="mb-2 flex items-center justify-between gap-3">
+                                        <div className="text-sm font-semibold text-slate-900">Client serverUrl template</div>
+                                        <${Button}
+                                          tone="secondary"
+                                          onClick=${() => handleCopy("client URL", buildClientBaseUrl(selectedChannel))}
+                                        >
+                                          Copy URL
+                                        </${Button}>
+                                      </div>
+                                      <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                        ${buildClientBaseUrl(selectedChannel)}
+                                      </code>
+                                    </div>
+                                    <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                      <div className="mb-2 flex items-center justify-between gap-3">
+                                        <div className="text-sm font-semibold text-slate-900">Plugin backend URL</div>
+                                        <${Button}
+                                          tone="secondary"
+                                          onClick=${() => handleCopy("backend URL", buildRelayBackendUrl())}
+                                        >
+                                          Copy URL
+                                        </${Button}>
+                                      </div>
+                                      <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                        ${buildRelayBackendUrl()}
+                                      </code>
+                                    </div>
+                                    <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                      <div className="mb-2 flex items-center justify-between gap-3">
+                                        <div className="text-sm font-semibold text-slate-900">Relay block only</div>
+                                        <${Button}
+                                          tone="secondary"
+                                          onClick=${() => handleCopy("plugin relay block", buildRelayBlock(selectedChannel))}
+                                        >
+                                          Copy Snippet
+                                        </${Button}>
+                                      </div>
+                                      <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildRelayBlock(selectedChannel)}</pre>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="grid gap-4">
+                                <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
+                                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 2B</div>
+                                      <h3 className="mt-1 text-xl font-semibold text-slate-950">客户端字段怎么填</h3>
+                                      <p className="mt-2 text-sm leading-7 text-slate-500">
+                                        这里直接给出第三方 H5 页面每个输入框的填写值。你可以切换不同用户查看它们各自的 token 和默认 agent。
+                                      </p>
+                                    </div>
+                                    <${Button}
+                                      tone="secondary"
+                                      onClick=${() => handleCopy(
+                                        "client field guide",
+                                        buildClientGuide(selectedChannel, preferredUser)
+                                          .map((item) => `${item.key}: ${item.value}`)
+                                          .join("\n"),
+                                      )}
+                                    >
+                                      Copy Field Guide
+                                    </${Button}>
+                                  </div>
+
+                                  <label className="mb-4 grid gap-2">
+                                    <span className="text-sm font-medium text-slate-700">Example user</span>
+                                    <select
+                                      className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                                      disabled=${selectedChannel.userCount === 0}
+                                      value=${preferredUser?.senderId || ""}
+                                      onChange=${(event) => {
+                                        setSelectedUserSenderId(event.target.value);
+                                        addActivity(`Client guide switched to ${event.target.value || "no user"}.`, "ok");
+                                        showToast(`Client guide switched to ${event.target.value || "no user"}.`, "ok");
+                                      }}
+                                    >
+                                      ${selectedChannel.userCount === 0
+                                        ? html`<option value="">No users configured</option>`
+                                        : selectedChannel.users.map((user) => html`
+                                            <option value=${user.senderId}>
+                                              ${user.senderId}${user.enabled === false ? " (disabled)" : ""}
+                                            </option>
+                                          `)}
+                                    </select>
+                                  </label>
+
+                                  <div className="grid gap-3">
+                                    ${buildClientGuide(selectedChannel, preferredUser).map((item) => html`
+                                      <div className="grid gap-2 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                                          ${item.key}
+                                        </div>
+                                        <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                          ${item.value}
+                                        </code>
+                                        <p className="text-sm leading-6 text-slate-500">${item.note}</p>
+                                      </div>
+                                    `)}
+                                  </div>
+
+                                  <div className="mt-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                      <div className="text-sm font-semibold text-slate-900">Raw WebSocket URL</div>
+                                      <${Button}
+                                        tone="secondary"
+                                        onClick=${() => handleCopy("raw client URL", buildClientFullUrl(selectedChannel, preferredUser))}
+                                      >
+                                        Copy Raw WS URL
+                                      </${Button}>
+                                    </div>
+                                    <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                      ${buildClientFullUrl(selectedChannel, preferredUser)}
+                                    </code>
+                                    <p className="mt-3 text-sm leading-6 text-slate-500">
+                                      适合不想拆分字段、直接按完整 URL 连 WebSocket 的客户端。
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="rounded-[28px] border border-slate-200 bg-white/75 p-5">
+                                  <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 2C</div>
+                                      <h3 className="mt-1 text-xl font-semibold text-slate-950">完整客户端模板</h3>
+                                      <p className="mt-2 text-sm leading-7 text-slate-500">
+                                        如果对方不是看表单，而是看文本说明，就直接把这段发过去。
+                                      </p>
+                                    </div>
+                                    <${Button}
+                                      tone="secondary"
+                                      onClick=${() => handleCopy("client template", buildClientTemplate(selectedChannel, preferredUser))}
+                                    >
+                                      Copy Template
+                                    </${Button}>
+                                  </div>
+                                  <pre className="overflow-auto rounded-[22px] bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">${buildClientTemplate(selectedChannel, preferredUser)}</pre>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        `
+                      : html`<${EmptyState} title="Select or create a server" text="Pick a server on the left. This area will show the plugin config, client field guide, and the safest next step." />`}
+                  </${Panel}>
+
+                  <div className="grid gap-6 2xl:grid-cols-[0.92fr_1.08fr]">
+                    <${Panel}
+                      title="Step 3. 修改服务器配置"
+                      subtitle="新建 channel 或更新当前 channel。这里改的是 relay-gateway 管理配置。"
+                    >
+                      <form className="grid gap-4" onSubmit=${submitChannel}>
+                        <label className="grid gap-2">
+                          <span className="text-sm font-medium text-slate-700">Channel ID</span>
+                          <input
+                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                            autoComplete="off"
+                            value=${channelForm.channelId}
+                            onInput=${(event) => setChannelForm((current) => ({ ...current, channelId: event.target.value }))}
+                            placeholder="gc-relay-test"
+                            required
+                          />
+                        </label>
+                        <label className="grid gap-2">
+                          <span className="text-sm font-medium text-slate-700">Label</span>
+                          <input
+                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                            autoComplete="off"
+                            value=${channelForm.label}
+                            onInput=${(event) => setChannelForm((current) => ({ ...current, label: event.target.value }))}
+                            placeholder="Singapore Main Gateway"
+                          />
+                        </label>
+                        <label className="grid gap-2">
+                          <span className="text-sm font-medium text-slate-700">Backend Secret</span>
+                          <input
+                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
+                            autoComplete="new-password"
+                            value=${channelForm.secret}
+                            onInput=${(event) => setChannelForm((current) => ({ ...current, secret: event.target.value }))}
+                            placeholder="auto-generate if empty"
+                          />
+                        </label>
+                        <label className="grid gap-2">
+                          <span className="text-sm font-medium text-slate-700">Client Token Param</span>
+                          <input
+                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
+                            autoComplete="off"
+                            value=${channelForm.tokenParam}
+                            onInput=${(event) => setChannelForm((current) => ({ ...current, tokenParam: event.target.value }))}
+                            placeholder="token"
+                          />
+                        </label>
+
+                        <div className="flex flex-wrap gap-2">
+                          <${Button} type="submit">Save Server</${Button}>
+                          <${Button}
+                            tone="secondary"
+                            onClick=${() => setChannelForm((current) => ({ ...current, secret: randomToken() }))}
+                          >
+                            Generate Secret
+                          </${Button}>
+                          <${Button}
+                            tone="ghost"
+                            onClick=${() => handleCopy("backend secret", channelForm.secret)}
+                            disabled=${!channelForm.secret}
+                          >
+                            Copy Secret
+                          </${Button}>
+                        </div>
+                      </form>
+                    </${Panel}>
+
+                    <${Panel}
+                      title="Step 4. 管理用户 token"
+                      subtitle="给每个调用方一个用户和 token。这里的用户存在于网关，不要求插件本地再配一份 auth.users。"
+                    >
+                      ${selectedChannel && selectedChannel.userCount === 0
+                        ? html`
+                            <div className="mb-4 rounded-[24px] border border-amber-200 bg-amber-50/90 p-4 text-sm leading-7 text-amber-900">
+                              当前服务器还没有任何用户。只要有人知道入口地址，就可能尝试连上来。
+                            </div>
+                          `
+                        : null}
+
+                      <form className="grid gap-4" onSubmit=${submitUser}>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium text-slate-700">User ID</span>
+                            <input
+                              className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                              autoComplete="off"
+                              value=${userForm.id}
+                              onInput=${(event) => setUserForm((current) => ({ ...current, id: event.target.value }))}
+                              placeholder="optional stable id"
+                            />
+                          </label>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium text-slate-700">Sender ID</span>
+                            <input
+                              className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                              autoComplete="off"
+                              value=${userForm.senderId}
+                              onInput=${(event) => setUserForm((current) => ({ ...current, senderId: event.target.value }))}
+                              placeholder="gc-test-user"
+                              required
+                            />
+                          </label>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium text-slate-700">Fixed Chat ID</span>
+                            <input
+                              className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                              autoComplete="off"
+                              value=${userForm.chatId}
+                              onInput=${(event) => setUserForm((current) => ({ ...current, chatId: event.target.value }))}
+                              placeholder="optional legacy binding"
+                            />
+                          </label>
+                          <label className="grid gap-2">
+                            <span className="text-sm font-medium text-slate-700">Token</span>
+                            <input
+                              className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
+                              autoComplete="new-password"
+                              value=${userForm.token}
+                              onInput=${(event) => setUserForm((current) => ({ ...current, token: event.target.value }))}
+                              placeholder="auto-generate if empty"
+                            />
+                          </label>
+                        </div>
+
+                        <label className="grid gap-2">
+                          <span className="text-sm font-medium text-slate-700">Allow Agents</span>
+                          <input
+                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                            autoComplete="off"
+                            value=${userForm.allowAgents}
+                            onInput=${(event) => setUserForm((current) => ({ ...current, allowAgents: event.target.value }))}
+                            placeholder="main,code,writer"
+                          />
+                        </label>
+
+                        <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked=${userForm.enabled}
+                            onChange=${(event) => setUserForm((current) => ({ ...current, enabled: event.target.checked }))}
+                          />
+                          <span className="text-sm font-medium text-slate-700">Enabled user</span>
+                        </label>
+
+                        <div className="flex flex-wrap gap-2">
+                          <${Button} type="submit" disabled=${!selectedChannel}>Save User</${Button}>
+                          <${Button}
+                            tone="secondary"
+                            onClick=${() => setUserForm((current) => ({ ...current, token: `gc_${randomToken()}` }))}
+                          >
+                            Generate Token
+                          </${Button}>
+                          <${Button}
+                            tone="ghost"
+                            onClick=${() => setUserForm(createDefaultUserForm())}
+                          >
+                            New User Draft
+                          </${Button}>
+                        </div>
+                      </form>
+
+                      <div className="mt-6 space-y-4 border-t border-slate-200 pt-6">
+                        <div className="flex flex-wrap items-end justify-between gap-3">
+                          <div>
+                            <div className="text-base font-semibold text-slate-900">Configured users</div>
+                            <div className="mt-1 text-sm leading-6 text-slate-500">
+                              选中某个用户后，右上“客户端字段说明”会自动切换成它的 token 和 agent。
+                            </div>
+                          </div>
+                          <input
+                            className="w-full max-w-xs rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                            type="search"
+                            value=${userQuery}
+                            onInput=${(event) => setUserQuery(event.target.value)}
+                            placeholder="Search by senderId, token, chatId..."
+                          />
+                        </div>
+
+                        ${!selectedChannel
+                          ? html`<${EmptyState} title="No server selected" text="Select a server first, then create or manage its users." />`
+                          : visibleUsers.length === 0
+                            ? html`<${EmptyState} title="No users found" text=${selectedChannel.userCount === 0 ? "Create the first token for this server." : "Try a shorter search keyword."} />`
+                            : html`
+                                <div className="grid gap-3">
+                                  ${visibleUsers.map((user) => {
+                                    const active = preferredUser?.senderId === user.senderId;
+                                    return html`
+                                      <article className=${`rounded-[24px] border p-4 ${
+                                        active ? "border-emerald-300 bg-emerald-50/70" : "border-slate-200 bg-white/80"
+                                      }`}>
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                          <div>
+                                            <div className="text-base font-semibold text-slate-900">${user.senderId}</div>
+                                            <div className="font-mono text-xs text-slate-500">${user.id || "no explicit user id"}</div>
+                                          </div>
+                                          <div className="flex flex-wrap gap-2">
+                                            ${active ? html`<${Badge} tone="ok">client preset</${Badge}>` : null}
+                                            <${Badge} tone=${user.enabled === false ? "danger" : "ok"}>
+                                              ${user.enabled === false ? "disabled" : "enabled"}
+                                            </${Badge}>
+                                            <${Badge}>
+                                              ${Array.isArray(user.allowAgents) && user.allowAgents.length ? user.allowAgents.join(", ") : "all agents"}
+                                            </${Badge}>
+                                          </div>
+                                        </div>
+
+                                        <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                                          <span className="rounded-full bg-slate-100 px-3 py-1">
+                                            Chat: ${user.chatId || "client controlled"}
+                                          </span>
+                                          <span className="rounded-full bg-slate-100 px-3 py-1">
+                                            Token param: ${selectedChannel.tokenParam || "token"}
+                                          </span>
+                                        </div>
+
+                                        <div className="mt-4 rounded-[20px] bg-slate-950 px-4 py-3 font-mono text-xs leading-6 text-slate-100">
+                                          ${user.token}
+                                        </div>
+
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                          <${Button}
+                                            tone=${active ? "primary" : "secondary"}
+                                            onClick=${() => {
+                                              setSelectedUserSenderId(user.senderId);
+                                              addActivity(`Client guide switched to ${user.senderId}.`, "ok");
+                                              showToast(`Client guide switched to ${user.senderId}.`, "ok");
+                                            }}
+                                          >
+                                            ${active ? "In Guide" : "Use In Guide"}
+                                          </${Button}>
+                                          <${Button}
+                                            tone="ghost"
+                                            onClick=${() => handleCopy(`token for ${user.senderId}`, user.token)}
+                                          >
+                                            Copy Token
+                                          </${Button}>
+                                          <${Button} tone="secondary" onClick=${() => startEditingUser(user)}>Edit</${Button}>
+                                          <${Button} tone="danger" onClick=${() => deleteUser(user)}>Delete</${Button}>
+                                        </div>
+                                      </article>
+                                    `;
+                                  })}
+                                </div>
+                              `}
+                      </div>
+                    </${Panel}>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div className="pointer-events-none fixed bottom-4 right-4 z-50 grid gap-2 md:bottom-6 md:right-6">
+              ${toasts.map((toast) => html`
+                <div
+                  key=${toast.id}
+                  className=${`min-w-[240px] rounded-2xl border px-4 py-3 text-sm shadow-float ${
+                    toast.tone === "ok"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : toast.tone === "warn"
+                        ? "border-amber-200 bg-amber-50 text-amber-900"
+                        : toast.tone === "danger"
+                          ? "border-rose-200 bg-rose-50 text-rose-800"
+                          : "border-slate-200 bg-white text-slate-700"
+                  }`}
+                >
+                  ${toast.message}
+                </div>
+              `)}
+            </div>
+          </div>
+        `;
+      }
+
+      createRoot(document.getElementById("app")).render(html`<${App} />`);
     </script>
   </body>
 </html>
