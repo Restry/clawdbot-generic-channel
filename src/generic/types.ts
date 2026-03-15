@@ -18,6 +18,7 @@ export type InboundMessage = {
   chatType: "direct" | "group";
   senderId: string;
   senderName?: string;
+  agentId?: string;
   messageType: "text" | "image" | "voice" | "audio" | "file";
   content: string;
   // Media URL for image/voice/audio messages
@@ -91,10 +92,49 @@ export type ChannelStatusResponse = {
   timestamp: number;
 };
 
+export type AgentListRequest = {
+  requestId?: string;
+};
+
+export type AgentListItem = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  identityName?: string;
+  identityEmoji?: string;
+  model?: string;
+};
+
+export type AgentListResponse = {
+  requestId?: string;
+  agents: AgentListItem[];
+  defaultAgentId: string;
+  selectedAgentId?: string;
+  timestamp: number;
+};
+
+export type AgentSelectRequest = {
+  requestId?: string;
+  agentId?: string | null;
+};
+
+export type AgentSelectedResponse = {
+  requestId?: string;
+  ok: boolean;
+  mode: "auto" | "explicit";
+  selectedAgentId?: string;
+  error?: string;
+  timestamp: number;
+};
+
 // WebSocket event types
 export type WSEventType =
   | "message.receive"
   | "message.send"
+  | "agent.list.get"
+  | "agent.list"
+  | "agent.select"
+  | "agent.selected"
   | "channel.status.get"
   | "channel.status"
   | "history.sync"

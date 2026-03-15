@@ -24,6 +24,7 @@ import {
 import { handleGroupAction } from "./groups.js";
 import { handlePinMessage, handleUnpinMessage } from "./pins-stars.js";
 import { getRecentHistoryMessages } from "./history.js";
+import { listGenericAgents, resolveGenericAgentId } from "./agents.js";
 
 export type MonitorGenericOpts = {
   config?: OpenClawConfig;
@@ -73,23 +74,117 @@ async function monitorWebSocket(params: {
   currentWSManager = wsManager;
 
   const chatHistories = new Map<string, HistoryEntry[]>();
+  const sendAgentList = (ws: Parameters<typeof wsManager.sendDirect>[0], requestId?: string) => {
+    const { agents, defaultAgentId } = listGenericAgents(cfg);
+    const selectedAgentId = wsManager.getSelectedAgentId(ws);
+
+    wsManager.sendDirect(ws, {
+      type: "agent.list",
+      data: {
+        requestId,
+        agents,
+        defaultAgentId,
+        selectedAgentId,
+        timestamp: Date.now(),
+      },
+    });
+  };
+
+  const sendAgentSelected = (params: {
+    ws: Parameters<typeof wsManager.sendDirect>[0];
+    requestId?: string;
+    ok: boolean;
+    selectedAgentId?: string;
+    error?: string;
+  }) => {
+    wsManager.sendDirect(params.ws, {
+      type: "agent.selected",
+      data: {
+        requestId: params.requestId,
+        ok: params.ok,
+        mode: params.selectedAgentId ? "explicit" : "auto",
+        selectedAgentId: params.selectedAgentId,
+        error: params.error,
+        timestamp: Date.now(),
+      },
+    });
+  };
 
   wsManager.onClientConnect = ({ chatId, ws }) => {
     const historyLimit = Math.max(0, genericCfg.historyLimit ?? 10);
-    if (historyLimit === 0) {
+    if (historyLimit > 0) {
+      wsManager.sendDirect(ws, {
+        type: "history.sync",
+        data: {
+          chatId,
+          messages: getRecentHistoryMessages({
+            chatId,
+            limit: historyLimit,
+          }),
+          timestamp: Date.now(),
+        },
+      });
+    }
+
+    const requestedAgentId = wsManager.getSelectedAgentId(ws);
+    if (!requestedAgentId) {
       return;
     }
 
-    wsManager.sendDirect(ws, {
-      type: "history.sync",
-      data: {
-        chatId,
-        messages: getRecentHistoryMessages({
-          chatId,
-          limit: historyLimit,
-        }),
-        timestamp: Date.now(),
-      },
+    const resolvedAgentId = resolveGenericAgentId(cfg, requestedAgentId);
+    if (resolvedAgentId) {
+      wsManager.setSelectedAgentId(ws, resolvedAgentId);
+      sendAgentSelected({
+        ws,
+        ok: true,
+        selectedAgentId: resolvedAgentId,
+      });
+      return;
+    }
+
+    wsManager.setSelectedAgentId(ws, undefined);
+    sendAgentSelected({
+      ws,
+      ok: false,
+      error: `Unknown agentId: ${requestedAgentId}`,
+    });
+  };
+
+  wsManager.onAgentListRequest = ({ ws, data }) => {
+    sendAgentList(ws, data.requestId);
+  };
+
+  wsManager.onAgentSelectRequest = ({ ws, data }) => {
+    const requestedAgentId = String(data.agentId ?? "").trim();
+
+    if (!requestedAgentId) {
+      wsManager.setSelectedAgentId(ws, undefined);
+      sendAgentSelected({
+        ws,
+        requestId: data.requestId,
+        ok: true,
+      });
+      return;
+    }
+
+    const resolvedAgentId = resolveGenericAgentId(cfg, requestedAgentId);
+    if (!resolvedAgentId) {
+      sendAgentSelected({
+        ws,
+        requestId: data.requestId,
+        ok: false,
+        selectedAgentId: wsManager.getSelectedAgentId(ws),
+        error: `Unknown agentId: ${requestedAgentId}`,
+      });
+      return;
+    }
+
+    wsManager.setSelectedAgentId(ws, resolvedAgentId);
+    sendAgentSelected({
+      ws,
+      requestId: data.requestId,
+      ok: true,
+      selectedAgentId: resolvedAgentId,
     });
   };
 

@@ -17,7 +17,7 @@
 
 ## 接入
 
-- `./INTEGRATION_GUIDE.md`: H5 / 聊天 App / 微信小程序如何直接接 `generic-channel`
+- `./INTEGRATION_GUIDE.md`: H5 / 聊天 App / 微信小程序如何直接接 `generic-channel`，包括多 agent 列表与选择协议
 - `../examples/h5-client.html`: 当前唯一保留的 H5 参考实现
 
 ## 配置

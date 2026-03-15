@@ -5,6 +5,8 @@ import type {
   WSEvent,
   InboundMessage,
   ChannelStatusRequest,
+  AgentListRequest,
+  AgentSelectRequest,
 } from "./types.js";
 import type { ForwardedMessage } from "./forwarding.js";
 import type { GroupAction } from "./groups.js";
@@ -77,11 +79,19 @@ export type UnpinMessageData = {
 };
 
 export type ChannelStatusRequestData = ChannelStatusRequest;
+export type AgentListRequestData = AgentListRequest;
+export type AgentSelectRequestData = AgentSelectRequest;
+
+type ClientConnectionState = {
+  chatId: string;
+  selectedAgentId?: string;
+};
 
 // Client connection manager
 export class GenericWSManager {
   private wss: WebSocketServer | null = null;
   private clients: Map<string, Set<WebSocket>> = new Map();
+  private clientStates: WeakMap<WebSocket, ClientConnectionState> = new WeakMap();
   private httpServer: HTTPServer | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private reconnectTimers: Map<string, NodeJS.Timeout> = new Map();
@@ -105,12 +115,16 @@ export class GenericWSManager {
     }
 
     this.wss.on("connection", (ws: WebSocket, req) => {
-      const chatId = this.extractChatId(req.url || "");
+      const { chatId, agentId } = this.extractConnectionParams(req.url || "");
       console.log(`[generic] WebSocket client connected: ${chatId}`);
 
       if (chatId) {
         this.addClient(chatId, ws);
       }
+      this.clientStates.set(ws, {
+        chatId,
+        selectedAgentId: agentId,
+      });
 
       ws.on("message", (data: RawData) => {
         this.handleMessage(ws, chatId, data);
@@ -124,6 +138,7 @@ export class GenericWSManager {
           this.reconnectAttempts.delete(chatId);
           this.onClientDisconnect?.(chatId);
         }
+        this.clientStates.delete(ws);
       });
 
       ws.on("error", (err) => {
@@ -171,9 +186,23 @@ export class GenericWSManager {
     this.clients.clear();
   }
 
-  private extractChatId(url: string): string {
-    const match = url.match(/[?&]chatId=([^&]+)/);
-    return match ? decodeURIComponent(match[1]) : `client-${Date.now()}`;
+  private extractConnectionParams(url: string): {
+    chatId: string;
+    agentId?: string;
+  } {
+    try {
+      const parsed = new URL(url, "ws://generic-channel.local");
+      const chatId = parsed.searchParams.get("chatId")?.trim() || `client-${Date.now()}`;
+      const agentId = parsed.searchParams.get("agentId")?.trim() || undefined;
+      return { chatId, agentId };
+    } catch {
+      const chatMatch = url.match(/[?&]chatId=([^&]+)/);
+      const agentMatch = url.match(/[?&]agentId=([^&]+)/);
+      return {
+        chatId: chatMatch ? decodeURIComponent(chatMatch[1]) : `client-${Date.now()}`,
+        agentId: agentMatch ? decodeURIComponent(agentMatch[1]).trim() || undefined : undefined,
+      };
+    }
   }
 
   private handleMessage(ws: WebSocket, chatId: string, data: RawData): void {
@@ -181,8 +210,28 @@ export class GenericWSManager {
       const message = JSON.parse(data.toString()) as WSEvent;
 
       switch (message.type) {
-        case "message.receive":
-          this.onMessageReceive?.(message.data as InboundMessage);
+        case "message.receive": {
+          const inbound = message.data as InboundMessage;
+          const selectedAgentId = this.getSelectedAgentId(ws);
+          if (!String(inbound.agentId ?? "").trim() && selectedAgentId) {
+            inbound.agentId = selectedAgentId;
+          }
+          this.onMessageReceive?.(inbound);
+          break;
+        }
+        case "agent.list.get":
+          this.onAgentListRequest?.({
+            chatId,
+            ws,
+            data: (message.data as AgentListRequestData | undefined) ?? {},
+          });
+          break;
+        case "agent.select":
+          this.onAgentSelectRequest?.({
+            chatId,
+            ws,
+            data: (message.data as AgentSelectRequestData | undefined) ?? {},
+          });
           break;
         case "channel.status.get":
           this.onChannelStatusRequest?.({
@@ -233,6 +282,22 @@ export class GenericWSManager {
     } catch (err) {
       console.error(`[generic] Failed to parse message from ${chatId}:`, err);
     }
+  }
+
+  getSelectedAgentId(ws: WebSocket): string | undefined {
+    return this.clientStates.get(ws)?.selectedAgentId;
+  }
+
+  setSelectedAgentId(ws: WebSocket, agentId?: string): void {
+    const existing = this.clientStates.get(ws);
+    if (!existing) {
+      return;
+    }
+
+    this.clientStates.set(ws, {
+      ...existing,
+      selectedAgentId: agentId?.trim() || undefined,
+    });
   }
 
   private addClient(chatId: string, ws: WebSocket): void {
@@ -305,6 +370,16 @@ export class GenericWSManager {
     chatId: string;
     ws: WebSocket;
     data: ChannelStatusRequestData;
+  }) => void;
+  onAgentListRequest?: (params: {
+    chatId: string;
+    ws: WebSocket;
+    data: AgentListRequestData;
+  }) => void;
+  onAgentSelectRequest?: (params: {
+    chatId: string;
+    ws: WebSocket;
+    data: AgentSelectRequestData;
   }) => void;
 
   sendToClient(chatId: string, event: WSEvent): boolean {

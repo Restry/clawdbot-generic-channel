@@ -7,6 +7,7 @@
 1. 服务端开启 `channels.generic-channel`
 2. 客户端用 WebSocket 连接 `ws://host:port/ws?chatId=会话ID`
 3. 客户端按协议发送 `message.receive` 事件
+4. 如果服务端配置了多个 agent，客户端可额外用 `agent.list.get` / `agent.select` 做显式入口选择
 
 这份接入指南只覆盖当前真实可用且已完成 E2E 的 `websocket` 路径。
 
@@ -105,14 +106,127 @@ channels:
 
 一句话: `chatId` 是“这条消息属于哪个会话”，`senderId` 是“是谁发的”。
 
-## 4. 连接方式
+## 4. 多 Agent 列表与选择
 
-客户端连接时，当前协议要求把 `chatId` 放在 WebSocket URL 查询参数里:
+如果你的 OpenClaw 服务端配置了:
+
+```yaml
+agents:
+  list:
+    - id: "main"
+      name: "主助手"
+      default: true
+    - id: "code"
+      name: "代码助手"
+    - id: "editor"
+      name: "编辑助手"
+```
+
+那么 `generic-channel` 现在支持两种路由模式:
+
+- 不显式选 agent: 继续走 OpenClaw 自己的 `bindings / default agent` 自动路由
+- 显式选 agent: 前端主动列出 agent，然后把当前会话绑定到某个 agent
+
+当前协议新增了四个事件:
+
+- `agent.list.get`: 客户端请求可选 agent 列表
+- `agent.list`: 服务端返回 agent 列表
+- `agent.select`: 客户端把当前连接切到某个 agent；传空值表示恢复自动路由
+- `agent.selected`: 服务端确认当前连接实际生效的选择结果
+
+### 请求 agent 列表
+
+```json
+{
+  "type": "agent.list.get",
+  "data": {
+    "requestId": "agent-list-1"
+  }
+}
+```
+
+```json
+{
+  "type": "agent.list",
+  "data": {
+    "requestId": "agent-list-1",
+    "defaultAgentId": "main",
+    "selectedAgentId": "code",
+    "agents": [
+      {
+        "id": "main",
+        "name": "主助手",
+        "isDefault": true
+      },
+      {
+        "id": "code",
+        "name": "代码助手",
+        "isDefault": false
+      },
+      {
+        "id": "editor",
+        "name": "编辑助手",
+        "isDefault": false
+      }
+    ],
+    "timestamp": 1710000000000
+  }
+}
+```
+
+### 切换当前连接的 agent
+
+```json
+{
+  "type": "agent.select",
+  "data": {
+    "requestId": "agent-select-1",
+    "agentId": "code"
+  }
+}
+```
+
+```json
+{
+  "type": "agent.selected",
+  "data": {
+    "requestId": "agent-select-1",
+    "ok": true,
+    "mode": "explicit",
+    "selectedAgentId": "code",
+    "timestamp": 1710000000100
+  }
+}
+```
+
+恢复自动路由时:
+
+```json
+{
+  "type": "agent.select",
+  "data": {
+    "requestId": "agent-select-2",
+    "agentId": null
+  }
+}
+```
+
+此时响应里的 `mode` 会变成 `auto`。
+
+一句话:
+
+- 你可以只依赖 OpenClaw `bindings`
+- 也可以在前端自己做“主助手 / 代码助手 / 编辑助手”三个入口
+- 真正控制消息发给谁的，是 `agentId` 选择结果，而不是前端自己改 `chatId`
+
+## 5. 连接方式
+
+客户端连接时，当前协议要求把 `chatId` 放在 WebSocket URL 查询参数里；如果你想在连接建立时就预选一个 agent，也可以额外带上 `agentId`:
 
 ```javascript
 const chatId = "conv-10001";
 const ws = new WebSocket(
-  `ws://localhost:18080/ws?chatId=${encodeURIComponent(chatId)}`
+  `ws://localhost:18080/ws?chatId=${encodeURIComponent(chatId)}&agentId=code`
 );
 ```
 
@@ -130,7 +244,7 @@ const ws = new WebSocket(
 
 如果当前会话有历史消息，服务端还会紧接着回 `history.sync`。
 
-## 5. 前端 -> 插件: 发消息协议
+## 6. 前端 -> 插件: 发消息协议
 
 所有客户端发给插件的消息，外层都要包一层事件信封:
 
@@ -152,6 +266,7 @@ type InboundMessage = {
   chatType: "direct" | "group";
   senderId: string;
   senderName?: string;
+  agentId?: string;
   messageType: "text" | "image" | "voice" | "audio" | "file";
   content: string;
   mediaUrl?: string;
@@ -172,6 +287,7 @@ type InboundMessage = {
     "chatType": "direct",
     "senderId": "user-42",
     "senderName": "Leway",
+    "agentId": "code",
     "messageType": "text",
     "content": "帮我总结一下这张图片",
     "timestamp": 1710000000001
@@ -239,7 +355,7 @@ type InboundMessage = {
 }
 ```
 
-## 6. `mediaUrl` 应该怎么传
+## 7. `mediaUrl` 应该怎么传
 
 当前插件支持两种方式:
 
@@ -259,7 +375,7 @@ type InboundMessage = {
 - 现在 GPT-5.2 这类模型支持 image 输入，插件会把图片媒体保留下来传给 agent
 - `mediaUrl` 指向的资源必须能被 gateway 主机访问；前端本地 `blob:` URL 或只在浏览器里可见的对象 URL 不能直接给插件下载
 
-## 7. 插件 -> 前端: 收消息协议
+## 8. 插件 -> 前端: 收消息协议
 
 ### `message.send`
 
@@ -349,6 +465,15 @@ type OutboundMessage = {
 
 连接成功确认，前面已经展示。
 
+### `agent.list.get` / `agent.list` / `agent.select` / `agent.selected`
+
+这四个事件就是前端多 agent 接入所需的最小协议层:
+
+- 先 `agent.list.get`
+- 把返回的 `agents[]` 渲染成入口列表或下拉框
+- 用户选中后发 `agent.select`
+- 后续消息可继续依赖当前连接选择，也可以在单条 `message.receive.data.agentId` 上再次显式覆盖
+
 ### `channel.status.get` / `channel.status`
 
 这是一个轻量级状态接口，只返回 `generic-channel` 自己的运行状态和当前连接统计，不返回 OpenClaw 全局的 `usage / agents / skills / sessions`。
@@ -396,7 +521,7 @@ type OutboundMessage = {
 - `connectedSocketCount`: 当前总共有多少个打开的 WebSocket 连接
 - `includeChats = true` 时，响应里会额外带 `connectedChats`
 
-## 8. H5 最小可运行示例
+## 9. H5 最小可运行示例
 
 这就是自己接页面时最小需要的逻辑:
 
@@ -406,9 +531,10 @@ type OutboundMessage = {
   const chatId = "conv-10001";
   const senderId = "user-42";
   const senderName = "Leway";
+  let selectedAgentId = "code";
 
   const ws = new WebSocket(
-    `${serverUrl}?chatId=${encodeURIComponent(chatId)}`
+    `${serverUrl}?chatId=${encodeURIComponent(chatId)}&agentId=${encodeURIComponent(selectedAgentId)}`
   );
 
   ws.onmessage = (event) => {
@@ -425,6 +551,19 @@ type OutboundMessage = {
     if (packet.type === "channel.status") {
       console.log("channel status:", packet.data);
     }
+
+    if (packet.type === "agent.list") {
+      console.log("agents:", packet.data.agents);
+    }
+  };
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({
+      type: "agent.list.get",
+      data: {
+        requestId: `agent-list-${Date.now()}`
+      }
+    }));
   };
 
   function sendText(content) {
@@ -436,9 +575,21 @@ type OutboundMessage = {
         chatType: "direct",
         senderId,
         senderName,
+        agentId: selectedAgentId,
         messageType: "text",
         content,
         timestamp: Date.now()
+      }
+    }));
+  }
+
+  function selectAgent(agentId) {
+    selectedAgentId = agentId || "";
+    ws.send(JSON.stringify({
+      type: "agent.select",
+      data: {
+        requestId: `agent-select-${Date.now()}`,
+        agentId: selectedAgentId || null
       }
     }));
   }
@@ -459,7 +610,7 @@ type OutboundMessage = {
 
 - `../examples/h5-client.html`
 
-## 9. 微信上怎么接
+## 10. 微信上怎么接
 
 微信小程序也一样，本质上就是:
 
@@ -473,9 +624,10 @@ type OutboundMessage = {
 const chatId = "wx-conv-10001";
 const senderId = "wx-user-42";
 const senderName = "微信用户";
+let selectedAgentId = "editor";
 
 const socket = wx.connectSocket({
-  url: `wss://example.com/ws?chatId=${encodeURIComponent(chatId)}`
+  url: `wss://example.com/ws?chatId=${encodeURIComponent(chatId)}&agentId=${encodeURIComponent(selectedAgentId)}`
 });
 
 socket.onMessage((res) => {
@@ -495,6 +647,7 @@ function sendText(content) {
         chatType: "direct",
         senderId,
         senderName,
+        agentId: selectedAgentId,
         messageType: "text",
         content,
         timestamp: Date.now()
@@ -521,7 +674,7 @@ function fileToDataUrl(path, mimeType) {
 }
 ```
 
-## 10. 聊天 App / 第三方 IM 如何映射
+## 11. 聊天 App / 第三方 IM 如何映射
 
 如果你不是直接写页面，而是把现有聊天系统桥接过来，按下面映射就够了:
 
@@ -540,7 +693,7 @@ function fileToDataUrl(path, mimeType) {
 1. `chatId` 必须稳定，不能每次页面刷新都变
 2. `senderId` 必须是业务真实用户，而不是临时随机值
 
-## 11. 音频 / 语音自动转写怎么生效
+## 12. 音频 / 语音自动转写怎么生效
 
 开启 `transcription.enabled = true` 后:
 
@@ -551,7 +704,7 @@ function fileToDataUrl(path, mimeType) {
 
 也就是说，前端只需要正常发 `voice` / `audio`，转文本逻辑已经放在插件里。
 
-## 12. 接入时最容易踩的坑
+## 13. 接入时最容易踩的坑
 
 ### 把频道名写成 `generic`
 
@@ -587,7 +740,7 @@ channels:
 
 浏览器里的 `blob:` URL 只在当前页面上下文有效。前端要么转成 Data URL，要么先上传到你自己的存储，再把可访问的 HTTPS URL 发给插件。
 
-## 13. 参考实现
+## 14. 参考实现
 
 真实接入参考:
 

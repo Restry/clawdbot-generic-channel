@@ -71,6 +71,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 #### Core Features
 - **Primary Access Path**: WebSocket is the current recommended and E2E-verified access mode
 - **Multi-Client Management**: Support for multiple simultaneous WebSocket connections
+- **Multi-Agent Selection**: Clients can list configured agents and explicitly select one per WebSocket session
 - **Direct Message & Group Chat**: Handle both DM and group conversations
 - **Proactive DM Support**: OpenClaw can send messages without receiving a message first ([docs](docs/PROACTIVE_DM.md))
 - **Rich Media Support**: Send and receive images, voice messages, and audio files
@@ -120,6 +121,7 @@ openclaw config set channels.generic-channel.wsPort 8080
   chatType: "direct" | "group";
   senderId: string;       // Sender user ID
   senderName?: string;    // Optional sender display name
+  agentId?: string;       // Optional explicit target agent for this message/session
   messageType: "text" | "image" | "voice" | "audio" | "file";
   content: string;        // Message content or caption
   mediaUrl?: string;      // Media URL (for image/voice/audio)
@@ -183,6 +185,10 @@ Behavior:
 |------------|-------------|
 | `message.receive` | Inbound message from client |
 | `message.send` | Outbound message to client |
+| `agent.list.get` | Client asks for the configured agent list |
+| `agent.list` | Agent list response |
+| `agent.select` | Client selects or clears the current session's agent |
+| `agent.selected` | Server confirms the effective agent selection |
 | `channel.status.get` | Client asks for lightweight generic-channel status |
 | `channel.status` | Lightweight generic-channel status response |
 | `connection.open` | Connection established |
@@ -196,10 +202,15 @@ Behavior:
 
 ```javascript
 // Connect to WebSocket server
-const ws = new WebSocket('ws://localhost:8080/ws?chatId=user-123');
+let selectedAgentId = 'code';
+const ws = new WebSocket(`ws://localhost:8080/ws?chatId=user-123&agentId=${encodeURIComponent(selectedAgentId)}`);
 
 ws.onopen = () => {
   console.log('Connected to Generic Channel');
+  ws.send(JSON.stringify({
+    type: 'agent.list.get',
+    data: { requestId: 'agent-list-1' }
+  }));
 };
 
 // Send a message
@@ -211,6 +222,7 @@ const message = {
     chatType: 'direct',
     senderId: 'user-123',
     senderName: 'Alice',
+    agentId: selectedAgentId,
     messageType: 'text',
     content: 'Hello, AI!',
     timestamp: Date.now()
@@ -227,6 +239,10 @@ ws.onmessage = (event) => {
 
   if (message.type === 'channel.status') {
     console.log('Channel Status:', message.data);
+  }
+
+  if (message.type === 'agent.list') {
+    console.log('Agents:', message.data.agents);
   }
 };
 ```
@@ -357,6 +373,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 #### 核心功能
 - **主接入路径**：当前推荐且已完成 E2E 验证的是 WebSocket
 - **多客户端管理**：支持多个 WebSocket 连接同时在线
+- **多 Agent 选择**：客户端可以列出服务端已配置 agent，并按连接或按消息显式选择
 - **私聊与群聊**：处理私聊和群组对话
 - **主动 DM 支持**：OpenClaw 可以主动发送消息，无需先接收消息（[文档](docs/PROACTIVE_DM.md)）
 - **富媒体支持**：发送和接收图片、语音消息、音频文件
@@ -400,6 +417,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 - 当前真实配置键是 `channels.generic-channel`
 - 当前 H5 参考实现只有 `examples/h5-client.html`
 - 客户端统一通过 `ws://host:port/ws?chatId=会话ID` 建连
+- 如果服务端配置了多个 agent，客户端可通过 `agent.list.get` / `agent.select` 列出并切换 agent，也可在建连时额外带 `agentId`
 - 客户端发消息时统一发送 `type: "message.receive"`
 - 图片、音频、语音都通过 `mediaUrl + mimeType + messageType` 传入
 - 多用户并发场景建议把 `session.dmScope` 设为 `per-account-channel-peer`

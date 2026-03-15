@@ -18,6 +18,7 @@ import {
   formatGenericTranscriptionBlock,
   maybeTranscribeGenericAudio,
 } from "./transcription.js";
+import { resolveExplicitGenericAgentRoute } from "./agents.js";
 
 const GENERIC_CHANNEL_ID = "generic-channel";
 
@@ -192,14 +193,23 @@ export async function handleGenericMessage(params: {
     const isSlashCommand = ctx.content.trim().startsWith("/");
     const commandBody = isSlashCommand ? ctx.content.trim() : ctx.content;
 
-    const route = core.channel.routing.resolveAgentRoute({
+    const explicitRoute = resolveExplicitGenericAgentRoute({
       cfg,
-      channel: "generic-channel",
-      peer: {
-        kind: isGroup ? "group" : "dm",
-        id: isGroup ? ctx.chatId : ctx.senderId,
-      },
+      requestedAgentId: message.agentId,
+      chatType: ctx.chatType,
+      chatId: ctx.chatId,
+      senderId: ctx.senderId,
     });
+    const route =
+      explicitRoute ??
+      core.channel.routing.resolveAgentRoute({
+        cfg,
+        channel: "generic-channel",
+        peer: {
+          kind: isGroup ? "group" : "dm",
+          id: isGroup ? ctx.chatId : ctx.senderId,
+        },
+      });
 
     const preview = ctx.content.replace(/\s+/g, " ").slice(0, 160);
     const inboundLabel = isGroup
