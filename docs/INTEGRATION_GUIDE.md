@@ -74,6 +74,33 @@ RELAY_CHANNELS_JSON='{"demo":{"secret":"replace-me"}}'
 http://relay-host:19080/admin
 ```
 
+如果你的前端页面本身跑在 `https://`，客户端入口就必须是 `wss://`，不能再让浏览器去连
+`ws://...`。推荐做法是：
+
+1. `relay-gateway` 只监听本机回环，例如 `RELAY_HOST=127.0.0.1`、`RELAY_PORT=18080`
+2. 用 Caddy / Nginx 在公网域名上提供 `https://relay-host` 和 `wss://relay-host`
+3. OpenClaw 插件仍然连本机 `ws://127.0.0.1:18080/backend`
+4. 第三方客户端只连 `wss://relay-host/client?...`
+
+最小 Caddyfile 示例：
+
+```caddyfile
+{
+  email ops@example.com
+}
+
+relay.example.com {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:18080
+}
+```
+
+切到 TLS 反代后：
+
+- 管理页：`https://relay-host/admin`
+- client 入口：`wss://relay-host/client?channelId=demo`
+- backend 入口：仍然只给插件本机使用 `ws://127.0.0.1:18080/backend`
+
 管理页当前支持：
 
 - 展示当前已配置服务器列表

@@ -443,10 +443,11 @@
           }
         }
 
-        async function loadState(announce = true) {
+        async function loadState(announce = true, tokenOverride = undefined) {
+          const activeToken = tokenOverride ?? adminToken;
           setIsLoading(true);
           try {
-            const data = await requestJson("/api/state", adminToken);
+            const data = await requestJson("/api/state", activeToken);
             setGatewayState(data);
             const nextChannels = Array.isArray(data.channels) ? data.channels : [];
             setSelectedChannelId((current) => {
@@ -488,7 +489,7 @@
           setAdminToken(nextToken);
           addActivity("Admin token saved locally.", "ok");
           showToast("Admin token saved locally.", "ok");
-          await loadState(false);
+          await loadState(false, nextToken);
         }
 
         function prepareNewChannel() {
