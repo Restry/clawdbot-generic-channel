@@ -600,17 +600,21 @@
         }
 
         .form-group input,
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 12px;
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             font-size: 14px;
             transition: all 0.2s;
+            font-family: inherit;
+            resize: vertical;
         }
 
         .form-group input:focus,
-        .form-group select:focus {
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -625,6 +629,40 @@
 
         .server-history {
             margin-top: 10px;
+        }
+
+        .import-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .file-like-btn {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scan-modal-video {
+            width: 100%;
+            border-radius: 12px;
+            background: #0f172a;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+        }
+
+        .scan-modal-status {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #4b5563;
+            line-height: 1.6;
+        }
+
+        .scan-modal-note {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.6;
         }
 
         .server-history-item {
@@ -961,6 +999,7 @@
         <!-- Hidden file inputs -->
         <input type="file" class="visually-hidden-file-input" id="imageInput" accept="image/*" onchange="handleImageSelect(event)" disabled>
         <input type="file" class="visually-hidden-file-input" id="audioInput" accept="audio/*" onchange="handleAudioSelect(event)" disabled>
+        <input type="file" class="visually-hidden-file-input" id="qrImportInput" accept="image/*" onchange="importConnectionFromQrImage(event)">
     </div>
 
     <!-- Settings Modal -->
@@ -992,6 +1031,18 @@
                     <small>显示给 AI 的名称</small>
                 </div>
 
+                <div class="form-group">
+                    <label>快速导入连接</label>
+                    <textarea id="connectionImport" rows="4" placeholder="粘贴 ws://... 或 openclaw://connect?..."></textarea>
+                    <small>支持两种格式：完整 WebSocket URL，例如 <code>ws://host:18080/ws?chatId=xxx&amp;token=xxx&amp;senderId=xxx</code>；以及 <code>openclaw://connect?serverUrl=ws://...&amp;token=xxx&amp;chatId=xxx&amp;name=xxx</code>。</small>
+                    <div class="import-actions">
+                        <button class="btn btn-secondary" type="button" onclick="applyImportedConnectionFromTextarea(false)">解析填充</button>
+                        <button class="btn" type="button" onclick="applyImportedConnectionFromTextarea(true)">导入并连接</button>
+                        <button class="btn btn-secondary" type="button" onclick="showScanModal()">扫码导入</button>
+                        <button class="btn btn-secondary file-like-btn" type="button" onclick="document.getElementById('qrImportInput').click()">二维码图片导入</button>
+                    </div>
+                </div>
+
                 <div class="server-history" id="serverHistory">
                     <label style="font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; display: block;">历史连接</label>
                 </div>
@@ -1015,7 +1066,8 @@
                     <h3>快速开始</h3>
                     <ol>
                         <li>点击右上角 <strong>⚙️ 设置</strong> 按钮</li>
-                        <li>输入 WebSocket 服务器地址（例如：<code>ws://localhost:8080/ws</code>）</li>
+                        <li>最省事的方式是直接粘贴完整连接 URL，或扫码导入</li>
+                        <li>如果手动填写，再输入 WebSocket 服务器地址（例如：<code>ws://localhost:8080/ws</code>）</li>
                         <li>填写用户名；如果服务端启用了认证，再填写连接 Token；初始会话 ID 可选</li>
                         <li>点击 <strong>连接</strong> 按钮</li>
                         <li>连接成功后，在顶部会话栏里打开一个现有会话，或直接新建一个会话再开始聊天</li>
@@ -1024,6 +1076,8 @@
 
                 <div class="guide-section">
                     <h3>功能说明</h3>
+                    <p><span class="badge">快速导入</span> 支持粘贴完整 WebSocket URL 或 <code>openclaw://connect?... </code> 连接包</p>
+                    <p><span class="badge">扫码登录</span> 支持摄像头扫码和二维码图片导入</p>
                     <p><span class="badge">多会话</span> 同一用户连接后，可以在顶部会话栏中切换不同 chatId</p>
                     <p><span class="badge">文本消息</span> 在输入框输入文字，按回车或点击发送按钮</p>
                     <p><span class="badge">图片消息</span> 点击 🖼️ 按钮选择图片，支持预览后发送</p>
@@ -1076,12 +1130,32 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
         </div>
     </div>
 
+    <div class="modal-overlay hidden" id="scanModal" onclick="closeScanIfBackground(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>扫码导入连接</h2>
+                <button class="modal-close" onclick="closeScanModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <video id="scanVideo" class="scan-modal-video" autoplay playsinline muted></video>
+                <canvas id="scanCanvas" class="hidden"></canvas>
+                <div class="scan-modal-status" id="scanStatus">正在准备摄像头...</div>
+                <div class="scan-modal-note">如果浏览器不支持摄像头扫码，可以返回设置页，使用“二维码图片导入”或直接粘贴连接 URL。</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="document.getElementById('qrImportInput').click()">从图片导入</button>
+                <button class="btn btn-secondary" type="button" onclick="closeScanModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Image modal for viewing full-size images -->
     <div class="image-modal hidden" id="imageModal" onclick="closeImageModal()">
         <button class="image-modal-close" onclick="closeImageModal()">✕</button>
         <img id="modalImage" src="" alt="Full size image" onclick="event.stopPropagation()">
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <script>
         // Configuration and state management
         const CONFIG_KEY = 'genericChannelConfig';
@@ -1109,6 +1183,10 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
         let availableAgents = [];
         let defaultAgentId = '';
         let conversations = [];
+        let qrScanStream = null;
+        let qrScanFrameId = null;
+        let qrScanBusy = false;
+        let qrDetector = null;
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', () => {
@@ -1294,6 +1372,201 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             }
 
             return parsed.toString();
+        }
+
+        function normalizeImportedWebSocketUrl(rawUrl) {
+            const parsed = new URL(rawUrl);
+            const imported = {
+                serverUrl: '',
+                token: parsed.searchParams.get('token')?.trim() || '',
+                chatId: parsed.searchParams.get('chatId')?.trim() || '',
+                userName:
+                    parsed.searchParams.get('senderId')?.trim() ||
+                    parsed.searchParams.get('name')?.trim() ||
+                    parsed.searchParams.get('userName')?.trim() ||
+                    '',
+                selectedAgentId: parsed.searchParams.get('agentId')?.trim() || '',
+                chatType: parsed.searchParams.get('chatType') === 'group' ? 'group' : 'direct'
+            };
+
+            [
+                'token',
+                'chatId',
+                'senderId',
+                'name',
+                'userName',
+                'agentId',
+                'chatType'
+            ].forEach((key) => parsed.searchParams.delete(key));
+
+            imported.serverUrl = parsed.toString();
+            return imported;
+        }
+
+        function parseImportedConnection(rawValue) {
+            const raw = (rawValue || '').trim();
+            if (!raw) {
+                throw new Error('请先粘贴连接 URL');
+            }
+
+            if (/^openclaw:\/\/connect/i.test(raw)) {
+                const parsed = new URL(raw);
+                const nestedServerUrl = parsed.searchParams.get('serverUrl')?.trim() || '';
+                if (!nestedServerUrl) {
+                    throw new Error('openclaw://connect 缺少 serverUrl');
+                }
+
+                const imported = normalizeImportedWebSocketUrl(nestedServerUrl);
+                return {
+                    serverUrl: imported.serverUrl,
+                    token: parsed.searchParams.get('token')?.trim() || imported.token,
+                    chatId: parsed.searchParams.get('chatId')?.trim() || imported.chatId,
+                    userName:
+                        parsed.searchParams.get('name')?.trim() ||
+                        parsed.searchParams.get('senderId')?.trim() ||
+                        parsed.searchParams.get('userName')?.trim() ||
+                        imported.userName,
+                    selectedAgentId: parsed.searchParams.get('agentId')?.trim() || imported.selectedAgentId,
+                    chatType: parsed.searchParams.get('chatType') === 'group' ? 'group' : imported.chatType
+                };
+            }
+
+            if (/^wss?:\/\//i.test(raw)) {
+                return normalizeImportedWebSocketUrl(raw);
+            }
+
+            throw new Error('只支持 ws://、wss:// 和 openclaw://connect 这两类连接地址');
+        }
+
+        function applyImportedConnection(rawValue, options = {}) {
+            const imported = parseImportedConnection(rawValue);
+            const shouldConnect = options.connectNow === true;
+            const nextUserName = imported.userName || document.getElementById('userName').value.trim() || 'Demo User';
+
+            document.getElementById('serverUrl').value = imported.serverUrl;
+            document.getElementById('authToken').value = imported.token || '';
+            document.getElementById('chatId').value = imported.chatId || '';
+            document.getElementById('userName').value = nextUserName;
+            document.getElementById('activeChatIdInput').value = imported.chatId || '';
+            document.getElementById('chatTypeSelect').value = imported.chatType || 'direct';
+
+            serverUrl = imported.serverUrl;
+            authToken = imported.token || '';
+            chatId = imported.chatId || '';
+            userName = nextUserName;
+            chatType = imported.chatType || 'direct';
+            selectedAgentId = imported.selectedAgentId || '';
+
+            renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
+            persistCurrentConfig();
+            document.getElementById('connectionImport').value = rawValue.trim();
+
+            if (shouldConnect) {
+                closeScanModal();
+                closeSettings();
+                connect();
+                return imported;
+            }
+
+            showNotification('已导入连接信息', 'success');
+            return imported;
+        }
+
+        function applyImportedConnectionFromTextarea(connectNow) {
+            try {
+                applyImportedConnection(document.getElementById('connectionImport').value, { connectNow });
+            } catch (error) {
+                showNotification(error.message || '导入连接失败', 'error');
+            }
+        }
+
+        async function ensureQrDetector() {
+            if (qrDetector !== null) {
+                return qrDetector;
+            }
+
+            if (typeof BarcodeDetector === 'undefined') {
+                qrDetector = undefined;
+                return qrDetector;
+            }
+
+            try {
+                qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
+            } catch (error) {
+                console.warn('BarcodeDetector init failed:', error);
+                qrDetector = undefined;
+            }
+
+            return qrDetector;
+        }
+
+        async function decodeQrFromCanvasSource(source, width, height) {
+            const detector = await ensureQrDetector();
+            if (detector) {
+                const results = await detector.detect(source);
+                if (results && results[0] && results[0].rawValue) {
+                    return results[0].rawValue;
+                }
+            }
+
+            const canvas = document.getElementById('scanCanvas');
+            canvas.width = width;
+            canvas.height = height;
+            const context = canvas.getContext('2d', { willReadFrequently: true });
+            context.drawImage(source, 0, 0, width, height);
+
+            if (typeof window.jsQR !== 'function') {
+                return '';
+            }
+
+            const imageData = context.getImageData(0, 0, width, height);
+            const result = window.jsQR(imageData.data, width, height);
+            return result?.data || '';
+        }
+
+        async function importConnectionFromQrImage(event) {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+
+            if (!file) {
+                return;
+            }
+
+            try {
+                let source = null;
+                let width = 0;
+                let height = 0;
+
+                if (typeof createImageBitmap === 'function') {
+                    source = await createImageBitmap(file);
+                    width = source.width;
+                    height = source.height;
+                } else {
+                    const imageUrl = URL.createObjectURL(file);
+                    source = await new Promise((resolve, reject) => {
+                        const image = new Image();
+                        image.onload = () => resolve(image);
+                        image.onerror = () => reject(new Error('图片加载失败'));
+                        image.src = imageUrl;
+                    });
+                    width = source.naturalWidth || source.width;
+                    height = source.naturalHeight || source.height;
+                    URL.revokeObjectURL(imageUrl);
+                }
+
+                const qrText = await decodeQrFromCanvasSource(source, width, height);
+                source.close?.();
+
+                if (!qrText) {
+                    throw new Error('未识别到二维码内容');
+                }
+
+                document.getElementById('connectionImport').value = qrText;
+                applyImportedConnection(qrText, { connectNow: true });
+            } catch (error) {
+                console.error('Failed to import QR image:', error);
+                showNotification(error.message || '二维码图片导入失败', 'error');
+            }
         }
 
         function formatAgentOptionLabel(agent) {
@@ -2302,6 +2575,105 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             }
         }
 
+        async function showScanModal() {
+            document.getElementById('scanModal').classList.remove('hidden');
+            await startQrScanner();
+        }
+
+        function closeScanModal() {
+            stopQrScanner();
+            document.getElementById('scanModal').classList.add('hidden');
+        }
+
+        function closeScanIfBackground(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                closeScanModal();
+            }
+        }
+
+        function updateScanStatus(message) {
+            document.getElementById('scanStatus').textContent = message;
+        }
+
+        async function startQrScanner() {
+            const video = document.getElementById('scanVideo');
+            updateScanStatus('正在请求摄像头权限...');
+
+            try {
+                stopQrScanner();
+                qrScanStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' }
+                    },
+                    audio: false
+                });
+                video.srcObject = qrScanStream;
+                await video.play();
+                updateScanStatus('请把二维码放到取景框中央，识别成功后会自动连接。');
+                qrScanBusy = false;
+                runQrScanLoop();
+            } catch (error) {
+                console.error('Failed to start QR scanner:', error);
+                updateScanStatus('无法打开摄像头。你可以返回设置页，改用“二维码图片导入”或直接粘贴连接 URL。');
+                showNotification('摄像头扫码不可用，请改用图片导入或粘贴连接 URL', 'error');
+            }
+        }
+
+        function stopQrScanner() {
+            if (qrScanFrameId) {
+                cancelAnimationFrame(qrScanFrameId);
+                qrScanFrameId = null;
+            }
+
+            if (qrScanStream) {
+                qrScanStream.getTracks().forEach((track) => track.stop());
+                qrScanStream = null;
+            }
+
+            const video = document.getElementById('scanVideo');
+            if (video) {
+                video.pause();
+                video.srcObject = null;
+            }
+
+            qrScanBusy = false;
+        }
+
+        function runQrScanLoop() {
+            const video = document.getElementById('scanVideo');
+            if (!video || !qrScanStream) {
+                return;
+            }
+
+            qrScanFrameId = requestAnimationFrame(async () => {
+                if (!video.videoWidth || !video.videoHeight) {
+                    runQrScanLoop();
+                    return;
+                }
+
+                if (qrScanBusy) {
+                    runQrScanLoop();
+                    return;
+                }
+
+                qrScanBusy = true;
+                try {
+                    const qrText = await decodeQrFromCanvasSource(video, video.videoWidth, video.videoHeight);
+                    if (qrText) {
+                        document.getElementById('connectionImport').value = qrText;
+                        applyImportedConnection(qrText, { connectNow: true });
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Failed to scan QR frame:', error);
+                } finally {
+                    qrScanBusy = false;
+                }
+
+                runQrScanLoop();
+            });
+        }
+
         // Notifications
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
@@ -2337,6 +2709,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 closeImageModal();
                 closeSettings();
                 closeHelp();
+                closeScanModal();
             }
         });
     </script>

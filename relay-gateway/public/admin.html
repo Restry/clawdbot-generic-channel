@@ -56,6 +56,7 @@
       import React, { useEffect, useState } from "https://esm.sh/react@19.2.0";
       import { createRoot } from "https://esm.sh/react-dom@19.2.0/client";
       import htm from "https://esm.sh/htm@3.1.1";
+      import QRCode from "https://esm.sh/qrcode@1.5.4";
 
       const html = htm.bind(React.createElement);
       const STORAGE_KEY = "relay-admin-token";
@@ -229,6 +230,22 @@
           `chatId = "${preset.chatId}"`,
           `agentId = "${preset.agentId}"`,
         ].join("\n");
+      }
+
+      function buildOpenClawConnectUrl(gatewayState, channel, user) {
+        const preset = buildClientPreset(gatewayState, channel, user);
+        const params = new URLSearchParams();
+        params.set("serverUrl", preset.serverUrl);
+        params.set("token", preset.token);
+        params.set("name", preset.userName);
+        params.set("senderId", user?.senderId || preset.userName);
+        if (preset.chatId && !preset.chatId.startsWith("<")) {
+          params.set("chatId", preset.chatId);
+        }
+        if (preset.agentId) {
+          params.set("agentId", preset.agentId);
+        }
+        return `openclaw://connect?${params.toString()}`;
       }
 
       function buildClientGuide(gatewayState, channel, user) {
@@ -451,6 +468,9 @@
         const [editingUserSenderId, setEditingUserSenderId] = useState("");
         const [channelDraft, setChannelDraft] = useState(createChannelDraft());
         const [userDraft, setUserDraft] = useState(createUserDraft());
+        const [shareUserSenderId, setShareUserSenderId] = useState("");
+        const [shareQrDataUrl, setShareQrDataUrl] = useState("");
+        const [isShareModalOpen, setIsShareModalOpen] = useState(false);
         const [activity, setActivity] = useState([]);
         const [toasts, setToasts] = useState([]);
 
@@ -504,6 +524,14 @@
               }
             : null);
         const preferredUser = pickPreferredUser(selectedChannel, selectedUserSenderId);
+        const shareUser =
+          (Array.isArray(selectedChannel?.users)
+            ? selectedChannel.users.find((item) => item.senderId === shareUserSenderId)
+            : null) || preferredUser;
+        const shareConnectUrl =
+          selectedChannel && shareUser
+            ? buildOpenClawConnectUrl(gatewayState, selectedChannel, shareUser)
+            : "";
         const filteredUsers = (Array.isArray(selectedChannel?.users) ? selectedChannel.users : [])
           .filter((user) => {
             const query = userSearch.trim().toLowerCase();
@@ -601,6 +629,35 @@
           }
           loadMeta();
         }, []);
+
+        useEffect(() => {
+          if (!isShareModalOpen || !shareConnectUrl) {
+            setShareQrDataUrl("");
+            return;
+          }
+
+          let cancelled = false;
+          QRCode.toDataURL(shareConnectUrl, {
+            width: 320,
+            margin: 1,
+            errorCorrectionLevel: "M",
+          })
+            .then((dataUrl) => {
+              if (!cancelled) {
+                setShareQrDataUrl(dataUrl);
+              }
+            })
+            .catch((error) => {
+              if (!cancelled) {
+                setShareQrDataUrl("");
+                pushToast(`Failed to render QR code: ${String(error.message || error)}`, "danger");
+              }
+            });
+
+          return () => {
+            cancelled = true;
+          };
+        }, [isShareModalOpen, shareConnectUrl]);
 
         function pushActivity(message, tone = "slate") {
           setActivity((current) => [
@@ -751,6 +808,18 @@
           setShowUserEditor(true);
           setActiveTab(TAB_USERS);
           setSelectedUserSenderId(user.senderId);
+        }
+
+        function openConnectionShare(user) {
+          setSelectedUserSenderId(user.senderId);
+          setShareUserSenderId(user.senderId);
+          setIsShareModalOpen(true);
+          pushActivity(`Prepared login QR for ${user.senderId}.`, "ok");
+        }
+
+        function closeConnectionShare() {
+          setIsShareModalOpen(false);
+          setShareQrDataUrl("");
         }
 
         async function submitChannel(event) {
@@ -1218,7 +1287,15 @@
                                             不要求对方理解协议，只要按字段填。你可以切换不同用户，把不同 token 的说明直接复制给不同接入方。
                                           </p>
                                         </div>
-                                        <${Button} tone="secondary" onClick=${() => handleCopy("client field guide", buildClientGuideText(gatewayState, selectedChannel, preferredUser))}>Copy Guide</${Button}>
+                                        <div className="flex flex-wrap gap-2">
+                                          <${Button} tone="secondary" onClick=${() => handleCopy("client field guide", buildClientGuideText(gatewayState, selectedChannel, preferredUser))}>Copy Guide</${Button}>
+                                          ${preferredUser
+                                            ? html`<${Button} tone="ghost" onClick=${() => handleCopy("openclaw connect URL", buildOpenClawConnectUrl(gatewayState, selectedChannel, preferredUser))}>Copy Connect URL</${Button}>`
+                                            : null}
+                                          ${preferredUser
+                                            ? html`<${Button} tone="ghost" onClick=${() => openConnectionShare(preferredUser)}>Show QR</${Button}>`
+                                            : null}
+                                        </div>
                                       </div>
 
                                       <label className="grid gap-2">
@@ -1272,6 +1349,28 @@
                                         </div>
                                         <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildClientTemplate(gatewayState, selectedChannel, preferredUser)}</pre>
                                       </div>
+
+                                      ${preferredUser
+                                        ? html`
+                                            <div className="mt-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                                              <div className="mb-2 flex items-start justify-between gap-3">
+                                                <div>
+                                                  <div className="text-sm font-semibold text-slate-900">OpenClaw Connect URL</div>
+                                                  <p className="mt-1 text-xs leading-6 text-slate-500">
+                                                    复制到 H5 客户端的“导入连接 URL”里，或者直接扫二维码，就会自动填入 <code>serverUrl</code>、<code>token</code>、<code>chatId</code> 和用户身份。
+                                                  </p>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                  <${Button} tone="secondary" onClick=${() => handleCopy("openclaw connect URL", buildOpenClawConnectUrl(gatewayState, selectedChannel, preferredUser))}>Copy</${Button}>
+                                                  <${Button} tone="ghost" onClick=${() => openConnectionShare(preferredUser)}>QR</${Button}>
+                                                </div>
+                                              </div>
+                                              <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                                                ${buildOpenClawConnectUrl(gatewayState, selectedChannel, preferredUser)}
+                                              </code>
+                                            </div>
+                                          `
+                                        : null}
                                     </div>
                                   </div>
                                 </div>
@@ -1349,6 +1448,8 @@
                                                       ${active ? "In Guide" : "Use In Guide"}
                                                     </${Button}>
                                                     <${Button} tone="ghost" onClick=${() => handleCopy(`token for ${user.senderId}`, user.token)}>Copy Token</${Button}>
+                                                    <${Button} tone="ghost" onClick=${() => handleCopy(`connect URL for ${user.senderId}`, buildOpenClawConnectUrl(gatewayState, selectedChannel, user))}>Copy Link</${Button}>
+                                                    <${Button} tone="secondary" onClick=${() => openConnectionShare(user)}>QR Login</${Button}>
                                                     <${Button} tone="secondary" onClick=${() => startEditUser(user)}>Edit</${Button}>
                                                     <${Button} tone="danger" onClick=${() => removeUser(user)}>Delete</${Button}>
                                                   </div>
@@ -1623,6 +1724,44 @@
                 </div>
               </div>
             </div>
+
+            ${isShareModalOpen && selectedChannel && shareUser
+              ? html`
+                  <div className="fixed inset-0 z-40 grid place-items-center bg-slate-950/55 p-4" onClick=${closeConnectionShare}>
+                    <div className="w-full max-w-md rounded-[28px] border border-white/70 bg-white p-5 shadow-float" onClick=${(event) => event.stopPropagation()}>
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Login QR</div>
+                          <h3 className="mt-1 text-xl font-semibold text-slate-950">${shareUser.senderId}</h3>
+                          <p className="mt-2 text-sm leading-7 text-slate-500">
+                            扫码后，客户端会自动导入 <code>serverUrl</code>、<code>token</code>、<code>chatId</code> 和推荐 <code>agentId</code>。也可以直接复制下面的导入链接。
+                          </p>
+                        </div>
+                        <${Button} tone="ghost" onClick=${closeConnectionShare}>Close</${Button}>
+                      </div>
+
+                      <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+                        ${shareQrDataUrl
+                          ? html`<img src=${shareQrDataUrl} alt=${`QR for ${shareUser.senderId}`} className="mx-auto h-72 w-72 max-w-full rounded-[18px] bg-white p-3" />`
+                          : html`<div className="grid h-72 place-items-center rounded-[18px] bg-white text-sm text-slate-500">Generating QR...</div>`}
+                      </div>
+
+                      <div className="mt-4 grid gap-3">
+                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                          <div className="mb-2 text-sm font-semibold text-slate-900">OpenClaw Connect URL</div>
+                          <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
+                            ${shareConnectUrl}
+                          </code>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <${Button} tone="secondary" onClick=${() => handleCopy(`openclaw connect URL for ${shareUser.senderId}`, shareConnectUrl)}>Copy Connect URL</${Button}>
+                          <${Button} tone="ghost" onClick=${() => handleCopy(`raw client URL for ${shareUser.senderId}`, buildClientFullUrl(gatewayState, selectedChannel, shareUser))}>Copy Raw WSS URL</${Button}>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                `
+              : null}
 
             <div className="pointer-events-none fixed inset-x-4 bottom-4 z-50 grid gap-2 sm:left-auto sm:right-5 sm:w-[320px]">
               ${toasts.map((toast) => html`

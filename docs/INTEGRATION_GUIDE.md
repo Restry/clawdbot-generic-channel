@@ -162,6 +162,13 @@ ws.onmessage = (event) => {
 };
 ```
 
+如果你接的是仓库里的 [h5-client.html](/Users/leway/Projects/clawdbot-generic-channel/examples/h5-client.html)，现在还支持直接导入完整连接地址：
+
+- `ws://host:18080/ws?chatId=xxx&token=xxx&senderId=xxx`
+- `openclaw://connect?serverUrl=ws://...&token=xxx&chatId=xxx&name=xxx`
+
+客户端会自动拆出 `serverUrl`、`token`、`chatId`、用户名称，并支持一键连接或扫码导入。
+
 ### 0.4 先记住这几个规则
 
 - `chatId` = 这条消息属于哪个会话
