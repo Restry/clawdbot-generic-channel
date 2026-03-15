@@ -38,6 +38,9 @@ function normalizeAgentList(value) {
     const normalized = value
       .map((item) => normalizeNonEmpty(item)?.toLowerCase())
       .filter(Boolean);
+    if (normalized.includes("*")) {
+      return undefined;
+    }
     return normalized.length > 0 ? normalized : undefined;
   }
 
@@ -50,6 +53,9 @@ function normalizeAgentList(value) {
     .split(",")
     .map((item) => normalizeNonEmpty(item)?.toLowerCase())
     .filter(Boolean);
+  if (normalized.includes("*")) {
+    return undefined;
+  }
   return normalized.length > 0 ? normalized : undefined;
 }
 
@@ -191,12 +197,13 @@ function normalizeUserRecord(value, existing) {
   }
 
   const token = normalizeNonEmpty(source.token) ?? existing?.token ?? randomUUID().replace(/-/g, "");
+  const hasAllowAgents = Object.prototype.hasOwnProperty.call(source, "allowAgents");
   return {
     id: normalizeNonEmpty(source.id) ?? existing?.id ?? senderId,
     senderId,
     chatId: normalizeNonEmpty(source.chatId) ?? existing?.chatId,
     token,
-    allowAgents: normalizeAgentList(source.allowAgents) ?? existing?.allowAgents,
+    allowAgents: hasAllowAgents ? normalizeAgentList(source.allowAgents) : existing?.allowAgents,
     enabled: source.enabled === false ? false : existing?.enabled === false ? false : true,
   };
 }

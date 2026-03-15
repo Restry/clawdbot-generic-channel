@@ -252,6 +252,8 @@ channels:
           allowAgents: ["main", "code"]
 ```
 
+`allowAgents` 留空时表示不限制 agent；如果你更想显式表达“允许所有 agent”，也可以写成 `["*"]`。
+
 如果你要把插件端口直接暴露到公网或半公网，建议至少加上一用户一 token 认证：
 
 ```yaml

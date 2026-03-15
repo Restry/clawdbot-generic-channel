@@ -41,6 +41,10 @@ function normalizeAgentList(agents?: string[]): string[] | undefined {
     .map((agent) => normalizeNonEmpty(agent)?.toLowerCase())
     .filter((agent): agent is string => Boolean(agent));
 
+  if (normalized.includes("*")) {
+    return undefined;
+  }
+
   return normalized.length > 0 ? normalized : undefined;
 }
 

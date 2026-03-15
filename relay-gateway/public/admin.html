@@ -201,16 +201,20 @@
         );
       }
 
+      function resolveGuideAgentId(user) {
+        const allowedAgents = Array.isArray(user?.allowAgents)
+          ? user.allowAgents.filter((value) => value && value !== "*")
+          : [];
+        return allowedAgents[0] || "main";
+      }
+
       function buildClientPreset(gatewayState, channel, user) {
         return {
           serverUrl: buildClientBaseUrl(gatewayState, channel),
           token: user?.token || "<create-user-token-first>",
           userName: user?.senderId || "your-user-name",
           chatId: user?.chatId || "<optional, can stay empty>",
-          agentId:
-            Array.isArray(user?.allowAgents) && user.allowAgents.length > 0
-              ? user.allowAgents[0]
-              : "main",
+          agentId: resolveGuideAgentId(user),
         };
       }
 
@@ -253,7 +257,9 @@
           {
             key: "agentId",
             value: preset.agentId,
-            note: "可选。如果这个用户限制了 agent，第一次接入建议先填一个允许的 agentId。",
+            note: Array.isArray(user?.allowAgents) && user.allowAgents.length > 0
+              ? "可选。如果这个用户限制了 agent，第一次接入建议先填一个允许的 agentId。"
+              : "可选。这个用户未限制 agent，留空即可自动路由，也可以手动填一个 agentId。",
           },
         ];
       }
@@ -1427,8 +1433,9 @@
                                                 autoComplete="off"
                                                 value=${userDraft.allowAgents}
                                                 onInput=${(event) => setUserDraft((current) => ({ ...current, allowAgents: event.target.value }))}
-                                                placeholder="main,code,writer"
+                                                placeholder="main,code,writer or *"
                                               />
+                                              <span className="text-xs leading-6 text-slate-500">留空或填写 <code>*</code> 都表示允许这个 token 使用所有 agents。</span>
                                             </label>
                                             <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                                               <input

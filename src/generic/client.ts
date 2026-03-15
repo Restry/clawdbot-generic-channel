@@ -130,17 +130,29 @@ function toRelayCloseCode(code: number): number {
   return code >= 1000 && code <= 4999 ? code : 1008;
 }
 
+function normalizeRelayTrustedAgentList(agents?: string[]): string[] | undefined {
+  if (!Array.isArray(agents)) {
+    return undefined;
+  }
+
+  const normalized = agents
+    .map((agentId) => String(agentId ?? "").trim().toLowerCase())
+    .filter((agentId) => Boolean(agentId));
+
+  if (normalized.includes("*")) {
+    return undefined;
+  }
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 function buildRelayTrustedAuthUser(authUser: RelayTrustedAuthUser): GenericAuthUser {
   return {
     id: String(authUser.id),
     senderId: String(authUser.senderId),
     chatId: authUser.chatId?.trim() || undefined,
     token: String(authUser.token),
-    allowAgents: Array.isArray(authUser.allowAgents)
-      ? authUser.allowAgents
-          .map((agentId) => String(agentId ?? "").trim().toLowerCase())
-          .filter((agentId) => Boolean(agentId))
-      : undefined,
+    allowAgents: normalizeRelayTrustedAgentList(authUser.allowAgents),
   };
 }
 
