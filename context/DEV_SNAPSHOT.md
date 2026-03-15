@@ -22,6 +22,7 @@
 - token 绑定用户身份，兼容旧的固定 `chatId` 模式
 - `conversation.list.get` / `conversation.list`
 - `history.get` 按指定 `chatId` 拉取历史
+- 显式选中 `agentId` 时，`history.sync` / `history.get` 按 `chatId + agentId` 过滤
 - 轻量频道状态查询：`channel.status.get` / `channel.status`
 - 多 agent 显式选择：
   - `agent.list.get` / `agent.list`
@@ -84,6 +85,10 @@
 
 ## 本地校验
 
+- 当前最新提交：
+  - `7f0999b Support multi-conversation sessions`
+- 当前仓库状态：
+  - 除本次 `DEV_SNAPSHOT` 同步外，无其他未提交改动
 - `npm run typecheck` 已通过
 - `npm run pack:dist` 已通过
 - 最新包：
@@ -107,6 +112,7 @@
 - `conversation.list.get` / `conversation.list`
 - `history.get`
 - 单一 WebSocket 连接切换多个 `chatId`
+- 固定 `chatId` 下按 `agentId` 隔离 `history.sync` / `history.get`
 
 ## 远端测试环境
 

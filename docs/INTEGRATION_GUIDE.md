@@ -335,6 +335,13 @@ const ws = new WebSocket(
 
 如果当前会话有历史消息，服务端还会紧接着回 `history.sync`。
 
+如果当前连接已经显式选中了 `agentId`:
+
+- 建连后的首个 `history.sync` 会按 `chatId + agentId` 过滤
+- 后续 `history.get` 也会沿用当前连接选中的 `agentId` 做过滤
+
+这点对“一个 token 固定绑定同一个 `chatId`，但允许在 `main / code / writer` 之间切换”的客户端尤其重要，否则不同 agent 的历史会混在一起。
+
 ## 6. 前端 -> 插件: 发消息协议
 
 所有客户端发给插件的消息，外层都要包一层事件信封:
@@ -577,6 +584,8 @@ type OutboundMessage = {
 }
 ```
 
+如果连接当前已经选中了 `agentId`，这里返回的 `messages[]` 会按 `chatId + agentId` 过滤，而不是把同一个 `chatId` 下其他 agent 的消息也一起带回来。
+
 `direction` 规则:
 
 - `sent`: 用户发给插件的消息
@@ -598,6 +607,8 @@ type OutboundMessage = {
 ```
 
 服务端仍然返回 `history.sync`，只是这次是“按你指定的 `chatId` 回放”。
+
+如果当前连接已经选中了某个 `agentId`，那么这次回放也会继续按 `chatId + agentId` 过滤。
 
 ### `thinking.start` / `thinking.update` / `thinking.end`
 

@@ -489,6 +489,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 - `chatId` 现在代表“会话 / 线程 / 群聊房间”，可以在连接建立后按消息或按会话切换，不再要求一个 token 固定只聊一个 chat
 - 如果服务端配置了多个 agent，客户端可通过 `agent.list.get` / `agent.select` 列出并切换 agent，也可在建连时额外带 `agentId`
 - 客户端可以通过 `conversation.list.get` 拉当前用户在当前 agent 视角下的会话列表，再通过 `history.get` 拉指定会话的历史消息
+- 如果当前连接显式选择了 `agentId`，建连后的 `history.sync` 和后续 `history.get` 都会按 `chatId + agentId` 过滤，避免固定 `chatId` 场景下不同 agent 的历史串在一起
 - 远端真实验证已确认：同一个 token 用户可以在单一 WebSocket 连接里切换多个 `chatId`，并且旧的固定 `chatId` token 仍会被限制在原会话
 - 客户端发消息时统一发送 `type: "message.receive"`
 - `parentId` / `replyTo` 的引用回复协议已支持，但当前 H5 示例页没有现成引用回复 UI

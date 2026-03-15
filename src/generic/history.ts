@@ -21,6 +21,11 @@ export type HistoryMessageRecord = {
   agentId?: string;
 };
 
+function normalizeHistoryAgentId(value?: string | null): string | undefined {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized || undefined;
+}
+
 const MAX_STORED_HISTORY_PER_CHAT = 200;
 const chatHistoryStore = new Map<string, HistoryMessageRecord[]>();
 const HISTORY_STORE_VERSION = 1;
@@ -229,10 +234,16 @@ export function removeHistoryMessage(params: { chatId: string; messageId: string
 export function getRecentHistoryMessages(params: {
   chatId: string;
   limit?: number;
+  agentId?: string;
 }): HistoryMessageRecord[] {
   const { chatId, limit = 20 } = params;
   const history = chatHistoryStore.get(chatId) ?? [];
-  return history.slice(-limit);
+  const normalizedAgentId = normalizeHistoryAgentId(params.agentId);
+  const scopedHistory = normalizedAgentId
+    ? history.filter((entry) => normalizeHistoryAgentId(entry.agentId) === normalizedAgentId)
+    : history;
+
+  return scopedHistory.slice(-limit);
 }
 
 function buildConversationSummary(chatId: string, history: HistoryMessageRecord[]): ConversationSummary | null {
@@ -291,14 +302,15 @@ export function getConversationSummaries(params?: {
       continue;
     }
 
-    if (
-      normalizedAgentId &&
-      !history.some((entry) => String(entry.agentId ?? "").trim().toLowerCase() === normalizedAgentId)
-    ) {
+    const scopedHistory = normalizedAgentId
+      ? history.filter((entry) => normalizeHistoryAgentId(entry.agentId) === normalizedAgentId)
+      : history;
+
+    if (scopedHistory.length === 0) {
       continue;
     }
 
-    const summary = buildConversationSummary(chatId, history);
+    const summary = buildConversationSummary(chatId, scopedHistory);
     if (!summary) {
       continue;
     }

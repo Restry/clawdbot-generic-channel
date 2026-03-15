@@ -147,6 +147,7 @@
 | 会话列表 | `conversation.list.get` 拉取当前用户会话列表 | 已通过 |
 | 会话列表 | 按 `agentId` 过滤会话列表 | 已通过 |
 | 历史 | `history.get` 拉取指定 `chatId` 历史 | 已通过 |
+| 历史 | 固定 `chatId` + 显式 `agentId` 时，`history.sync` / `history.get` 只返回该 agent 的历史 | 未执行 |
 | 连接模型 | 单一 WebSocket 连接订阅多个 `chatId` | 已通过 |
 | H5 页面 | 会话栏切换不同 `chatId` | 未执行 |
 | H5 页面 | 新建会话后正常收发 | 未执行 |

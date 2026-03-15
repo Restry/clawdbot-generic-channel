@@ -103,6 +103,7 @@ async function monitorWebSocket(params: {
     chatId: string;
     requestId?: string;
     limit?: number;
+    agentId?: string;
   }) => {
     const historyLimit = Math.max(0, params.limit ?? genericCfg.historyLimit ?? 10);
     wsManager.sendDirect(params.ws, {
@@ -113,6 +114,7 @@ async function monitorWebSocket(params: {
         messages: getRecentHistoryMessages({
           chatId: params.chatId,
           limit: historyLimit,
+          agentId: params.agentId,
         }),
         timestamp: Date.now(),
       },
@@ -140,15 +142,14 @@ async function monitorWebSocket(params: {
   };
 
   wsManager.onClientConnect = ({ chatId, ws }) => {
-    if (chatId) {
-      sendHistorySync({
-        ws,
-        chatId,
-      });
-    }
-
     const requestedAgentId = wsManager.getSelectedAgentId(ws);
     if (!requestedAgentId) {
+      if (chatId) {
+        sendHistorySync({
+          ws,
+          chatId,
+        });
+      }
       return;
     }
 
@@ -162,6 +163,12 @@ async function monitorWebSocket(params: {
         ok: false,
         error: `agentId not allowed: ${requestedAgentId}`,
       });
+      if (chatId) {
+        sendHistorySync({
+          ws,
+          chatId,
+        });
+      }
       return;
     }
 
@@ -173,6 +180,13 @@ async function monitorWebSocket(params: {
         ok: true,
         selectedAgentId: resolvedAgentId,
       });
+      if (chatId) {
+        sendHistorySync({
+          ws,
+          chatId,
+          agentId: resolvedAgentId,
+        });
+      }
       return;
     }
 
@@ -182,6 +196,12 @@ async function monitorWebSocket(params: {
       ok: false,
       error: `Unknown agentId: ${requestedAgentId}`,
     });
+    if (chatId) {
+      sendHistorySync({
+        ws,
+        chatId,
+      });
+    }
   };
 
   wsManager.onAgentListRequest = ({ ws, data }) => {
@@ -194,6 +214,7 @@ async function monitorWebSocket(params: {
       chatId: data.chatId,
       requestId: data.requestId,
       limit: data.limit,
+      agentId: wsManager.getSelectedAgentId(ws),
     });
   };
 
