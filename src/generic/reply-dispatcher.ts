@@ -15,12 +15,13 @@ export type CreateGenericReplyDispatcherParams = {
   agentId: string;
   runtime: RuntimeEnv;
   chatId: string;
+  chatType: "direct" | "group";
   replyToMessageId?: string;
 };
 
 export function createGenericReplyDispatcher(params: CreateGenericReplyDispatcherParams) {
   const core = getGenericRuntime();
-  const { cfg, agentId, chatId, replyToMessageId } = params;
+  const { cfg, agentId, chatId, chatType, replyToMessageId } = params;
 
   const prefixContext = createReplyPrefixContext({
     cfg,
@@ -101,6 +102,8 @@ export function createGenericReplyDispatcher(params: CreateGenericReplyDispatche
             text: chunk,
             replyToMessageId,
             contentType: "text",
+            chatType,
+            agentId,
           });
         }
 

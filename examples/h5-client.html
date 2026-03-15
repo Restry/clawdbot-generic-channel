@@ -146,6 +146,97 @@
             transform: scale(1.05);
         }
 
+        .conversation-panel {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .conversation-toolbar-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .conversation-toolbar-row input,
+        .conversation-toolbar-row select {
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            font-size: 13px;
+            background: white;
+            color: #111827;
+            min-width: 0;
+        }
+
+        .conversation-toolbar-row input {
+            flex: 1;
+        }
+
+        .conversation-chip-list {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+        }
+
+        .conversation-chip {
+            min-width: 180px;
+            max-width: 240px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid #dbe4f0;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .conversation-chip:hover {
+            border-color: #667eea;
+            box-shadow: 0 6px 14px rgba(102, 126, 234, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .conversation-chip.active {
+            border-color: #667eea;
+            background: #eef2ff;
+            box-shadow: 0 8px 18px rgba(102, 126, 234, 0.18);
+        }
+
+        .conversation-chip-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .conversation-chip-meta {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .conversation-chip-preview {
+            font-size: 12px;
+            color: #374151;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .conversation-empty {
+            font-size: 12px;
+            color: #6b7280;
+            padding: 8px 2px;
+        }
+
         /* Messages */
         .messages-container {
             flex: 1;
@@ -788,6 +879,11 @@
                 border-radius: 0;
             }
 
+            .conversation-toolbar-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
             .modal {
                 width: 100%;
                 max-width: 100%;
@@ -819,6 +915,20 @@
                 <button class="icon-btn-header" id="settingsBtn" onclick="showSettings()" title="设置">⚙️</button>
                 <button class="icon-btn-header hidden" id="disconnectBtn" onclick="disconnect()" title="断开连接">🔌</button>
             </div>
+        </div>
+
+        <div class="conversation-panel">
+            <div class="conversation-toolbar-row">
+                <select id="chatTypeSelect">
+                    <option value="direct">私聊会话</option>
+                    <option value="group">群聊会话</option>
+                </select>
+                <input type="text" id="activeChatIdInput" placeholder="输入会话 ID 或群 ID">
+                <button class="btn btn-secondary" id="openConversationBtn" onclick="openConversationFromPanel()" type="button">打开会话</button>
+                <button class="btn btn-secondary" id="newConversationBtn" onclick="createConversationFromPanel()" type="button">新建会话</button>
+                <button class="btn btn-secondary" id="refreshConversationBtn" onclick="refreshConversationList()" type="button">刷新列表</button>
+            </div>
+            <div class="conversation-chip-list" id="conversationList"></div>
         </div>
 
         <div class="messages-container" id="messages"></div>
@@ -867,9 +977,9 @@
                     <small>例如: ws://localhost:8080/ws 或 wss://your-server.com/ws</small>
                 </div>
                 <div class="form-group">
-                    <label>聊天 ID</label>
+                    <label>初始会话 ID</label>
                     <input type="text" id="chatId" placeholder="user-123">
-                    <small>唯一标识您的聊天会话</small>
+                    <small>可选。连接后也可以在顶部会话栏里切换/新建会话，不再要求建连时固定死一个 chatId。</small>
                 </div>
                 <div class="form-group">
                     <label>连接 Token</label>
@@ -906,14 +1016,15 @@
                     <ol>
                         <li>点击右上角 <strong>⚙️ 设置</strong> 按钮</li>
                         <li>输入 WebSocket 服务器地址（例如：<code>ws://localhost:8080/ws</code>）</li>
-                        <li>填写您的聊天 ID、用户名；如果服务端启用了认证，再填写连接 Token</li>
+                        <li>填写用户名；如果服务端启用了认证，再填写连接 Token；初始会话 ID 可选</li>
                         <li>点击 <strong>连接</strong> 按钮</li>
-                        <li>连接成功后即可开始聊天</li>
+                        <li>连接成功后，在顶部会话栏里打开一个现有会话，或直接新建一个会话再开始聊天</li>
                     </ol>
                 </div>
 
                 <div class="guide-section">
                     <h3>功能说明</h3>
+                    <p><span class="badge">多会话</span> 同一用户连接后，可以在顶部会话栏中切换不同 chatId</p>
                     <p><span class="badge">文本消息</span> 在输入框输入文字，按回车或点击发送按钮</p>
                     <p><span class="badge">图片消息</span> 点击 🖼️ 按钮选择图片，支持预览后发送</p>
                     <p><span class="badge">音频文件</span> 点击 🎵 按钮选择本地音频文件，支持预览后发送</p>
@@ -979,6 +1090,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
 
         let ws = null;
         let chatId = '';
+        let chatType = 'direct';
         let authToken = '';
         let userName = '';
         let serverUrl = '';
@@ -996,6 +1108,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
         let selectedAgentId = '';
         let availableAgents = [];
         let defaultAgentId = '';
+        let conversations = [];
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', () => {
@@ -1036,15 +1149,22 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 document.getElementById('authToken').value = '';
                 document.getElementById('userName').value = config.userName || '';
                 selectedAgentId = typeof config.selectedAgentId === 'string' ? config.selectedAgentId : '';
+                chatType = config.chatType === 'group' ? 'group' : 'direct';
+                chatId = config.chatId || '';
             } else {
                 document.getElementById('serverUrl').value = 'ws://localhost:8080/ws';
-                document.getElementById('chatId').value = 'user-' + Date.now();
+                document.getElementById('chatId').value = '';
                 document.getElementById('authToken').value = '';
                 document.getElementById('userName').value = 'Demo User';
                 selectedAgentId = '';
+                chatType = 'direct';
+                chatId = '';
             }
 
+            document.getElementById('chatTypeSelect').value = chatType;
+            document.getElementById('activeChatIdInput').value = chatId;
             renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
+            renderConversationList();
         }
 
         // Server history management
@@ -1080,6 +1200,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 serverUrl: config.serverUrl,
                 chatId: config.chatId,
                 userName: config.userName,
+                chatType: config.chatType || 'direct',
                 selectedAgentId: config.selectedAgentId || '',
                 timestamp: Date.now()
             });
@@ -1133,22 +1254,32 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 document.getElementById('authToken').value = '';
                 document.getElementById('userName').value = item.userName;
                 selectedAgentId = typeof item.selectedAgentId === 'string' ? item.selectedAgentId : '';
+                chatType = item.chatType === 'group' ? 'group' : 'direct';
+                chatId = item.chatId || '';
+                document.getElementById('chatTypeSelect').value = chatType;
+                document.getElementById('activeChatIdInput').value = chatId;
                 renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
             }
         }
 
         function persistCurrentConfig() {
+            const nextChatId = document.getElementById('chatId').value.trim() || chatId;
             saveConfig({
                 serverUrl: document.getElementById('serverUrl').value.trim() || serverUrl,
-                chatId: document.getElementById('chatId').value.trim() || chatId,
+                chatId: nextChatId,
                 userName: document.getElementById('userName').value.trim() || userName,
+                chatType,
                 selectedAgentId
             });
         }
 
         function buildWebSocketUrl(baseUrl, nextChatId, nextAgentId, nextAuthToken) {
             const parsed = new URL(baseUrl);
-            parsed.searchParams.set('chatId', nextChatId);
+            if (nextChatId) {
+                parsed.searchParams.set('chatId', nextChatId);
+            } else {
+                parsed.searchParams.delete('chatId');
+            }
 
             if (nextAgentId) {
                 parsed.searchParams.set('agentId', nextAgentId);
@@ -1241,6 +1372,141 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             }));
         }
 
+        function requestConversationList() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            ws.send(JSON.stringify({
+                type: 'conversation.list.get',
+                data: {
+                    requestId: `conversation-list-${Date.now()}`,
+                    agentId: selectedAgentId || undefined,
+                    limit: 50
+                }
+            }));
+        }
+
+        function requestConversationHistory(nextChatId) {
+            if (!ws || ws.readyState !== WebSocket.OPEN || !nextChatId) {
+                return;
+            }
+
+            ws.send(JSON.stringify({
+                type: 'history.get',
+                data: {
+                    requestId: `history-${Date.now()}`,
+                    chatId: nextChatId,
+                    limit: 100
+                }
+            }));
+        }
+
+        function renderConversationList() {
+            const container = document.getElementById('conversationList');
+            const safeConversations = Array.isArray(conversations) ? conversations : [];
+
+            if (safeConversations.length === 0) {
+                container.innerHTML = '<div class="conversation-empty">当前 agent 下还没有历史会话。你可以直接输入一个会话 ID 后点击“打开会话”，或点“新建会话”。</div>';
+                return;
+            }
+
+            container.innerHTML = safeConversations.map((item) => {
+                const activeClass = item.chatId === chatId ? 'active' : '';
+                const time = item.lastTimestamp ? new Date(item.lastTimestamp).toLocaleString('zh-CN', {
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }) : '--';
+                const typeLabel = item.chatType === 'group' ? '群聊' : '私聊';
+                const preview = item.lastContent || '[空会话]';
+                const encodedChatId = encodeURIComponent(item.chatId);
+                const encodedChatType = encodeURIComponent(item.chatType || 'direct');
+                return `
+                    <button class="conversation-chip ${activeClass}" type="button" onclick="selectConversationFromList(decodeURIComponent('${encodedChatId}'), decodeURIComponent('${encodedChatType}'))">
+                        <div class="conversation-chip-title">${escapeHtml(item.chatId)}</div>
+                        <div class="conversation-chip-meta">${typeLabel} · ${time}</div>
+                        <div class="conversation-chip-preview">${escapeHtml(preview)}</div>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function updateActiveConversationControls() {
+            document.getElementById('activeChatIdInput').value = chatId || '';
+            document.getElementById('chatTypeSelect').value = chatType || 'direct';
+            document.getElementById('chatId').value = chatId || '';
+        }
+
+        function clearMessagesView() {
+            const messagesContainer = document.getElementById('messages');
+            messagesContainer.innerHTML = '';
+            hideThinkingIndicator();
+        }
+
+        function setActiveConversation(nextChatId, nextChatType = 'direct', options = {}) {
+            chatId = (nextChatId || '').trim();
+            chatType = nextChatType === 'group' ? 'group' : 'direct';
+            updateActiveConversationControls();
+            renderConversationList();
+            persistCurrentConfig();
+
+            if (options.clearMessages) {
+                clearMessagesView();
+            }
+
+            if (options.fetchHistory && chatId) {
+                requestConversationHistory(chatId);
+            }
+        }
+
+        function selectConversationFromList(nextChatId, nextChatType = 'direct') {
+            setActiveConversation(nextChatId, nextChatType, {
+                clearMessages: true,
+                fetchHistory: true
+            });
+        }
+
+        function createConversationId() {
+            const type = document.getElementById('chatTypeSelect').value === 'group' ? 'group' : 'direct';
+            const agentSegment = (selectedAgentId || defaultAgentId || 'auto').replace(/[^a-zA-Z0-9_-]+/g, '-');
+            const prefix = type === 'group' ? 'group' : 'conv';
+            return `${prefix}-${agentSegment}-${Date.now()}`;
+        }
+
+        function openConversationFromPanel() {
+            const nextChatId = document.getElementById('activeChatIdInput').value.trim();
+            const nextChatType = document.getElementById('chatTypeSelect').value;
+
+            if (!nextChatId) {
+                showNotification('请先输入会话 ID', 'error');
+                return;
+            }
+
+            setActiveConversation(nextChatId, nextChatType, {
+                clearMessages: true,
+                fetchHistory: true
+            });
+        }
+
+        function createConversationFromPanel() {
+            const nextChatType = document.getElementById('chatTypeSelect').value;
+            const nextChatId = createConversationId();
+            document.getElementById('activeChatIdInput').value = nextChatId;
+            setActiveConversation(nextChatId, nextChatType, {
+                clearMessages: true,
+                fetchHistory: true
+            });
+        }
+
+        function refreshConversationList() {
+            requestConversationList();
+            if (chatId) {
+                requestConversationHistory(chatId);
+            }
+        }
+
         function handleAgentSelectionChange() {
             const select = document.getElementById('agentSelect');
             selectedAgentId = select.value.trim();
@@ -1266,18 +1532,21 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
         function connect() {
             serverUrl = document.getElementById('serverUrl').value.trim();
             chatId = document.getElementById('chatId').value.trim();
+            chatType = document.getElementById('chatTypeSelect').value === 'group' ? 'group' : 'direct';
             authToken = document.getElementById('authToken').value.trim();
             userName = document.getElementById('userName').value.trim();
 
-            if (!serverUrl || !chatId || !userName) {
-                showNotification('请填写所有字段', 'error');
+            if (!serverUrl || !userName) {
+                showNotification('请至少填写服务器地址和用户名', 'error');
                 return;
             }
 
             // Save config
-            const config = { serverUrl, chatId, userName, selectedAgentId };
+            const config = { serverUrl, chatId, userName, chatType, selectedAgentId };
             saveConfig(config);
             addToHistory(config);
+            updateActiveConversationControls();
+            renderConversationList();
 
             // Connect to WebSocket
             const url = buildWebSocketUrl(serverUrl, chatId, selectedAgentId, authToken);
@@ -1313,6 +1582,10 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 enableInputs();
                 document.getElementById('disconnectBtn').classList.remove('hidden');
                 requestAgentList();
+                requestConversationList();
+                if (chatId) {
+                    requestConversationHistory(chatId);
+                }
                 showNotification('已连接到服务器', 'success');
             };
 
@@ -1475,6 +1748,11 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
 
+            if (!chatId) {
+                showNotification('请先打开或新建一个会话', 'error');
+                return;
+            }
+
             // If we have pending media, send it
             if (pendingMedia) {
                 sendMediaMessage(pendingMedia.type, pendingMedia.dataUrl, pendingMedia.mimeType, text);
@@ -1494,8 +1772,8 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 data: {
                     messageId: `msg-${Date.now()}-${messageCounter}`,
                     chatId: chatId,
-                    chatType: 'direct',
-                    senderId: chatId,
+                    chatType: chatType,
+                    senderId: userName || chatId,
                     senderName: userName,
                     agentId: selectedAgentId || undefined,
                     messageType: 'text',
@@ -1507,10 +1785,15 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             ws.send(JSON.stringify(message));
             addTextMessage(text, 'sent');
             input.value = '';
+            requestConversationList();
         }
 
         function sendMediaMessage(mediaType, dataUrl, mimeType, caption = '') {
             if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            if (!chatId) {
+                showNotification('请先打开或新建一个会话', 'error');
+                return;
+            }
 
             messageCounter++;
             const message = {
@@ -1518,8 +1801,8 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 data: {
                     messageId: `msg-${Date.now()}-${messageCounter}`,
                     chatId: chatId,
-                    chatType: 'direct',
-                    senderId: chatId,
+                    chatType: chatType,
+                    senderId: userName || chatId,
                     senderName: userName,
                     agentId: selectedAgentId || undefined,
                     messageType: mediaType,
@@ -1537,6 +1820,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             } else if (mediaType === 'voice' || mediaType === 'audio') {
                 addAudioMessage(dataUrl, caption, 'sent', mediaType, undefined, mimeType);
             }
+            requestConversationList();
         }
 
         function handleIncomingMessage(event) {
@@ -1548,13 +1832,16 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                     handleHistorySync(event.data);
                     break;
                 case 'connection.open':
-                    console.log('Connection confirmed:', event.data);
+                    handleConnectionOpen(event.data);
                     break;
                 case 'agent.list':
                     handleAgentList(event.data);
                     break;
                 case 'agent.selected':
                     handleAgentSelected(event.data);
+                    break;
+                case 'conversation.list':
+                    handleConversationList(event.data);
                     break;
                 case 'thinking.start':
                     showThinkingIndicator();
@@ -1568,7 +1855,23 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             }
         }
 
+        function handleConnectionOpen(payload) {
+            console.log('Connection confirmed:', payload);
+            if (!chatId && payload?.chatId) {
+                setActiveConversation(payload.chatId, chatType, {
+                    clearMessages: true,
+                    fetchHistory: true
+                });
+            }
+        }
+
         function handleMessageSend(msg) {
+            requestConversationList();
+            if (msg?.chatId && chatId && msg.chatId !== chatId) {
+                showNotification(`会话 ${msg.chatId} 收到新消息`, 'info');
+                return;
+            }
+
             hideThinkingIndicator();
 
             const contentType = msg.contentType || 'text';
@@ -1583,7 +1886,11 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
         }
 
         function handleHistorySync(payload) {
-            if (!payload?.messages || !Array.isArray(payload.messages) || payload.chatId !== chatId) {
+            if (!payload?.messages || !Array.isArray(payload.messages)) {
+                return;
+            }
+
+            if (payload.chatId && payload.chatId !== chatId) {
                 return;
             }
 
@@ -1601,6 +1908,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
             }
 
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            requestConversationList();
         }
 
         function handleAgentList(payload) {
@@ -1612,6 +1920,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 defaultAgentId
             );
             persistCurrentConfig();
+            requestConversationList();
         }
 
         function handleAgentSelected(payload) {
@@ -1623,6 +1932,7 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 selectedAgentId = typeof payload.selectedAgentId === 'string' ? payload.selectedAgentId : '';
                 renderAgentOptions(availableAgents, selectedAgentId, defaultAgentId);
                 persistCurrentConfig();
+                requestConversationList();
 
                 const label = selectedAgentId ? `已切换到 agent: ${selectedAgentId}` : '已切换为自动路由';
                 showNotification(label, 'success');
@@ -1636,6 +1946,19 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 defaultAgentId
             );
             persistCurrentConfig();
+        }
+
+        function handleConversationList(payload) {
+            conversations = Array.isArray(payload?.conversations) ? payload.conversations : [];
+            renderConversationList();
+
+            if (!chatId && conversations.length > 0) {
+                const first = conversations[0];
+                setActiveConversation(first.chatId, first.chatType || 'direct', {
+                    clearMessages: true,
+                    fetchHistory: true
+                });
+            }
         }
 
         function renderHistoryMessage(entry) {

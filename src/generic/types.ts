@@ -92,6 +92,12 @@ export type ChannelStatusResponse = {
   timestamp: number;
 };
 
+export type HistoryRequest = {
+  requestId?: string;
+  chatId: string;
+  limit?: number;
+};
+
 export type AgentListRequest = {
   requestId?: string;
 };
@@ -127,14 +133,45 @@ export type AgentSelectedResponse = {
   timestamp: number;
 };
 
+export type ConversationListRequest = {
+  requestId?: string;
+  agentId?: string;
+  chatType?: "direct" | "group";
+  limit?: number;
+};
+
+export type ConversationSummary = {
+  chatId: string;
+  chatType: "direct" | "group";
+  title?: string;
+  lastMessageId?: string;
+  lastContent?: string;
+  lastContentType?: InboundMessage["messageType"] | OutboundMessage["contentType"];
+  lastDirection?: "sent" | "received";
+  lastTimestamp: number;
+  lastSenderId?: string;
+  lastSenderName?: string;
+  participantIds?: string[];
+  agentIds?: string[];
+};
+
+export type ConversationListResponse = {
+  requestId?: string;
+  conversations: ConversationSummary[];
+  timestamp: number;
+};
+
 // WebSocket event types
 export type WSEventType =
   | "message.receive"
   | "message.send"
+  | "history.get"
   | "agent.list.get"
   | "agent.list"
   | "agent.select"
   | "agent.selected"
+  | "conversation.list.get"
+  | "conversation.list"
   | "channel.status.get"
   | "channel.status"
   | "history.sync"

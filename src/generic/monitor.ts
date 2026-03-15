@@ -23,7 +23,7 @@ import {
 } from "./file-transfer.js";
 import { handleGroupAction } from "./groups.js";
 import { handlePinMessage, handleUnpinMessage } from "./pins-stars.js";
-import { getRecentHistoryMessages } from "./history.js";
+import { getConversationSummaries, getRecentHistoryMessages } from "./history.js";
 import { listGenericAgents, resolveGenericAgentId } from "./agents.js";
 import { isGenericAgentAllowed } from "./auth.js";
 
@@ -77,15 +77,43 @@ async function monitorWebSocket(params: {
   const chatHistories = new Map<string, HistoryEntry[]>();
   const sendAgentList = (ws: Parameters<typeof wsManager.sendDirect>[0], requestId?: string) => {
     const { agents, defaultAgentId } = listGenericAgents(cfg);
+    const allowedAgentIds = wsManager.getAllowedAgentIds(ws);
     const selectedAgentId = wsManager.getSelectedAgentId(ws);
+    const visibleAgents = allowedAgentIds?.length
+      ? agents.filter((agent) => allowedAgentIds.includes(agent.id))
+      : agents;
+    const visibleDefaultAgentId = visibleAgents.some((agent) => agent.id === defaultAgentId)
+      ? defaultAgentId
+      : visibleAgents[0]?.id ?? defaultAgentId;
 
     wsManager.sendDirect(ws, {
       type: "agent.list",
       data: {
         requestId,
-        agents,
-        defaultAgentId,
+        agents: visibleAgents,
+        defaultAgentId: visibleDefaultAgentId,
         selectedAgentId,
+        timestamp: Date.now(),
+      },
+    });
+  };
+
+  const sendHistorySync = (params: {
+    ws: Parameters<typeof wsManager.sendDirect>[0];
+    chatId: string;
+    requestId?: string;
+    limit?: number;
+  }) => {
+    const historyLimit = Math.max(0, params.limit ?? genericCfg.historyLimit ?? 10);
+    wsManager.sendDirect(params.ws, {
+      type: "history.sync",
+      data: {
+        requestId: params.requestId,
+        chatId: params.chatId,
+        messages: getRecentHistoryMessages({
+          chatId: params.chatId,
+          limit: historyLimit,
+        }),
         timestamp: Date.now(),
       },
     });
@@ -112,18 +140,10 @@ async function monitorWebSocket(params: {
   };
 
   wsManager.onClientConnect = ({ chatId, ws }) => {
-    const historyLimit = Math.max(0, genericCfg.historyLimit ?? 10);
-    if (historyLimit > 0) {
-      wsManager.sendDirect(ws, {
-        type: "history.sync",
-        data: {
-          chatId,
-          messages: getRecentHistoryMessages({
-            chatId,
-            limit: historyLimit,
-          }),
-          timestamp: Date.now(),
-        },
+    if (chatId) {
+      sendHistorySync({
+        ws,
+        chatId,
       });
     }
 
@@ -166,6 +186,15 @@ async function monitorWebSocket(params: {
 
   wsManager.onAgentListRequest = ({ ws, data }) => {
     sendAgentList(ws, data.requestId);
+  };
+
+  wsManager.onHistoryRequest = ({ ws, data }) => {
+    sendHistorySync({
+      ws,
+      chatId: data.chatId,
+      requestId: data.requestId,
+      limit: data.limit,
+    });
   };
 
   wsManager.onAgentSelectRequest = ({ ws, data }) => {
@@ -234,11 +263,35 @@ async function monitorWebSocket(params: {
         mode: connectionMode,
         port,
         path: connectionMode === "websocket" ? (genericCfg.wsPath ?? "/ws") : genericCfg.webhookPath,
-        currentChatId: chatId,
-        currentChatConnectionCount: wsManager.getConnectionCount(chatId),
+        currentChatId: chatId ?? "",
+        currentChatConnectionCount: chatId ? wsManager.getConnectionCount(chatId) : 0,
         connectedChatCount: stats.connectedChatCount,
         connectedSocketCount: stats.connectedSocketCount,
         connectedChats: data.includeChats ? stats.connectedChats : undefined,
+        timestamp: Date.now(),
+      },
+    });
+  };
+
+  wsManager.onConversationListRequest = ({ ws, data }) => {
+    const authUser = wsManager.getAuthenticatedUser(ws);
+    const allowedAgentIds = wsManager.getAllowedAgentIds(ws);
+    const requestedAgentId = String(data.agentId ?? "").trim().toLowerCase();
+    const effectiveAgentId =
+      requestedAgentId && (!allowedAgentIds?.length || allowedAgentIds.includes(requestedAgentId))
+        ? requestedAgentId
+        : undefined;
+
+    wsManager.sendDirect(ws, {
+      type: "conversation.list",
+      data: {
+        requestId: data.requestId,
+        conversations: getConversationSummaries({
+          userId: authUser?.senderId,
+          agentId: effectiveAgentId,
+          chatType: data.chatType,
+          limit: data.limit,
+        }),
         timestamp: Date.now(),
       },
     });

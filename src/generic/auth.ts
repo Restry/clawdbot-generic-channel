@@ -3,7 +3,7 @@ import type { GenericChannelConfig } from "./types.js";
 export type GenericAuthUser = {
   id: string;
   senderId: string;
-  chatId: string;
+  chatId?: string;
   token: string;
   allowAgents?: string[];
 };
@@ -112,7 +112,7 @@ export function findGenericAuthUserByToken(params: {
     return {
       id: normalizeNonEmpty(entry.id) ?? senderId,
       senderId,
-      chatId: normalizeNonEmpty(entry.chatId) ?? senderId,
+      chatId: normalizeNonEmpty(entry.chatId),
       token: configuredToken,
       allowAgents: normalizeAgentList(entry.allowAgents),
     };
@@ -162,16 +162,7 @@ export function authenticateGenericConnection(params: {
     };
   }
 
-  if (!query.chatId) {
-    return {
-      ok: false,
-      code: 401,
-      message: "Missing chatId",
-      query,
-    };
-  }
-
-  if (query.chatId !== authUser.chatId) {
+  if (authUser.chatId && query.chatId && query.chatId !== authUser.chatId) {
     return {
       ok: false,
       code: 403,

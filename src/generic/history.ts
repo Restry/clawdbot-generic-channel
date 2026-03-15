@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { InboundMessage, OutboundMessage } from "./types.js";
+import type { ConversationSummary, InboundMessage, OutboundMessage } from "./types.js";
 
 export type HistoryMessageDirection = "sent" | "received";
 
@@ -17,6 +17,8 @@ export type HistoryMessageRecord = {
   replyTo?: string;
   senderId?: string;
   senderName?: string;
+  chatType?: "direct" | "group";
+  agentId?: string;
 };
 
 const MAX_STORED_HISTORY_PER_CHAT = 200;
@@ -146,10 +148,18 @@ export function appendInboundHistoryMessage(message: InboundMessage): void {
     timestamp: message.timestamp,
     senderId: message.senderId,
     senderName: message.senderName,
+    chatType: message.chatType,
+    agentId: message.agentId,
   });
 }
 
-export function appendOutboundHistoryMessage(message: OutboundMessage): void {
+export function appendOutboundHistoryMessage(
+  message: OutboundMessage,
+  meta?: {
+    chatType?: "direct" | "group";
+    agentId?: string;
+  },
+): void {
   upsertHistoryRecord({
     messageId: message.messageId,
     chatId: message.chatId,
@@ -160,6 +170,8 @@ export function appendOutboundHistoryMessage(message: OutboundMessage): void {
     mimeType: message.mimeType,
     timestamp: message.timestamp,
     replyTo: message.replyTo,
+    chatType: meta?.chatType,
+    agentId: meta?.agentId,
   });
 }
 
@@ -221,4 +233,82 @@ export function getRecentHistoryMessages(params: {
   const { chatId, limit = 20 } = params;
   const history = chatHistoryStore.get(chatId) ?? [];
   return history.slice(-limit);
+}
+
+function buildConversationSummary(chatId: string, history: HistoryMessageRecord[]): ConversationSummary | null {
+  if (history.length === 0) {
+    return null;
+  }
+
+  const lastMessage = history[history.length - 1];
+  const participantIds = Array.from(
+    new Set(history.map((entry) => entry.senderId).filter((value): value is string => Boolean(value))),
+  );
+  const agentIds = Array.from(
+    new Set(history.map((entry) => entry.agentId).filter((value): value is string => Boolean(value))),
+  );
+  const chatType =
+    [...history].reverse().find((entry) => entry.chatType)?.chatType ??
+    (chatId.startsWith("group-") ? "group" : "direct");
+
+  return {
+    chatId,
+    chatType,
+    lastMessageId: lastMessage.messageId,
+    lastContent: lastMessage.content,
+    lastContentType: lastMessage.contentType,
+    lastDirection: lastMessage.direction,
+    lastTimestamp: lastMessage.timestamp,
+    lastSenderId: lastMessage.senderId,
+    lastSenderName: lastMessage.senderName,
+    participantIds,
+    agentIds,
+  };
+}
+
+export function getConversationSummaries(params?: {
+  userId?: string;
+  agentId?: string;
+  chatType?: "direct" | "group";
+  limit?: number;
+}): ConversationSummary[] {
+  const normalizedUserId = String(params?.userId ?? "").trim();
+  const normalizedAgentId = String(params?.agentId ?? "").trim().toLowerCase();
+  const chatTypeFilter = params?.chatType;
+  const limit = Math.max(1, params?.limit ?? 100);
+
+  const summaries: ConversationSummary[] = [];
+
+  for (const [chatId, history] of chatHistoryStore.entries()) {
+    if (history.length === 0) {
+      continue;
+    }
+
+    if (
+      normalizedUserId &&
+      !history.some((entry) => String(entry.senderId ?? "").trim() === normalizedUserId)
+    ) {
+      continue;
+    }
+
+    if (
+      normalizedAgentId &&
+      !history.some((entry) => String(entry.agentId ?? "").trim().toLowerCase() === normalizedAgentId)
+    ) {
+      continue;
+    }
+
+    const summary = buildConversationSummary(chatId, history);
+    if (!summary) {
+      continue;
+    }
+
+    if (chatTypeFilter && summary.chatType !== chatTypeFilter) {
+      continue;
+    }
+
+    summaries.push(summary);
+  }
+
+  return summaries.sort((a, b) => b.lastTimestamp - a.lastTimestamp).slice(0, limit);
 }

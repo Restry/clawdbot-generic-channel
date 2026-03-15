@@ -14,6 +14,8 @@ export type SendGenericMessageParams = {
   contentType?: "text" | "markdown" | "image" | "voice" | "audio";
   mediaUrl?: string;
   mimeType?: string;
+  chatType?: "direct" | "group";
+  agentId?: string;
 };
 
 async function resolveOutboundMediaUrl(params: {
@@ -61,7 +63,7 @@ function normalizeTarget(to: string): { chatId: string; type: "user" | "chat" } 
 }
 
 export async function sendMessageGeneric(params: SendGenericMessageParams): Promise<GenericSendResult> {
-  const { cfg, to, text, replyToMessageId, contentType = "text", mediaUrl, mimeType } = params;
+  const { cfg, to, text, replyToMessageId, contentType = "text", mediaUrl, mimeType, chatType, agentId } = params;
   const genericCfg = cfg.channels?.["generic-channel"] as GenericChannelConfig | undefined;
 
   if (!genericCfg) {
@@ -97,7 +99,10 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
       });
 
       if (sent) {
-        appendOutboundHistoryMessage(outboundMessage);
+        appendOutboundHistoryMessage(outboundMessage, {
+          chatType,
+          agentId,
+        });
         // Mark as sent
         updateMessageStatus({
           cfg,
@@ -129,7 +134,10 @@ export async function sendMessageGeneric(params: SendGenericMessageParams): Prom
   }
 
   if (genericCfg.connectionMode !== "websocket") {
-    appendOutboundHistoryMessage(outboundMessage);
+    appendOutboundHistoryMessage(outboundMessage, {
+      chatType,
+      agentId,
+    });
   }
 
   // In webhook mode, messages are sent synchronously as HTTP responses
@@ -181,8 +189,10 @@ export async function sendMediaGeneric(params: {
   mimeType?: string;
   caption?: string;
   replyToMessageId?: string;
+  chatType?: "direct" | "group";
+  agentId?: string;
 }): Promise<GenericSendResult> {
-  const { cfg, to, mediaUrl, mediaType, mimeType, caption = "", replyToMessageId } = params;
+  const { cfg, to, mediaUrl, mediaType, mimeType, caption = "", replyToMessageId, chatType, agentId } = params;
 
   return sendMessageGeneric({
     cfg,
@@ -192,5 +202,7 @@ export async function sendMediaGeneric(params: {
     mediaUrl,
     mimeType,
     replyToMessageId,
+    chatType,
+    agentId,
   });
 }

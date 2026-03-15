@@ -5,12 +5,42 @@
 如果你只想先跑通，请先看这三项:
 
 1. 服务端开启 `channels.generic-channel`
-2. 客户端用 WebSocket 连接 `ws://host:port/ws?chatId=会话ID`
+2. 客户端用 WebSocket 连接 `ws://host:port/ws`
 3. 客户端按协议发送 `message.receive` 事件
 4. 如果服务端配置了多个 agent，客户端可额外用 `agent.list.get` / `agent.select` 做显式入口选择
 5. 如果服务端启用了 user-token 认证，客户端还要在连接 URL 上额外带 `token`
 
 这份接入指南只覆盖当前真实可用且已完成 E2E 的 `websocket` 路径。
+
+## 0.1 H5 示例页的真实接入经验
+
+这次接入里，最容易混淆的是：`http://127.0.0.1:4173/examples/h5-client.html` 能打开，只代表静态页面服务正常，不代表后端 WebSocket 一定可连。
+
+建议按下面顺序排查：
+
+1. 先确认页面本身是通过静态文件服务打开的，例如在仓库根目录运行：
+
+```bash
+python3 -m http.server 4173
+```
+
+2. 再确认页面里填写的 `serverUrl` 是真实的 WebSocket 端点，而不是示例页默认值 `ws://localhost:8080/ws`
+
+3. 如果服务端启用了 user-token 认证，先确认 token 对应的是正确用户；只有在兼容旧模式、显式配置了固定 `chatId` 时，才需要检查 URL 里的 `chatId` 是否与它一致
+
+4. 如果你之前测过别的环境，先检查浏览器 `localStorage`
+
+   - H5 示例页会缓存 `serverUrl`、`chatId`、`userName` 和历史连接
+   - `token` 出于安全考虑**不会**写入本地缓存
+   - 所以“页面看起来像是新开的”，实际仍可能自动带着旧的 `serverUrl/chatId`
+
+5. 真正连通后，页面会出现这几个信号：
+
+   - 顶部状态从“未连接”变成“已连接”
+   - 弹出“已连接到服务器”
+   - 控制台会先后出现 `WebSocket connected`、`connection.open`，以及可能出现的 `history.sync` / `agent.list`
+
+这次实测已确认：重新启动本地 `4173` 静态服务后，`examples/h5-client.html` 仍可正常连到远端 `generic-channel`，问题排查重点应放在 `serverUrl`、token 对应的用户身份、浏览器缓存，以及当前会话 ID 是否填对，而不是先怀疑静态页本身。
 
 ## 1. 服务端最小配置
 
@@ -42,7 +72,7 @@ channels:
       tokenParam: "token"
       users:
         - senderId: "user-42"
-          chatId: "conv-10001"
+          chatId: "conv-10001" # 可选，仅用于兼容旧的一 token 一 chat 模式
           token: "gc_user42_xxxxxxxxx"
           allowAgents: ["main", "code"]
 ```
@@ -103,7 +133,7 @@ channels:
 | 字段 | 作用 | 建议来源 |
 |------|------|----------|
 | `serverUrl` | WebSocket 地址 | 例如 `ws://host:18080/ws` |
-| `chatId` | 会话 ID | 私聊用会话 ID，群聊用群 ID |
+| `chatId` | 会话 / 线程 / 群聊房间 ID | 私聊线程用线程 ID，群聊用群 ID |
 | `token` | 连接认证凭证 | 服务端启用 auth 时必填 |
 | `senderId` | 当前发言用户 ID | 业务系统里的用户主键 |
 | `senderName` | 当前发言用户显示名 | 昵称 / 用户名 |
@@ -114,7 +144,7 @@ channels:
 - H5 示例页为了最简化，默认把 `senderId` 直接写成了 `chatId`
 - 真实 App 接入时，不要机械照搬这个简化写法
 - 如果“用户 ID”和“会话 ID”不是一个东西，就必须分开传
-- `serverUrl` 应该只是 WebSocket 端点本身，`chatId` 要在建立连接时按当前会话动态拼到查询参数里
+- `serverUrl` 应该只是 WebSocket 端点本身，`chatId` 现在可以作为“当前活跃会话”的动态字段，既可以放在建连查询参数里当初始会话，也可以在后续消息和 `history.get` 请求里按需切换
 
 推荐映射方式:
 
@@ -126,6 +156,14 @@ channels:
 | 多个不同业务线共用一个 OpenClaw | 给 `chatId` 加业务前缀 | 给 `senderId` 加业务前缀 | 按实际场景 |
 
 一句话: `chatId` 是“这条消息属于哪个会话”，`senderId` 是“是谁发的”。
+
+现在推荐的客户端模型是：
+
+- 连接先绑定“用户身份”
+- 会话列表再按 `chatId` 维度切换
+- agent 选择由 `agentId` 控制
+
+也就是说，同一个用户连接后，可以在一个 WebSocket 里切换多个 `chatId`，不需要每切一次会话就断线重连。
 
 ## 3.1 当前要特别区分：协议支持 != 示例页 UI 已实现
 
@@ -262,7 +300,7 @@ agents:
 
 ## 5. 连接方式
 
-客户端连接时，当前协议要求把 `chatId` 放在 WebSocket URL 查询参数里；如果你想在连接建立时就预选一个 agent，也可以额外带上 `agentId`:
+客户端连接时，`chatId` 已经不是必填项了；如果你想在连接建立时就预选一个 agent，或者顺手指定一个“初始会话”，都可以放到 URL 查询参数里:
 
 ```javascript
 const chatId = "conv-10001";
@@ -274,9 +312,10 @@ const ws = new WebSocket(
 
 如果服务端启用了 user-token 认证，还要注意这几点：
 
-- `token` 绑定的是某个固定的 `senderId/chatId`
-- URL 里的 `chatId` 必须和 token 绑定值一致
-- 建连后，服务端会以 token 绑定身份为准，不再信任客户端在消息体里自报的 `senderId/chatId`
+- `token` 一定绑定的是某个固定的 `senderId`
+- `chatId` 默认不再和 token 强绑定；同一用户可以在一个连接里切多个会话
+- 只有当配置里显式给这个 token 写了固定 `chatId`，它才会退回“一个 token 只能进一个 chat”的兼容模式
+- 建连后，服务端会以 token 绑定身份为准，不再信任客户端在消息体里自报的 `senderId`
 - 如果 token 配置了 `allowAgents`，客户端只能选择这些 agent
 
 连接成功后，服务端会先回一个 `connection.open`:
@@ -286,10 +325,13 @@ const ws = new WebSocket(
   "type": "connection.open",
   "data": {
     "chatId": "conv-10001",
+    "userId": "user-42",
     "timestamp": 1710000000000
   }
 }
 ```
+
+如果你建连时没有带初始 `chatId`，那 `data.chatId` 可能为空或直接不出现；启用了 token 认证时，`data.userId` 会是服务端按 token 解析出来的真实用户 ID。
 
 如果当前会话有历史消息，服务端还会紧接着回 `history.sync`。
 
@@ -324,6 +366,12 @@ type InboundMessage = {
   parentId?: string;
 };
 ```
+
+这里的关键语义现在是：
+
+- `senderId` = 当前登录用户是谁
+- `chatId` = 这个用户当前正在操作哪一条会话 / 哪一个线程 / 哪一个群
+- `agentId` = 这个会话当前要交给哪个 agent
 
 ### 引用回复：客户端发给插件
 
@@ -534,6 +582,23 @@ type OutboundMessage = {
 - `sent`: 用户发给插件的消息
 - `received`: agent / OpenClaw 回给客户端的消息
 
+### `history.get`
+
+如果你是“先连接，再切会话”的客户端模型，应该主动用 `history.get` 拉指定会话的历史：
+
+```json
+{
+  "type": "history.get",
+  "data": {
+    "requestId": "history-1",
+    "chatId": "conv-10001",
+    "limit": 100
+  }
+}
+```
+
+服务端仍然返回 `history.sync`，只是这次是“按你指定的 `chatId` 回放”。
+
 ### `thinking.start` / `thinking.update` / `thinking.end`
 
 用于显示“AI 正在思考”:
@@ -561,6 +626,51 @@ type OutboundMessage = {
 - 把返回的 `agents[]` 渲染成入口列表或下拉框
 - 用户选中后发 `agent.select`
 - 后续消息可继续依赖当前连接选择，也可以在单条 `message.receive.data.agentId` 上再次显式覆盖
+
+### `conversation.list.get` / `conversation.list`
+
+如果你的客户端是“一个用户下有多个会话列表”的模型，应该在连接成功后主动请求会话列表：
+
+```json
+{
+  "type": "conversation.list.get",
+  "data": {
+    "requestId": "conversation-list-1",
+    "agentId": "code",
+    "limit": 50
+  }
+}
+```
+
+响应示例：
+
+```json
+{
+  "type": "conversation.list",
+  "data": {
+    "requestId": "conversation-list-1",
+    "conversations": [
+      {
+        "chatId": "conv-user42-code-1",
+        "chatType": "direct",
+        "lastContent": "帮我整理一下这个需求",
+        "lastDirection": "sent",
+        "lastTimestamp": 1710000003000,
+        "agentIds": ["code"],
+        "participantIds": ["user-42"]
+      }
+    ],
+    "timestamp": 1710000004000
+  }
+}
+```
+
+这个列表是给“当前 token 对应的用户”看的，不是全局公开列表。
+
+2026-03-15 的远端真实验证已经确认两点：
+
+- 同一个 token 用户可以在同一条 WebSocket 连接里切多个 `chatId`
+- `agentId` 过滤生效，`writer` 会话不会混进 `agentId=main` 的列表
 
 ### `reaction.add` / `reaction.remove`
 
@@ -662,13 +772,13 @@ type OutboundMessage = {
 ```html
 <script>
   const serverUrl = "ws://localhost:18080/ws";
-  const chatId = "conv-10001";
   const senderId = "user-42";
   const senderName = "Leway";
   let selectedAgentId = "code";
+  let currentChatId = "conv-10001";
 
   const ws = new WebSocket(
-    `${serverUrl}?chatId=${encodeURIComponent(chatId)}&agentId=${encodeURIComponent(selectedAgentId)}`
+    `${serverUrl}?agentId=${encodeURIComponent(selectedAgentId)}`
   );
 
   ws.onmessage = (event) => {
@@ -689,6 +799,10 @@ type OutboundMessage = {
     if (packet.type === "agent.list") {
       console.log("agents:", packet.data.agents);
     }
+
+    if (packet.type === "conversation.list") {
+      console.log("conversations:", packet.data.conversations);
+    }
   };
 
   ws.onopen = () => {
@@ -698,6 +812,14 @@ type OutboundMessage = {
         requestId: `agent-list-${Date.now()}`
       }
     }));
+
+    ws.send(JSON.stringify({
+      type: "conversation.list.get",
+      data: {
+        requestId: `conversation-list-${Date.now()}`,
+        agentId: selectedAgentId
+      }
+    }));
   };
 
   function sendText(content) {
@@ -705,7 +827,7 @@ type OutboundMessage = {
       type: "message.receive",
       data: {
         messageId: `msg-${Date.now()}`,
-        chatId,
+        chatId: currentChatId,
         chatType: "direct",
         senderId,
         senderName,
@@ -713,6 +835,17 @@ type OutboundMessage = {
         messageType: "text",
         content,
         timestamp: Date.now()
+      }
+    }));
+  }
+
+  function openConversation(chatId) {
+    currentChatId = chatId;
+    ws.send(JSON.stringify({
+      type: "history.get",
+      data: {
+        requestId: `history-${Date.now()}`,
+        chatId
       }
     }));
   }
@@ -744,7 +877,25 @@ type OutboundMessage = {
 
 - `../examples/h5-client.html`
 
-## 10. 微信上怎么接
+## 10. 当前能力边界
+
+这次改造后，`generic-channel` 已经支持：
+
+- 一个用户 token 建连后查看自己的 agent 列表
+- 同一连接下切换多个 `chatId`
+- 按 agent 维度拉这个用户的会话列表
+- 按 `chatId` 拉会话历史
+
+但“把多个 agent 同时拉进一个群里，让他们在同一个群里并行发言”这件事，目前还**不是** `generic-channel` 的通用现成能力。
+
+当前群聊更接近：
+
+- 一个群会话 `chatId`
+- 由当前显式或默认选中的一个 agent 处理
+
+如果你要真正的“多 agent 群聊编排”，下一步需要单独设计群成员、agent participant 以及 fan-out / fan-in 规则。
+
+## 11. 微信上怎么接
 
 微信小程序也一样，本质上就是:
 
@@ -808,7 +959,7 @@ function fileToDataUrl(path, mimeType) {
 }
 ```
 
-## 11. 聊天 App / 第三方 IM 如何映射
+## 12. 聊天 App / 第三方 IM 如何映射
 
 如果你不是直接写页面，而是把现有聊天系统桥接过来，按下面映射就够了:
 
@@ -827,7 +978,7 @@ function fileToDataUrl(path, mimeType) {
 1. `chatId` 必须稳定，不能每次页面刷新都变
 2. `senderId` 必须是业务真实用户，而不是临时随机值
 
-## 12. 音频 / 语音自动转写怎么生效
+## 13. 音频 / 语音自动转写怎么生效
 
 开启 `transcription.enabled = true` 后:
 
@@ -838,7 +989,7 @@ function fileToDataUrl(path, mimeType) {
 
 也就是说，前端只需要正常发 `voice` / `audio`，转文本逻辑已经放在插件里。
 
-## 13. 接入时最容易踩的坑
+## 14. 接入时最容易踩的坑
 
 ### 把频道名写成 `generic`
 
@@ -874,7 +1025,7 @@ channels:
 
 浏览器里的 `blob:` URL 只在当前页面上下文有效。前端要么转成 Data URL，要么先上传到你自己的存储，再把可访问的 HTTPS URL 发给插件。
 
-## 14. 参考实现
+## 15. 参考实现
 
 真实接入参考:
 

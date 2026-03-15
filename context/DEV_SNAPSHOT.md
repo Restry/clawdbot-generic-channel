@@ -1,6 +1,6 @@
 # 1. 当前状态
 
-当前 `generic-channel` 已经完成从“单一 H5 直连演示”到“可真实接入、可多 agent 选择”的主链路收尾。
+当前 `generic-channel` 已经完成从“单一 H5 直连演示”到“可真实接入、可多 agent 选择、单连接多会话”的主链路收尾。
 
 当前真实主路径：
 
@@ -19,6 +19,9 @@
 - 图片发送、预览、大图查看、图片内容进入 Agent 上下文
 - 语音/音频发送、自动转写、接收播放
 - 连接竞争保护、重连后历史回放
+- token 绑定用户身份，兼容旧的固定 `chatId` 模式
+- `conversation.list.get` / `conversation.list`
+- `history.get` 按指定 `chatId` 拉取历史
 - 轻量频道状态查询：`channel.status.get` / `channel.status`
 - 多 agent 显式选择：
   - `agent.list.get` / `agent.list`
@@ -55,6 +58,7 @@
 - 连接 / 断开 / 自动重连
 - 历史连接记录
 - `history.sync`
+- 会话栏：打开会话 / 新建会话 / 刷新会话列表
 - 图片选择、预览、发送、大图查看
 - 音频文件选择、发送、播放
 - 浏览器录音、发送、播放
@@ -98,6 +102,11 @@
 - `channel.status.get` / `channel.status`
 - `agent.list.get` / `agent.list`
 - `agent.select` / `agent.selected`
+- token 仅绑定 `senderId` 建连
+- 固定 `chatId` 旧兼容模式仍生效
+- `conversation.list.get` / `conversation.list`
+- `history.get`
+- 单一 WebSocket 连接切换多个 `chatId`
 
 ## 远端测试环境
 
@@ -132,9 +141,17 @@
   - `agent.select` / `agent.selected`
   - 连接 URL `agentId` 预选
   - 单条消息 `data.agentId` 显式覆盖
+  - token 仅绑定 `senderId` 建连
+  - 固定 `chatId` 旧兼容模式仍返回 403 拒绝
+  - `conversation.list.get` / `conversation.list`
+  - `history.get`
+  - 单一 WebSocket 连接切换多个 `chatId`
 - 本轮远端日志已确认：
   - 显式 `data.agentId=writer` 的消息落到 `session=agent:writer:...`
   - 同一连接上未显式覆盖、但连接级 `agentId=code` 的消息落到 `session=agent:code:...`
+- 本轮远端真实会话隔离已确认：
+  - 同一 token 用户在 `main` 下两个不同 `chatId` 可分别记住不同上下文，不会串会话
+  - `writer` 会话只出现在 `agentId=writer` 的会话列表里，不会混入 `agentId=main`
 - 本轮额外发现：
   - 远端 `code` agent 当前模型 `azure-foundry/gpt-5.3-codex` 能被选中并命中路由
   - 但实际回复返回 provider 400，属于远端模型/调用兼容性问题，不是 generic-channel 的 agent 路由失效

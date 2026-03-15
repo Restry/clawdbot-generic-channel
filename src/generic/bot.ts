@@ -207,7 +207,7 @@ export async function handleGenericMessage(params: {
         channel: "generic-channel",
         peer: {
           kind: isGroup ? "group" : "dm",
-          id: isGroup ? ctx.chatId : ctx.senderId,
+          id: ctx.chatId,
         },
       });
 
@@ -326,6 +326,7 @@ export async function handleGenericMessage(params: {
       agentId: route.agentId,
       runtime: runtime as RuntimeEnv,
       chatId: ctx.chatId,
+      chatType: ctx.chatType,
       replyToMessageId: ctx.messageId,
     });
 

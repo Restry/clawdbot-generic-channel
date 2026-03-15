@@ -292,7 +292,7 @@ export function resolveExplicitGenericAgentRoute(params: {
   }
 
   const peerKind: GenericPeerKind = params.chatType === "group" ? "group" : "dm";
-  const peerId = params.chatType === "group" ? params.chatId : params.senderId;
+  const peerId = params.chatId;
   const sessionKey = buildPeerSessionKey({
     cfg: params.cfg,
     agentId,

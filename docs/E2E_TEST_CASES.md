@@ -138,11 +138,25 @@
 | Agent | 单条消息 `data.agentId` 显式覆盖 | 已通过 |
 | Agent | 服务端自动路由回退到默认 agent | 已通过 |
 
+## 多会话模型
+
+| 模块 | 测试案例 | 当前状态 |
+| --- | --- | --- |
+| Auth | token 仅绑定 `senderId` 建连 | 已通过 |
+| Auth | 配置固定 `chatId` 的旧兼容模式 | 已通过 |
+| 会话列表 | `conversation.list.get` 拉取当前用户会话列表 | 已通过 |
+| 会话列表 | 按 `agentId` 过滤会话列表 | 已通过 |
+| 历史 | `history.get` 拉取指定 `chatId` 历史 | 已通过 |
+| 连接模型 | 单一 WebSocket 连接订阅多个 `chatId` | 已通过 |
+| H5 页面 | 会话栏切换不同 `chatId` | 未执行 |
+| H5 页面 | 新建会话后正常收发 | 未执行 |
+
 ## H5 页面与增强功能
 
 | 模块 | 测试案例 | 当前状态 |
 | --- | --- | --- |
 | H5 页面 | 页面连接远端 WebSocket | 已通过 |
+| H5 页面 | 重新启动本地 `4173` 静态页后再次连接远端 WebSocket | 已通过 |
 | H5 页面 | 页面发送文本并收到 AI 回复 | 已通过 |
 | H5 页面 | “思考中”提示正常结束消失 | 已通过 |
 | H5 页面 | 手动断开后不再误报“连接失败次数过多” | 已通过 |
@@ -240,7 +254,14 @@
 - `agent.selected` 返回确认结果
 - 连接 URL `agentId` 预选 agent
 - 单条消息 `data.agentId` 显式覆盖
+- token 仅绑定 `senderId` 建连
+- 配置固定 `chatId` 的旧兼容模式
+- `conversation.list.get` 拉取当前用户会话列表
+- 按 `agentId` 过滤会话列表
+- `history.get` 拉取指定 `chatId` 历史
+- 单一 WebSocket 连接订阅多个 `chatId`
 - 页面连接远端 WebSocket
+- 重新启动本地 `4173` 静态页后再次连接远端 WebSocket
 - 页面发送文本并收到 AI 回复
 - “思考中”提示正常结束消失
 - 手动断开后不再误报“连接失败次数过多”
@@ -257,6 +278,7 @@
   - `main`
   - `code`
   - `writer`
+- 2026-03-15 本轮补测已确认：重启本地 `python3 -m http.server 4173` 后，`examples/h5-client.html` 仍可正常连接远端 `ws://wolf-sg.southeastasia.cloudapp.azure.com:18080/ws`，页面侧关键排查点是 `serverUrl`、token 对应的用户身份，以及浏览器 `localStorage` 中残留的历史连接配置。
 
 ## 当前结论
 
@@ -265,6 +287,8 @@
 - 多 agent 协议已完成真实验证：远端测试机当前已配置 `main / code / writer`，前端可通过 `agent.list.get` 拉取列表，并通过 `agent.select` 切换当前连接目标 agent。
 - 2026-03-15 本轮补测已确认：URL 查询参数 `agentId` 预选和单条消息 `data.agentId` 显式覆盖都已生效。
 - 本轮远端日志显示：`data.agentId=writer` 的消息确实落到 `session=agent:writer:...`；同一连接上未显式覆盖、仅依赖连接级 `agentId=code` 的消息落到 `session=agent:code:...`。
+- 2026-03-15 本轮远端 E2E 已确认“token 绑定用户 + 单连接多会话”模型可用：`test-multi` 可在同一连接下切换多个 `chatId`，`conversation.list.get` / `history.get` 可按当前用户正常返回，且固定 `chatId` 旧模式仍保持 403 拒绝行为。
+- 2026-03-15 本轮还补测了按 `agentId` 过滤会话列表：`writer` 会话只出现在 `agentId=writer` 的列表里，不会误出现在 `agentId=main` 的列表里。
 - 当前远端 `code` agent 的实际回复返回 provider 400，这说明本轮发现的是远端模型/调用兼容性问题，不是 generic-channel 的路由协议失效。
 - 本轮已补完语音/音频链路的真实 E2E：浏览器麦克风录音、语音发送、音频文件发送、服务端媒体落盘与 Agent 上下文注入、以及 H5 接收侧对 `voice` / `audio` 的播放卡片渲染。
 - 历史消息现已持久化到本地文件，gateway 重启后同一 `chatId` 重新连接仍可通过 `history.sync` 回放最近消息。

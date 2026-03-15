@@ -36,7 +36,7 @@ channels:
       tokenParam: "token"
       users:
         - senderId: "alex"
-          chatId: "alex"
+          chatId: "alex"   # optional legacy fixed-chat binding
           token: "gc_alex_xxxxxxxxx"
           allowAgents: ["main", "writer"]
     dmPolicy: "open"
@@ -113,8 +113,13 @@ openclaw config set channels.generic-channel.wsPort 8080
 ```
 
 2. Open `examples/h5-client.html` in your browser to test the connection
+   - The example page is a static file only. The page opening successfully does **not** mean the Generic Channel WebSocket is reachable yet.
+   - If you use a remote gateway, replace the default `ws://localhost:8080/ws` with your real remote `ws://host:port/ws`.
+   - The page stores `serverUrl` / `chatId` / `userName` and connection history in browser `localStorage`; if you previously tested another environment, clear the cached config or reselect the correct history entry before reconnecting.
 
-3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your chat ID, name, and token if enabled, then click "Connect"
+3. Enter the WebSocket URL (e.g., `ws://localhost:8080/ws`), your name, and token if enabled, then click "Connect"
+   - `chatId` is now an optional initial conversation. After connection, the client may switch between multiple conversations on the same socket.
+   - When auth is enabled, the token always binds the user identity (`senderId`). If the config also sets a legacy fixed `chatId`, that token remains restricted to that one conversation.
 
 4. For direct H5 / App / WeChat Mini Program integration, see `docs/INTEGRATION_GUIDE.md`
 5. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html`
@@ -194,10 +199,13 @@ Behavior:
 |------------|-------------|
 | `message.receive` | Inbound message from client |
 | `message.send` | Outbound message to client |
+| `history.get` | Client requests one conversation's recent history |
 | `agent.list.get` | Client asks for the configured agent list |
 | `agent.list` | Agent list response |
 | `agent.select` | Client selects or clears the current session's agent |
 | `agent.selected` | Server confirms the effective agent selection |
+| `conversation.list.get` | Client requests the current user's conversation list |
+| `conversation.list` | Conversation list response |
 | `channel.status.get` | Client asks for lightweight generic-channel status |
 | `channel.status` | Lightweight generic-channel status response |
 | `connection.open` | Connection established |
@@ -213,13 +221,17 @@ Behavior:
 // Connect to WebSocket server
 let selectedAgentId = 'code';
 const token = 'gc_alex_xxxxxxxxx';
-const ws = new WebSocket(`ws://localhost:8080/ws?chatId=user-123&agentId=${encodeURIComponent(selectedAgentId)}&token=${encodeURIComponent(token)}`);
+const ws = new WebSocket(`ws://localhost:8080/ws?agentId=${encodeURIComponent(selectedAgentId)}&token=${encodeURIComponent(token)}`);
 
 ws.onopen = () => {
   console.log('Connected to Generic Channel');
   ws.send(JSON.stringify({
     type: 'agent.list.get',
     data: { requestId: 'agent-list-1' }
+  }));
+  ws.send(JSON.stringify({
+    type: 'conversation.list.get',
+    data: { requestId: 'conversation-list-1', agentId: selectedAgentId }
   }));
 };
 
@@ -228,7 +240,7 @@ const message = {
   type: 'message.receive',
   data: {
     messageId: 'msg-' + Date.now(),
-    chatId: 'user-123',
+    chatId: 'conv-user-123-main',
     chatType: 'direct',
     senderId: 'user-123',
     senderName: 'Alice',
@@ -253,6 +265,10 @@ ws.onmessage = (event) => {
 
   if (message.type === 'agent.list') {
     console.log('Agents:', message.data.agents);
+  }
+
+  if (message.type === 'conversation.list') {
+    console.log('Conversations:', message.data.conversations);
   }
 };
 ```
@@ -286,21 +302,21 @@ channels:
       users:
         - id: "alex"
           senderId: "alex"
-          chatId: "alex"
+          chatId: "alex"  # optional legacy fixed-chat binding
           token: "gc_alex_xxxxxxxxx"
           allowAgents: ["main", "writer"]
         - id: "bob"
           senderId: "bob"
-          chatId: "bob"
+          chatId: "bob"  # optional legacy fixed-chat binding
           token: "gc_bob_xxxxxxxxx"
           allowAgents: ["main"]
 ```
 
 Behavior:
-- The client must connect with `?chatId=...&token=...`
-- The token is bound to one configured `senderId` and `chatId`
-- If the connection `chatId` does not match the token binding, the handshake is rejected
-- After connection, the server treats the token-bound `senderId` / `chatId` as authoritative
+- The client must connect with `?token=...`; `chatId=...` is optional and only selects the initial conversation
+- The token is always bound to one configured `senderId`
+- If a token also configures `chatId`, that token remains locked to that one conversation
+- After connection, the server treats the token-bound `senderId` as authoritative
 - If `allowAgents` is set, the client can only select or override to those agents
 
 ### FAQ
@@ -315,7 +331,7 @@ Behavior:
 #### Messages are not received
 
 1. Verify `channels.generic-channel.enabled` is set to `true`
-2. Check the `chatId` in the connection URL matches your setup
+2. Check the current `chatId` and selected agent match the conversation you expect to use
 3. Review OpenClaw logs for error messages
 
 #### Chat cannot use `sudo` or install software
@@ -382,7 +398,7 @@ channels:
       tokenParam: "token"
       users:
         - senderId: "alex"
-          chatId: "alex"
+          chatId: "alex"  # 可选，仅用于兼容旧的一 token 一 chat 模式
           token: "gc_alex_xxxxxxxxx"
           allowAgents: ["main", "writer"]
     dmPolicy: "open"
@@ -460,7 +476,7 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 2. 在浏览器中打开 `examples/h5-client.html` 测试连接
 
-3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、聊天 ID、名称；如果服务端启用了认证，再输入 token，然后点击"连接"
+3. 输入 WebSocket URL（如 `ws://localhost:8080/ws`）、名称；如果服务端启用了认证，再输入 token，然后点击"连接"
 
 4. H5 / 聊天 App / 微信小程序的真实接入方式见 `docs/INTEGRATION_GUIDE.md`
 5. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html` 的顺序阅读
@@ -469,8 +485,11 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 - 当前真实配置键是 `channels.generic-channel`
 - 当前 H5 参考实现只有 `examples/h5-client.html`
-- 客户端统一通过 `ws://host:port/ws?chatId=会话ID` 建连；如果启用了简单认证，再额外带上 `token`
+- 客户端统一通过 `ws://host:port/ws` 建连；如果启用了简单认证，再额外带上 `token`
+- `chatId` 现在代表“会话 / 线程 / 群聊房间”，可以在连接建立后按消息或按会话切换，不再要求一个 token 固定只聊一个 chat
 - 如果服务端配置了多个 agent，客户端可通过 `agent.list.get` / `agent.select` 列出并切换 agent，也可在建连时额外带 `agentId`
+- 客户端可以通过 `conversation.list.get` 拉当前用户在当前 agent 视角下的会话列表，再通过 `history.get` 拉指定会话的历史消息
+- 远端真实验证已确认：同一个 token 用户可以在单一 WebSocket 连接里切换多个 `chatId`，并且旧的固定 `chatId` token 仍会被限制在原会话
 - 客户端发消息时统一发送 `type: "message.receive"`
 - `parentId` / `replyTo` 的引用回复协议已支持，但当前 H5 示例页没有现成引用回复 UI
 - `reaction.add` / `reaction.remove` 的 emoji reaction 协议已支持，但当前 H5 示例页没有 reaction UI
@@ -527,22 +546,22 @@ channels:
       users:
         - id: "alex"
           senderId: "alex"
-          chatId: "alex"
+          chatId: "alex"  # 可选，仅用于兼容旧的一 token 一 chat 模式
           token: "gc_alex_xxxxxxxxx"
           allowAgents: ["main", "writer"]
         - id: "bob"
           senderId: "bob"
-          chatId: "bob"
+          chatId: "bob"  # 可选，仅用于兼容旧的一 token 一 chat 模式
           token: "gc_bob_xxxxxxxxx"
           allowAgents: ["main"]
 ```
 
 行为说明：
 
-- 客户端连接时必须带上 `?chatId=...&token=...`
-- 每个 token 绑定一个 `senderId` 和 `chatId`
-- 如果连接 URL 里的 `chatId` 和 token 绑定值不一致，握手会被拒绝
-- 连接建立后，服务端会以 token 绑定的 `senderId/chatId` 为准，不再信任前端自报值
+- 客户端连接时必须带上 `?token=...`
+- 每个 token 一定绑定一个 `senderId`
+- 如果某个 token 还额外配置了 `chatId`，它就会继续被限制在这个固定会话里
+- 连接建立后，服务端会以 token 绑定的 `senderId` 为准，不再信任前端自报值
 - 如果配置了 `allowAgents`，客户端只能选择这些 agent
 
 ### 常见问题
