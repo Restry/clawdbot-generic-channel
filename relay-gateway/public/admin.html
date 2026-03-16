@@ -254,29 +254,29 @@
           {
             key: "serverUrl",
             value: preset.serverUrl,
-            note: "填到 H5 的 serverUrl。这里故意只保留 channelId，让 token 单独填，方便更换用户。",
+            note: "客户端地址。",
           },
           {
             key: "token",
             value: preset.token,
-            note: user ? `使用 ${user.senderId} 的网关 token。` : "先在用户管理里创建一个 token，再填到这里。",
+            note: user ? `${user.senderId} 的 token。` : "先创建用户 token。",
           },
           {
             key: "userName",
             value: preset.userName,
-            note: "通常与 senderId 相同。聊天窗口里看到的发送者名称就是它。",
+            note: "客户端显示名。",
           },
           {
             key: "chatId",
             value: preset.chatId,
-            note: "可以留空。连上之后，客户端仍可自由切换或新建会话。",
+            note: "可留空。",
           },
           {
             key: "agentId",
             value: preset.agentId,
             note: Array.isArray(user?.allowAgents) && user.allowAgents.length > 0
-              ? "可选。如果这个用户限制了 agent，第一次接入建议先填一个允许的 agentId。"
-              : "可选。这个用户未限制 agent，留空即可自动路由，也可以手动填一个 agentId。",
+              ? "建议填允许的 agent。"
+              : "可留空，默认自动路由。",
           },
         ];
       }
@@ -568,16 +568,16 @@
         };
 
         const nextAction = isDraftChannel
-          ? "正在创建一个新服务器草稿。先填好 channelId 和 secret，再决定是否立刻分配用户 token。"
+          ? "先保存服务器，再创建用户。"
           : !selectedChannel
-            ? "先从左边选择一个服务器，或者新建一个 channel。"
+            ? "先选择一个服务器。"
           : !selectedChannel.backendConnected
-            ? "当前最重要的是让 OpenClaw 插件连回本机 backend，这样客户端才不会被拒绝。"
+            ? "先让插件连上 backend。"
             : selectedChannel.userCount === 0
-              ? "先为这个服务器创建至少一个用户 token，再把客户端字段说明发给第三方。"
+              ? "先创建至少一个用户 token。"
               : (selectedChannel.tokenParam || "token") !== "token"
-                ? "如果第三方直接接官方 H5 页，建议把 tokenParam 改回 token。"
-                : "当前配置已经适合日常接入，重点是把正确用户的 client guide 发给第三方。";
+                ? "建议把 tokenParam 调整为 token。"
+                : "可以直接发连接信息给接入方。";
 
         useEffect(() => {
           if (!selectedChannelId && showChannelEditor) {
@@ -940,107 +940,112 @@
           <div className="mx-auto max-w-7xl px-4 py-4 sm:px-5 sm:py-5">
             <div className="grid gap-4">
               <${Card} className="overflow-hidden">
-                <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1.25fr_0.95fr]">
-                  <div className="space-y-4">
-                    <div className="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                      Relay Gateway Workspace
-                    </div>
-                    <div className="space-y-3">
-                      <h1 className="max-w-4xl text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
-                        把 relay 管理端做成一个真正可日常使用的平台。
-                      </h1>
-                      <p className="max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-                        这里不再是临时调试页，而是把经常发生的工作拆成稳定流程：选服务器、确认健康状态、复制正确的插件配置、给第三方接入方一份可直接照填的客户端字段说明，然后再管理用户 token。
-                      </p>
-                    </div>
+                <div className="grid gap-4 p-4 sm:p-5">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-2">
+                        <${Chip} tone=${errorMessage ? "warn" : "ok"}>${errorMessage ? "需处理" : "运行中"}</${Chip}>
+                        <${Chip}>${selectedChannel ? selectedChannel.channelId : "未选服务器"}</${Chip}>
+                        <${Chip}>${gatewayState?.timestamp ? formatTime(gatewayState.timestamp) : "未刷新"}</${Chip}>
+                      </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Servers</div>
-                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.channels}</div>
-                        <div className="mt-2 text-sm text-slate-500">${summary.protectedChannels} protected</div>
+                      <div className="space-y-2">
+                        <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">Relay Gateway</h1>
+                        <p className="text-sm text-slate-500 sm:text-base">管理服务器、用户 Token 和连接入口。</p>
                       </div>
-                      <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Backends</div>
-                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.backendsOnline}</div>
-                        <div className="mt-2 text-sm text-slate-500">${summary.backendsOffline} offline</div>
-                      </div>
-                      <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Live Clients</div>
-                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.clientCount}</div>
-                        <div className="mt-2 text-sm text-slate-500">
-                          ${summary.clientCount > 0 ? "Relay traffic is live" : "No live traffic right now"}
+
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-[24px] border border-slate-200 bg-white/80 p-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Servers</div>
+                          <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.channels}</div>
+                          <div className="mt-2 text-sm text-slate-500">${summary.protectedChannels} 已启用用户</div>
+                        </div>
+                        <div className="rounded-[24px] border border-slate-200 bg-white/80 p-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Backends</div>
+                          <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.backendsOnline}</div>
+                          <div className="mt-2 text-sm text-slate-500">${summary.backendsOffline} 离线</div>
+                        </div>
+                        <div className="rounded-[24px] border border-slate-200 bg-white/80 p-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Clients</div>
+                          <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.clientCount}</div>
+                          <div className="mt-2 text-sm text-slate-500">当前在线客户端</div>
+                        </div>
+                        <div className="rounded-[24px] border border-slate-200 bg-white/80 p-4">
+                          <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Users</div>
+                          <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.userCount}</div>
+                          <div className="mt-2 truncate text-sm text-slate-500">${gatewayState?.configPath || "配置文件未加载"}</div>
                         </div>
                       </div>
-                      <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Managed Users</div>
-                        <div className="mt-2 text-3xl font-semibold text-slate-950">${summary.userCount}</div>
-                        <div className="mt-2 truncate text-sm text-slate-500">${gatewayState?.configPath || "Config path unavailable"}</div>
-                      </div>
                     </div>
 
-                    <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
-                      <div className="flex flex-wrap gap-2">
-                        <${Chip} tone=${errorMessage ? "warn" : "ok"}>${errorMessage ? "Attention" : "Ready"}</${Chip}>
-                        <${Chip}>${selectedChannel ? `Selected: ${selectedChannel.channelId}` : "No channel selected"}</${Chip}>
-                        <${Chip}>${gatewayState?.timestamp ? `Refreshed ${formatTime(gatewayState.timestamp)}` : "Never refreshed"}</${Chip}>
+                    <div className="grid gap-3">
+                      <div className="rounded-[24px] border border-slate-200 bg-white/80 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Public</div>
+                            <div className="mt-1 text-sm font-semibold text-slate-900">${getPublicHttpOrigin(gatewayState)}</div>
+                          </div>
+                          <${Chip} tone=${getPublicHttpOrigin(gatewayState).startsWith("https://") ? "ok" : "warn"}>
+                            ${getPublicHttpOrigin(gatewayState).startsWith("https://") ? "HTTPS" : "No HTTPS"}
+                          </${Chip}>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <${Button} tone="secondary" onClick=${() => handleCopy("admin URL", getPublicAdminUrl(gatewayState))}>复制管理地址</${Button}>
+                          ${workspaceChannel?.channelId
+                            ? html`<${Button} tone="ghost" onClick=${() => handleCopy("public client URL", buildClientBaseUrl(gatewayState, workspaceChannel))}>复制客户端地址</${Button}>`
+                            : null}
+                        </div>
                       </div>
-                      <p className="mt-3 text-sm leading-7 text-slate-600">${errorMessage || nextAction}</p>
+
+                      <form className="rounded-[24px] border border-slate-200 bg-white/80 p-4" onSubmit=${saveAdminToken}>
+                        <input type="text" autoComplete="username" className="hidden" value="relay-admin" readOnly />
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Admin</div>
+                            <div className="mt-1 text-base font-semibold text-slate-950">管理令牌</div>
+                          </div>
+                          <${Chip} tone=${gatewayState?.adminAuthEnabled ? "ok" : "warn"}>
+                            ${gatewayState?.adminAuthEnabled ? "已启用" : "未启用"}
+                          </${Chip}>
+                        </div>
+                        <label className="grid gap-2">
+                          <input
+                            className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
+                            type=${showAdminToken ? "text" : "password"}
+                            autoComplete="new-password"
+                            value=${adminInput}
+                            onInput=${(event) => setAdminInput(event.target.value)}
+                            placeholder="输入 admin token"
+                          />
+                        </label>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <${Button} type="submit">保存</${Button}>
+                          <${Button} tone="secondary" onClick=${() => setShowAdminToken((value) => !value)}>
+                            ${showAdminToken ? "隐藏" : "显示"}
+                          </${Button}>
+                          <${Button} tone="ghost" onClick=${() => loadState(true)} disabled=${isLoading}>
+                            ${isLoading ? "刷新中..." : "刷新"}
+                          </${Button}>
+                        </div>
+                      </form>
                     </div>
                   </div>
 
-                  <div className="grid gap-4">
-                    <div className="rounded-[24px] border border-slate-200 bg-white/75 p-4">
-                      <div className="mb-3 space-y-1">
-                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Public entry</div>
-                        <div className="text-sm font-semibold text-slate-900">${getPublicHttpOrigin(gatewayState)}</div>
-                        <p className="text-sm leading-6 text-slate-500">
-                          这是对外提供给第三方接入方的域名。客户端 URL 会基于它生成，避免把内网地址抄出去。
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        <${Chip} tone=${getPublicHttpOrigin(gatewayState).startsWith("https://") ? "ok" : "warn"}>
-                          ${getPublicHttpOrigin(gatewayState).startsWith("https://") ? "HTTPS ready" : "HTTPS missing"}
-                        </${Chip}>
-                        <${Chip}>Admin: ${getPublicAdminUrl(gatewayState)}</${Chip}>
-                      </div>
+                  <div className="flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-slate-50/80 p-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Next</div>
+                      <div className="mt-1 text-sm font-medium text-slate-700">${errorMessage || nextAction}</div>
                     </div>
-
-                    <form className="rounded-[24px] border border-slate-200 bg-white/75 p-4" onSubmit=${saveAdminToken}>
-                      <input type="text" autoComplete="username" className="hidden" value="relay-admin" readOnly />
-                      <div className="mb-3 space-y-1">
-                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Step 0</div>
-                        <h2 className="text-xl font-semibold text-slate-950">先拿到管理权限</h2>
-                        <p className="text-sm leading-6 text-slate-500">
-                          这个令牌只会保存在当前浏览器本地。对于日常运维来说，先把它保存好，后面所有动作都会更顺手。
-                        </p>
-                      </div>
-                      <label className="grid gap-2">
-                        <span className="text-sm font-medium text-slate-700">Admin Token</span>
-                        <input
-                          className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
-                          type=${showAdminToken ? "text" : "password"}
-                          autoComplete="new-password"
-                          value=${adminInput}
-                          onInput=${(event) => setAdminInput(event.target.value)}
-                          placeholder="optional if relay admin auth is enabled"
-                        />
-                      </label>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <${Button} type="submit">Save Token</${Button}>
-                        <${Button} tone="secondary" onClick=${() => setShowAdminToken((value) => !value)}>
-                          ${showAdminToken ? "Hide Token" : "Show Token"}
-                        </${Button}>
-                        <${Button} tone="ghost" onClick=${() => loadState(true)} disabled=${isLoading}>
-                          ${isLoading ? "Refreshing..." : "Refresh State"}
-                        </${Button}>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <${Chip} tone=${gatewayState?.adminAuthEnabled ? "ok" : "warn"}>
-                          ${gatewayState?.adminAuthEnabled ? "Admin auth on" : "Waiting for token or auth disabled"}
-                        </${Chip}>
-                      </div>
-                    </form>
+                    ${workspaceChannel?.channelId
+                      ? html`
+                          <div className="flex flex-wrap gap-2">
+                            <${Button} tone="secondary" onClick=${() => handleCopy("OpenClaw config", buildOpenClawConfig(gatewayState, workspaceChannel))}>复制插件配置</${Button}>
+                            ${preferredUser
+                              ? html`<${Button} tone="ghost" onClick=${() => handleCopy("openclaw connect URL", buildOpenClawConnectUrl(gatewayState, selectedChannel, preferredUser))}>复制连接包</${Button}>`
+                              : null}
+                          </div>
+                        `
+                      : null}
                   </div>
                 </div>
               </${Card}>
@@ -1048,9 +1053,9 @@
               <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
                 <div className="grid gap-4">
                   <${SectionCard}
-                    title="Step 1. 选择服务器"
-                    subtitle="把服务器列表放在单独区域，便于快速扫一眼谁在线、谁缺用户、谁的 tokenParam 不标准。"
-                    actions=${html`<${Button} tone="secondary" onClick=${startNewChannel}>Create New Server</${Button}>`}
+                    title="服务器"
+                    subtitle="选择、搜索、新建。"
+                    actions=${html`<${Button} tone="secondary" onClick=${startNewChannel}>新建服务器</${Button}>`}
                   >
                     <div className="grid gap-3">
                       <input
@@ -1058,14 +1063,14 @@
                         type="search"
                         value=${serverSearch}
                         onInput=${(event) => setServerSearch(event.target.value)}
-                        placeholder="Search by label, channelId, status, instance..."
+                        placeholder="搜索 label、channelId、实例..."
                       />
                     </div>
                     <div className="mt-4 grid gap-3">
                       ${filteredChannels.length === 0
                         ? html`<${EmptyState}
-                            title="No servers yet"
-                            text="先创建一个 channel。创建完成后，这里会成为你日常切换和查看状态的入口。"
+                            title="还没有服务器"
+                            text="先创建一个 channel。"
                           />`
                         : filteredChannels.map((channel) => {
                             const selected = channel.channelId === selectedChannelId;
@@ -1124,12 +1129,12 @@
                   </${SectionCard}>
 
                   <${SectionCard}
-                    title="Activity"
-                    subtitle="成功、失败、复制动作和状态刷新都记录在这里，方便回头排查。"
+                    title="最近动作"
+                    subtitle="保存、复制、删除都会记录。"
                   >
                     <div className="grid gap-3">
                       ${activity.length === 0
-                        ? html`<div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm text-slate-500">No activity yet.</div>`
+                        ? html`<div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-sm text-slate-500">还没有记录。</div>`
                         : activity.map((item) => html`
                             <div className="rounded-[22px] border border-slate-200 bg-white/70 px-4 py-3">
                               <div className="mb-1 text-xs text-slate-400">${formatTime(item.time)}</div>
@@ -1142,14 +1147,8 @@
 
                 <div className="grid gap-4">
                   <${SectionCard}
-                    title="Workspace"
-                    subtitle="把经常使用的动作拆成 4 个视图：概览、接入、用户、设置。默认先看接入。"
-                    actions=${workspaceChannel?.channelId ? html`
-                      <div className="flex flex-wrap gap-2">
-                        <${Button} tone="secondary" onClick=${() => handleCopy("public client URL", buildClientBaseUrl(gatewayState, workspaceChannel))}>Copy Client URL</${Button}>
-                        <${Button} tone="ghost" onClick=${() => handleCopy("OpenClaw config", buildOpenClawConfig(gatewayState, workspaceChannel))}>Copy Plugin Config</${Button}>
-                      </div>
-                    ` : null}
+                    title="工作区"
+                    subtitle="按服务器查看接入、用户和设置。"
                   >
                     ${workspaceChannel
                       ? html`
@@ -1163,10 +1162,10 @@
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                   <${Chip} tone=${selectedChannel ? (selectedChannel.backendConnected ? "ok" : "warn") : "warn"}>
-                                    ${selectedChannel ? (selectedChannel.backendConnected ? "backend online" : "backend offline") : "draft only"}
+                                    ${selectedChannel ? (selectedChannel.backendConnected ? "backend 在线" : "backend 离线") : "草稿"}
                                   </${Chip}>
                                   <${Chip} tone=${selectedChannel ? (selectedChannel.userCount > 0 ? "ok" : "warn") : "warn"}>
-                                    ${selectedChannel ? (selectedChannel.userCount > 0 ? `${selectedChannel.userCount} users` : "no users") : "users after save"}
+                                    ${selectedChannel ? (selectedChannel.userCount > 0 ? `${selectedChannel.userCount} 个用户` : "无用户") : "保存后可用"}
                                   </${Chip}>
                                   <${Chip} tone=${(workspaceChannel.tokenParam || "token") === "token" ? "ok" : "warn"}>
                                     tokenParam ${workspaceChannel.tokenParam || "token"}
@@ -1179,7 +1178,7 @@
                               ${selectedChannel ? html`<${TabButton} active=${activeTab === TAB_CONNECT} label="接入" onClick=${() => setActiveTab(TAB_CONNECT)} />` : null}
                               ${selectedChannel ? html`<${TabButton} active=${activeTab === TAB_USERS} label="用户" onClick=${() => setActiveTab(TAB_USERS)} />` : null}
                               <${TabButton} active=${activeTab === TAB_SETTINGS} label="设置" onClick=${() => setActiveTab(TAB_SETTINGS)} />
-                              ${selectedChannel ? html`<${TabButton} active=${activeTab === TAB_ACTIVITY} label="状态摘要" onClick=${() => setActiveTab(TAB_ACTIVITY)} />` : null}
+                              ${selectedChannel ? html`<${TabButton} active=${activeTab === TAB_ACTIVITY} label="状态" onClick=${() => setActiveTab(TAB_ACTIVITY)} />` : null}
                             </div>
 
                             ${activeTab === TAB_CONNECT ? html`
@@ -1200,12 +1199,10 @@
                                   ? html`
                                       <div className="rounded-[24px] border border-amber-200 bg-amber-50/90 p-4">
                                         <div className="mb-2 flex items-center gap-2">
-                                          <${Chip} tone="warn">Compatibility note</${Chip}>
-                                          <div className="text-sm font-semibold text-amber-900">官方 H5 示例页默认使用 <code>token</code> 参数</div>
+                                          <${Chip} tone="warn">兼容性</${Chip}>
+                                          <div className="text-sm font-semibold text-amber-900">官方 H5 默认使用 <code>token</code></div>
                                         </div>
-                                        <p className="text-sm leading-7 text-amber-900">
-                                          当前 channel 使用的是 <code>${selectedChannel.tokenParam}</code>。如果第三方直接接官方 H5 页面，建议改回 <code>token</code>；否则请让对方使用下面的 Raw WSS URL 或自定义客户端。
-                                        </p>
+                                        <p className="text-sm leading-7 text-amber-900">当前是 <code>${selectedChannel.tokenParam}</code>。直连官方 H5 时建议改回 <code>token</code>。</p>
                                       </div>
                                     `
                                   : null}
@@ -1215,18 +1212,16 @@
                                     <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
                                       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                                         <div>
-                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Public endpoints</div>
-                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">第三方应该连什么</h3>
-                                          <p className="mt-2 text-sm leading-7 text-slate-500">
-                                            这一块专门给外部集成方。页面本身是 HTTPS 时，这里永远生成 WSS 地址，避免 Mixed Content。
-                                          </p>
+                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Client</div>
+                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">客户端入口</h3>
+                                          <p className="mt-2 text-sm text-slate-500">给第三方使用。</p>
                                         </div>
                                       </div>
                                       <div className="grid gap-4">
                                         <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
                                           <div className="mb-2 flex items-center justify-between gap-3">
-                                            <div className="text-sm font-semibold text-slate-900">Client serverUrl</div>
-                                            <${Button} tone="secondary" onClick=${() => handleCopy("public client URL", buildClientBaseUrl(gatewayState, selectedChannel))}>Copy</${Button}>
+                                            <div className="text-sm font-semibold text-slate-900">serverUrl</div>
+                                            <${Button} tone="secondary" onClick=${() => handleCopy("public client URL", buildClientBaseUrl(gatewayState, selectedChannel))}>复制</${Button}>
                                           </div>
                                           <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
                                             ${buildClientBaseUrl(gatewayState, workspaceChannel)}
@@ -1234,8 +1229,8 @@
                                         </div>
                                         <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
                                           <div className="mb-2 flex items-center justify-between gap-3">
-                                            <div className="text-sm font-semibold text-slate-900">Admin page</div>
-                                            <${Button} tone="secondary" onClick=${() => handleCopy("admin URL", getPublicAdminUrl(gatewayState))}>Copy</${Button}>
+                                            <div className="text-sm font-semibold text-slate-900">管理页</div>
+                                            <${Button} tone="secondary" onClick=${() => handleCopy("admin URL", getPublicAdminUrl(gatewayState))}>复制</${Button}>
                                           </div>
                                           <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
                                             ${getPublicAdminUrl(gatewayState)}
@@ -1247,20 +1242,18 @@
                                     <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
                                       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                                         <div>
-                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Plugin setup</div>
-                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">OpenClaw 插件应该怎么写</h3>
-                                          <p className="mt-2 text-sm leading-7 text-slate-500">
-                                            这一块只给插件机器。backend 仍然应该走本机 <code>ws://127.0.0.1:18080/backend</code>，不要把插件连去公网域名。
-                                          </p>
+                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Plugin</div>
+                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">插件配置</h3>
+                                          <p className="mt-2 text-sm text-slate-500">只给 OpenClaw 服务器使用。</p>
                                         </div>
-                                        <${Button} tone="secondary" onClick=${() => handleCopy("OpenClaw config", buildOpenClawConfig(gatewayState, workspaceChannel))}>Copy Config</${Button}>
+                                        <${Button} tone="secondary" onClick=${() => handleCopy("OpenClaw config", buildOpenClawConfig(gatewayState, workspaceChannel))}>复制配置</${Button}>
                                       </div>
                                       <pre className="overflow-auto rounded-[22px] bg-slate-950 px-4 py-4 font-mono text-xs leading-6 text-slate-100">${buildOpenClawConfig(gatewayState, workspaceChannel)}</pre>
                                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                                         <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
                                           <div className="mb-2 flex items-center justify-between gap-3">
-                                            <div className="text-sm font-semibold text-slate-900">Plugin backend URL</div>
-                                            <${Button} tone="secondary" onClick=${() => handleCopy("plugin backend URL", buildPluginBackendUrl(gatewayState))}>Copy</${Button}>
+                                            <div className="text-sm font-semibold text-slate-900">backend URL</div>
+                                            <${Button} tone="secondary" onClick=${() => handleCopy("plugin backend URL", buildPluginBackendUrl(gatewayState))}>复制</${Button}>
                                           </div>
                                           <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
                                             ${buildPluginBackendUrl(gatewayState)}
@@ -1268,8 +1261,8 @@
                                         </div>
                                         <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
                                           <div className="mb-2 flex items-center justify-between gap-3">
-                                            <div className="text-sm font-semibold text-slate-900">Relay block only</div>
-                                            <${Button} tone="secondary" onClick=${() => handleCopy("plugin relay block", buildRelayBlock(gatewayState, workspaceChannel))}>Copy</${Button}>
+                                            <div className="text-sm font-semibold text-slate-900">relay 配置块</div>
+                                            <${Button} tone="secondary" onClick=${() => handleCopy("plugin relay block", buildRelayBlock(gatewayState, workspaceChannel))}>复制</${Button}>
                                           </div>
                                           <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildRelayBlock(gatewayState, workspaceChannel)}</pre>
                                         </div>
@@ -1281,25 +1274,23 @@
                                     <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
                                       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                                         <div>
-                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Client guide</div>
-                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">第三方每个字段该怎么填</h3>
-                                          <p className="mt-2 text-sm leading-7 text-slate-500">
-                                            不要求对方理解协议，只要按字段填。你可以切换不同用户，把不同 token 的说明直接复制给不同接入方。
-                                          </p>
+                                          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Access</div>
+                                          <h3 className="mt-1 text-xl font-semibold text-slate-950">客户端凭据</h3>
+                                          <p className="mt-2 text-sm text-slate-500">按用户切换并直接复制。</p>
                                         </div>
                                         <div className="flex flex-wrap gap-2">
-                                          <${Button} tone="secondary" onClick=${() => handleCopy("client field guide", buildClientGuideText(gatewayState, selectedChannel, preferredUser))}>Copy Guide</${Button}>
+                                          <${Button} tone="secondary" onClick=${() => handleCopy("client field guide", buildClientGuideText(gatewayState, selectedChannel, preferredUser))}>复制字段</${Button}>
                                           ${preferredUser
-                                            ? html`<${Button} tone="ghost" onClick=${() => handleCopy("openclaw connect URL", buildOpenClawConnectUrl(gatewayState, selectedChannel, preferredUser))}>Copy Connect URL</${Button}>`
+                                            ? html`<${Button} tone="ghost" onClick=${() => handleCopy("openclaw connect URL", buildOpenClawConnectUrl(gatewayState, selectedChannel, preferredUser))}>复制连接包</${Button}>`
                                             : null}
                                           ${preferredUser
-                                            ? html`<${Button} tone="ghost" onClick=${() => openConnectionShare(preferredUser)}>Show QR</${Button}>`
+                                            ? html`<${Button} tone="ghost" onClick=${() => openConnectionShare(preferredUser)}>二维码</${Button}>`
                                             : null}
                                         </div>
                                       </div>
 
                                       <label className="grid gap-2">
-                                        <span className="text-sm font-medium text-slate-700">Which user are you handing this to?</span>
+                                        <span className="text-sm font-medium text-slate-700">当前用户</span>
                                         <select
                                           className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
                                           value=${preferredUser?.senderId || ""}
@@ -1311,10 +1302,10 @@
                                           }}
                                         >
                                           ${selectedChannel.userCount === 0
-                                            ? html`<option value="">No users configured</option>`
+                                            ? html`<option value="">还没有用户</option>`
                                             : selectedChannel.users.map((user) => html`
                                                 <option value=${user.senderId}>
-                                                  ${user.senderId}${user.enabled === false ? " (disabled)" : ""}
+                                                  ${user.senderId}${user.enabled === false ? "（已停用）" : ""}
                                                 </option>
                                               `)}
                                         </select>
@@ -1334,8 +1325,8 @@
 
                                       <div className="mt-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
                                         <div className="mb-2 flex items-center justify-between gap-3">
-                                          <div className="text-sm font-semibold text-slate-900">Raw WSS URL</div>
-                                          <${Button} tone="secondary" onClick=${() => handleCopy("raw client URL", buildClientFullUrl(gatewayState, selectedChannel, preferredUser))}>Copy</${Button}>
+                                          <div className="text-sm font-semibold text-slate-900">完整 WSS URL</div>
+                                          <${Button} tone="secondary" onClick=${() => handleCopy("raw client URL", buildClientFullUrl(gatewayState, selectedChannel, preferredUser))}>复制</${Button}>
                                         </div>
                                         <code className="block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
                                           ${buildClientFullUrl(gatewayState, selectedChannel, preferredUser)}
@@ -1344,8 +1335,8 @@
 
                                       <div className="mt-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
                                         <div className="mb-2 flex items-center justify-between gap-3">
-                                          <div className="text-sm font-semibold text-slate-900">Full client template</div>
-                                          <${Button} tone="secondary" onClick=${() => handleCopy("client template", buildClientTemplate(gatewayState, selectedChannel, preferredUser))}>Copy</${Button}>
+                                          <div className="text-sm font-semibold text-slate-900">字段模板</div>
+                                          <${Button} tone="secondary" onClick=${() => handleCopy("client template", buildClientTemplate(gatewayState, selectedChannel, preferredUser))}>复制</${Button}>
                                         </div>
                                         <pre className="overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">${buildClientTemplate(gatewayState, selectedChannel, preferredUser)}</pre>
                                       </div>
@@ -1356,12 +1347,10 @@
                                               <div className="mb-2 flex items-start justify-between gap-3">
                                                 <div>
                                                   <div className="text-sm font-semibold text-slate-900">OpenClaw Connect URL</div>
-                                                  <p className="mt-1 text-xs leading-6 text-slate-500">
-                                                    复制到 H5 客户端的“导入连接 URL”里，或者直接扫二维码，就会自动填入 <code>serverUrl</code>、<code>token</code>、<code>chatId</code> 和用户身份。
-                                                  </p>
+                                                  <p className="mt-1 text-xs leading-6 text-slate-500">支持粘贴导入或扫码导入。</p>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
-                                                  <${Button} tone="secondary" onClick=${() => handleCopy("openclaw connect URL", buildOpenClawConnectUrl(gatewayState, selectedChannel, preferredUser))}>Copy</${Button}>
+                                                  <${Button} tone="secondary" onClick=${() => handleCopy("openclaw connect URL", buildOpenClawConnectUrl(gatewayState, selectedChannel, preferredUser))}>复制</${Button}>
                                                   <${Button} tone="ghost" onClick=${() => openConnectionShare(preferredUser)}>QR</${Button}>
                                                 </div>
                                               </div>
@@ -1384,30 +1373,28 @@
                                     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                                       <div>
                                         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Users</div>
-                                        <h3 className="mt-1 text-xl font-semibold text-slate-950">谁可以连这个服务器</h3>
-                                        <p className="mt-2 text-sm leading-7 text-slate-500">
-                                          这里按“用户粒度”维护 token。经常使用的动作应该是：搜索、复制 token、切换 guide、编辑用户。
-                                        </p>
+                                        <h3 className="mt-1 text-xl font-semibold text-slate-950">用户与 Token</h3>
+                                        <p className="mt-2 text-sm text-slate-500">搜索、复制、编辑。</p>
                                       </div>
                                       <div className="flex flex-wrap gap-2">
-                                        <${Button} tone="secondary" onClick=${startNewUser}>New User</${Button}>
+                                        <${Button} tone="secondary" onClick=${startNewUser}>新建用户</${Button}>
                                         <input
                                           className="w-full min-w-[220px] rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm sm:w-auto"
                                           type="search"
                                           value=${userSearch}
                                           onInput=${(event) => setUserSearch(event.target.value)}
-                                          placeholder="Search senderId, token, chatId..."
+                                          placeholder="搜索 senderId、token、chatId..."
                                         />
                                       </div>
                                     </div>
 
                                     ${filteredUsers.length === 0
                                       ? html`<${EmptyState}
-                                          title=${selectedChannel.userCount === 0 ? "No users yet" : "No users match"}
+                                          title=${selectedChannel.userCount === 0 ? "还没有用户" : "没有匹配结果"}
                                           text=${selectedChannel.userCount === 0
-                                            ? "先创建一个 token，接入方就能开始按用户身份连接。"
-                                            : "换一个关键词，或者清空搜索。"}
-                                          action=${selectedChannel.userCount === 0 ? html`<${Button} onClick=${startNewUser}>Create First User</${Button}>` : null}
+                                            ? "先创建一个 token。"
+                                            : "换个关键词试试。"}
+                                          action=${selectedChannel.userCount === 0 ? html`<${Button} onClick=${startNewUser}>创建第一个用户</${Button}>` : null}
                                         />`
                                       : html`
                                           <div className="grid gap-3">
@@ -1425,16 +1412,16 @@
                                                       <div className=${`font-mono text-xs ${active ? "text-white/70" : "text-slate-500"}`}>${user.id || "no explicit user id"}</div>
                                                     </div>
                                                     <div className="flex flex-wrap gap-2">
-                                                      ${active ? html`<${Chip} tone="ok">guide target</${Chip}>` : null}
+                                                      ${active ? html`<${Chip} tone="ok">当前接入</${Chip}>` : null}
                                                       <${Chip} tone=${user.enabled === false ? "danger" : "ok"}>
-                                                        ${user.enabled === false ? "disabled" : "enabled"}
+                                                        ${user.enabled === false ? "已停用" : "已启用"}
                                                       </${Chip}>
                                                       <${Chip}>${agentLabel}</${Chip}>
                                                     </div>
                                                   </div>
                                                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                                                    <span className=${`rounded-full px-3 py-1 ${active ? "bg-white/10 text-white/75" : "bg-white text-slate-500"}`}>Chat: ${user.chatId || "client controlled"}</span>
-                                                    <span className=${`rounded-full px-3 py-1 ${active ? "bg-white/10 text-white/75" : "bg-white text-slate-500"}`}>Token param: ${selectedChannel.tokenParam || "token"}</span>
+                                                    <span className=${`rounded-full px-3 py-1 ${active ? "bg-white/10 text-white/75" : "bg-white text-slate-500"}`}>Chat: ${user.chatId || "客户端自选"}</span>
+                                                    <span className=${`rounded-full px-3 py-1 ${active ? "bg-white/10 text-white/75" : "bg-white text-slate-500"}`}>Param: ${selectedChannel.tokenParam || "token"}</span>
                                                   </div>
                                                   <code className=${`mt-4 block overflow-auto rounded-2xl px-3 py-3 font-mono text-xs leading-6 ${active ? "bg-white/10 text-white" : "bg-white text-slate-700"}`}>
                                                     ${user.token}
@@ -1445,13 +1432,13 @@
                                                       pushActivity(`Client guide switched to ${user.senderId}.`, "ok");
                                                       pushToast(`Client guide switched to ${user.senderId}.`, "ok");
                                                     }}>
-                                                      ${active ? "In Guide" : "Use In Guide"}
+                                                      ${active ? "已选中" : "设为当前"}
                                                     </${Button}>
-                                                    <${Button} tone="ghost" onClick=${() => handleCopy(`token for ${user.senderId}`, user.token)}>Copy Token</${Button}>
-                                                    <${Button} tone="ghost" onClick=${() => handleCopy(`connect URL for ${user.senderId}`, buildOpenClawConnectUrl(gatewayState, selectedChannel, user))}>Copy Link</${Button}>
-                                                    <${Button} tone="secondary" onClick=${() => openConnectionShare(user)}>QR Login</${Button}>
-                                                    <${Button} tone="secondary" onClick=${() => startEditUser(user)}>Edit</${Button}>
-                                                    <${Button} tone="danger" onClick=${() => removeUser(user)}>Delete</${Button}>
+                                                    <${Button} tone="ghost" onClick=${() => handleCopy(`token for ${user.senderId}`, user.token)}>复制 Token</${Button}>
+                                                    <${Button} tone="ghost" onClick=${() => handleCopy(`connect URL for ${user.senderId}`, buildOpenClawConnectUrl(gatewayState, selectedChannel, user))}>复制连接包</${Button}>
+                                                    <${Button} tone="secondary" onClick=${() => openConnectionShare(user)}>二维码</${Button}>
+                                                    <${Button} tone="secondary" onClick=${() => startEditUser(user)}>编辑</${Button}>
+                                                    <${Button} tone="danger" onClick=${() => removeUser(user)}>删除</${Button}>
                                                   </div>
                                                 </div>
                                               `;
@@ -1466,18 +1453,16 @@
                                     <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                                       <div>
                                         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Editor</div>
-                                        <h3 className="mt-1 text-xl font-semibold text-slate-950">新增或编辑用户</h3>
-                                        <p className="mt-2 text-sm leading-7 text-slate-500">
-                                          表单默认隐藏，避免把页面变成一整片输入框。真正要编辑时再打开。
-                                        </p>
+                                        <h3 className="mt-1 text-xl font-semibold text-slate-950">用户编辑</h3>
+                                        <p className="mt-2 text-sm text-slate-500">需要时再展开。</p>
                                       </div>
                                       <div className="flex flex-wrap gap-2">
                                         ${showUserEditor
                                           ? html`<${Button} tone="ghost" onClick=${() => {
                                               setShowUserEditor(false);
                                               setEditingUserSenderId("");
-                                            }}>Hide Editor</${Button}>`
-                                          : html`<${Button} tone="secondary" onClick=${startNewUser}>Open Editor</${Button}>`}
+                                            }}>收起</${Button}>`
+                                          : html`<${Button} tone="secondary" onClick=${startNewUser}>打开编辑器</${Button}>`}
                                       </div>
                                     </div>
 
@@ -1492,7 +1477,7 @@
                                                   autoComplete="off"
                                                   value=${userDraft.id}
                                                   onInput=${(event) => setUserDraft((current) => ({ ...current, id: event.target.value }))}
-                                                  placeholder="optional stable id"
+                                                  placeholder="可选"
                                                 />
                                               </label>
                                               <label className="grid gap-2">
@@ -1507,13 +1492,13 @@
                                                 />
                                               </label>
                                               <label className="grid gap-2">
-                                                <span className="text-sm font-medium text-slate-700">Fixed Chat ID</span>
+                                                <span className="text-sm font-medium text-slate-700">固定 Chat ID</span>
                                                 <input
                                                   className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
                                                   autoComplete="off"
                                                   value=${userDraft.chatId}
                                                   onInput=${(event) => setUserDraft((current) => ({ ...current, chatId: event.target.value }))}
-                                                  placeholder="optional legacy binding"
+                                                  placeholder="可选"
                                                 />
                                               </label>
                                               <label className="grid gap-2">
@@ -1523,7 +1508,7 @@
                                                   autoComplete="new-password"
                                                   value=${userDraft.token}
                                                   onInput=${(event) => setUserDraft((current) => ({ ...current, token: event.target.value }))}
-                                                  placeholder="auto-generate if empty"
+                                                  placeholder="为空可自动生成"
                                                 />
                                               </label>
                                             </div>
@@ -1534,9 +1519,9 @@
                                                 autoComplete="off"
                                                 value=${userDraft.allowAgents}
                                                 onInput=${(event) => setUserDraft((current) => ({ ...current, allowAgents: event.target.value }))}
-                                                placeholder="main,code,writer or *"
+                                                placeholder="main,code,writer 或 *"
                                               />
-                                              <span className="text-xs leading-6 text-slate-500">留空或填写 <code>*</code> 都表示允许这个 token 使用所有 agents。</span>
+                                              <span className="text-xs leading-6 text-slate-500">留空或 <code>*</code> 表示允许全部 agent。</span>
                                             </label>
                                             <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3">
                                               <input
@@ -1544,22 +1529,22 @@
                                                 checked=${userDraft.enabled}
                                                 onChange=${(event) => setUserDraft((current) => ({ ...current, enabled: event.target.checked }))}
                                               />
-                                              <span className="text-sm font-medium text-slate-700">Enabled user</span>
+                                              <span className="text-sm font-medium text-slate-700">启用用户</span>
                                             </label>
                                             <div className="flex flex-wrap gap-2">
-                                              <${Button} type="submit">Save User</${Button}>
-                                              <${Button} tone="secondary" onClick=${() => setUserDraft((current) => ({ ...current, token: `gc_${randomToken()}` }))}>Generate Token</${Button}>
+                                              <${Button} type="submit">保存用户</${Button}>
+                                              <${Button} tone="secondary" onClick=${() => setUserDraft((current) => ({ ...current, token: `gc_${randomToken()}` }))}>生成 Token</${Button}>
                                               <${Button} tone="ghost" onClick=${() => {
                                                 setEditingUserSenderId("");
                                                 setUserDraft(createUserDraft());
-                                              }}>Reset Form</${Button}>
+                                              }}>重置</${Button}>
                                             </div>
                                           </form>
                                         `
                                       : html`<${EmptyState}
-                                          title="Editor hidden"
-                                          text="平时先看用户列表，需要新增或修改时再打开编辑器。这样移动端不会被大量表单挤满。"
-                                          action=${html`<${Button} onClick=${startNewUser}>Open User Editor</${Button}>`}
+                                          title="编辑器已收起"
+                                          text="需要新增或修改时再打开。"
+                                          action=${html`<${Button} onClick=${startNewUser}>打开用户编辑器</${Button}>`}
                                         />`}
                                   </div>
                                 </div>
@@ -1574,14 +1559,12 @@
                                       <div>
                                         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Server settings</div>
                                         <h3 className="mt-1 text-xl font-semibold text-slate-950">服务器配置</h3>
-                                        <p className="mt-2 text-sm leading-7 text-slate-500">
-                                          修改 channel 元数据、secret 和 tokenParam。这里是管理员操作，默认也保持收起，减少误操作。
-                                        </p>
+                                        <p className="mt-2 text-sm text-slate-500">修改 channel、secret 和 tokenParam。</p>
                                       </div>
                                       <div className="flex flex-wrap gap-2">
                                         ${showChannelEditor
-                                          ? html`<${Button} tone="ghost" onClick=${() => setShowChannelEditor(false)}>Hide Editor</${Button}>`
-                                          : html`<${Button} tone="secondary" onClick=${startEditServer}>Open Editor</${Button}>`}
+                                          ? html`<${Button} tone="ghost" onClick=${() => setShowChannelEditor(false)}>收起</${Button}>`
+                                          : html`<${Button} tone="secondary" onClick=${startEditServer}>打开编辑器</${Button}>`}
                                       </div>
                                     </div>
 
@@ -1600,13 +1583,13 @@
                                               />
                                             </label>
                                             <label className="grid gap-2">
-                                              <span className="text-sm font-medium text-slate-700">Label</span>
+                                              <span className="text-sm font-medium text-slate-700">名称</span>
                                               <input
                                                 className="rounded-2xl border-slate-200 bg-white px-4 py-3 text-sm"
                                                 autoComplete="off"
                                                 value=${channelDraft.label}
                                                 onInput=${(event) => setChannelDraft((current) => ({ ...current, label: event.target.value }))}
-                                                placeholder="Singapore Main Gateway"
+                                                placeholder="例如：Singapore Main Gateway"
                                               />
                                             </label>
                                             <label className="grid gap-2">
@@ -1616,11 +1599,11 @@
                                                 autoComplete="new-password"
                                                 value=${channelDraft.secret}
                                                 onInput=${(event) => setChannelDraft((current) => ({ ...current, secret: event.target.value }))}
-                                                placeholder="auto-generate if empty"
+                                                placeholder="为空可自动生成"
                                               />
                                             </label>
                                             <label className="grid gap-2">
-                                              <span className="text-sm font-medium text-slate-700">Client Token Param</span>
+                                              <span className="text-sm font-medium text-slate-700">Token 参数名</span>
                                               <input
                                                 className="rounded-2xl border-slate-200 bg-white px-4 py-3 font-mono text-sm"
                                                 autoComplete="off"
@@ -1630,36 +1613,34 @@
                                               />
                                             </label>
                                             <div className="flex flex-wrap gap-2">
-                                              <${Button} type="submit">Save Server</${Button}>
-                                              <${Button} tone="secondary" onClick=${() => setChannelDraft((current) => ({ ...current, secret: randomToken() }))}>Generate Secret</${Button}>
-                                              <${Button} tone="ghost" onClick=${() => handleCopy("backend secret", channelDraft.secret)} disabled=${!channelDraft.secret}>Copy Secret</${Button}>
+                                              <${Button} type="submit">保存服务器</${Button}>
+                                              <${Button} tone="secondary" onClick=${() => setChannelDraft((current) => ({ ...current, secret: randomToken() }))}>生成 Secret</${Button}>
+                                              <${Button} tone="ghost" onClick=${() => handleCopy("backend secret", channelDraft.secret)} disabled=${!channelDraft.secret}>复制 Secret</${Button}>
                                             </div>
                                           </form>
                                         `
                                       : html`<${EmptyState}
-                                          title="Editor hidden"
-                                          text="配置区默认隐藏，减少日常浏览时的视觉噪音。要修改时再打开。"
-                                          action=${html`<${Button} onClick=${startEditServer}>Open Server Editor</${Button}>`}
+                                          title="编辑器已收起"
+                                          text="修改配置时再打开。"
+                                          action=${html`<${Button} onClick=${startEditServer}>打开服务器编辑器</${Button}>`}
                                         />`}
                                   </div>
 
                                   <div className="rounded-[26px] border border-slate-200 bg-white/80 p-5">
-                                    <div className="mb-4 space-y-1">
-                                      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Route preview</div>
-                                      <h3 className="text-xl font-semibold text-slate-950">这个服务器现在的路由长什么样</h3>
-                                      <p className="text-sm leading-7 text-slate-500">
-                                        把“给谁看”的信息分开：公网入口给第三方，backend 地址只给插件机器。
-                                      </p>
+                                      <div className="mb-4 space-y-1">
+                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Route preview</div>
+                                      <h3 className="text-xl font-semibold text-slate-950">路由预览</h3>
+                                      <p className="text-sm text-slate-500">公网地址给客户端，backend 地址给插件。</p>
                                     </div>
                                     <div className="grid gap-3">
                                       <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                                        <div className="text-sm font-semibold text-slate-900">Public client URL</div>
+                                        <div className="text-sm font-semibold text-slate-900">客户端地址</div>
                                         <code className="mt-2 block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
                                           ${buildClientBaseUrl(gatewayState, workspaceChannel)}
                                         </code>
                                       </div>
                                       <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
-                                        <div className="text-sm font-semibold text-slate-900">Plugin backend URL</div>
+                                        <div className="text-sm font-semibold text-slate-900">插件 backend</div>
                                         <code className="mt-2 block overflow-auto rounded-2xl bg-white px-3 py-3 font-mono text-xs leading-6 text-slate-700">
                                           ${buildPluginBackendUrl(gatewayState)}
                                         </code>
@@ -1674,26 +1655,22 @@
                                       <div className="mb-3 space-y-1">
                                         <div className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">Danger zone</div>
                                         <h3 className="text-xl font-semibold text-rose-900">删除服务器</h3>
-                                        <p className="text-sm leading-7 text-rose-800">
-                                          删除会移除当前 channel、断开 backend，并清掉该服务器下的用户 token。
-                                        </p>
+                                        <p className="text-sm text-rose-800">会同时删除 channel 和用户 token。</p>
                                       </div>
-                                      <${Button} tone="danger" onClick=${() => removeChannel(selectedChannel)}>Delete ${selectedChannel.channelId}</${Button}>
+                                      <${Button} tone="danger" onClick=${() => removeChannel(selectedChannel)}>删除 ${selectedChannel.channelId}</${Button}>
                                     </div>
                                   ` : html`
                                     <div className="rounded-[26px] border border-amber-200 bg-amber-50/80 p-5">
                                       <div className="mb-3 space-y-1">
-                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">Before saving</div>
-                                        <h3 className="text-xl font-semibold text-amber-950">新服务器还没有落盘</h3>
-                                        <p className="text-sm leading-7 text-amber-900">
-                                          这是一个本地草稿。保存后它才会出现在左侧列表，并且才能开始配置用户 token 与第三方接入说明。
-                                        </p>
+                                        <div className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">Draft</div>
+                                        <h3 className="text-xl font-semibold text-amber-950">还未保存</h3>
+                                        <p className="text-sm text-amber-900">保存后才会出现在服务器列表里。</p>
                                       </div>
                                       <${Button} tone="ghost" onClick=${() => {
                                         setShowChannelEditor(false);
                                         setChannelDraft(createChannelDraft());
                                         setActiveTab(TAB_CONNECT);
-                                      }}>Discard Draft</${Button}>
+                                      }}>丢弃草稿</${Button}>
                                     </div>
                                   `}
                                 </div>
@@ -1716,9 +1693,9 @@
                           </div>
                         `
                       : html`<${EmptyState}
-                          title="Select a server to start"
-                          text="先从左边选择一个服务器。右边工作区会自动切换到它的接入配置、用户管理和设置。"
-                          action=${html`<${Button} onClick=${startNewChannel}>Create New Server</${Button}>`}
+                          title="先选择一个服务器"
+                          text="右侧会自动切换到对应工作区。"
+                          action=${html`<${Button} onClick=${startNewChannel}>新建服务器</${Button}>`}
                         />`}
                   </${SectionCard}>
                 </div>
@@ -1733,11 +1710,9 @@
                         <div>
                           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Login QR</div>
                           <h3 className="mt-1 text-xl font-semibold text-slate-950">${shareUser.senderId}</h3>
-                          <p className="mt-2 text-sm leading-7 text-slate-500">
-                            扫码后，客户端会自动导入 <code>serverUrl</code>、<code>token</code>、<code>chatId</code> 和推荐 <code>agentId</code>。也可以直接复制下面的导入链接。
-                          </p>
+                          <p className="mt-2 text-sm text-slate-500">扫码或复制连接包即可登录。</p>
                         </div>
-                        <${Button} tone="ghost" onClick=${closeConnectionShare}>Close</${Button}>
+                        <${Button} tone="ghost" onClick=${closeConnectionShare}>关闭</${Button}>
                       </div>
 
                       <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
@@ -1754,8 +1729,8 @@
                           </code>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
-                          <${Button} tone="secondary" onClick=${() => handleCopy(`openclaw connect URL for ${shareUser.senderId}`, shareConnectUrl)}>Copy Connect URL</${Button}>
-                          <${Button} tone="ghost" onClick=${() => handleCopy(`raw client URL for ${shareUser.senderId}`, buildClientFullUrl(gatewayState, selectedChannel, shareUser))}>Copy Raw WSS URL</${Button}>
+                          <${Button} tone="secondary" onClick=${() => handleCopy(`openclaw connect URL for ${shareUser.senderId}`, shareConnectUrl)}>复制连接包</${Button}>
+                          <${Button} tone="ghost" onClick=${() => handleCopy(`raw client URL for ${shareUser.senderId}`, buildClientFullUrl(gatewayState, selectedChannel, shareUser))}>复制 WSS URL</${Button}>
                         </div>
                       </div>
                     </div>
