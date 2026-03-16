@@ -190,7 +190,7 @@ channels:
 Companion relay-gateway:
 
 ```bash
-cd relay-gateway
+cd src/relay-gateway
 npm install
 RELAY_PORT=19080 \\
 RELAY_CHANNELS_JSON='{"demo":{"secret":"replace-me"}}' \\

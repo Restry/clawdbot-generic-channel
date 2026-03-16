@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Relay Gateway</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "system-ui", "PingFang SC", "Microsoft YaHei", "sans-serif"],
+              mono: ["JetBrains Mono", "SFMono-Regular", "ui-monospace", "monospace"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body { background: #f8fafc; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+      .dot-on { background: #22c55e; }
+      .dot-off { background: #ef4444; }
+    </style>
+  </head>
+  <body class="min-h-screen text-slate-900 antialiased">
+    <div id="app"></div>
+
+    <script type="module">
+      import React, { useEffect, useState, useCallback } from "https://esm.sh/react@19.2.0";
+      import { createRoot } from "https://esm.sh/react-dom@19.2.0/client";
+      import htm from "https://esm.sh/htm@3.1.1";
+      import QRCode from "https://esm.sh/qrcode@1.5.4";
+
+      const h = htm.bind(React.createElement);
+      const STORAGE_KEY = "relay-admin-token";
+
+      /* ── helpers ── */
+
+      function randomToken() {
+        if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID().replaceAll("-", "");
+        if (globalThis.crypto?.getRandomValues) {
+          const b = new Uint8Array(16);
+          globalThis.crypto.getRandomValues(b);
+          return Array.from(b, v => v.toString(16).padStart(2, "0")).join("");
+        }
+        return `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`.replace(/\./g, "").slice(0, 32);
+      }
+
+      function httpOrigin(val) {
+        if (!val) return location.origin;
+        try { return new URL(val).origin; } catch { return location.origin; }
+      }
+      function wsOrigin(httpO) {
+        const u = new URL(httpO);
+        u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
+        return u.origin;
+      }
+      function clientBaseUrl(state, ch) {
+        return `${wsOrigin(httpOrigin(state?.publicBaseUrl))}/client?channelId=${encodeURIComponent(ch?.channelId || "")}`;
+      }
+      function clientFullUrl(state, ch, user) {
+        const p = ch?.tokenParam || "token";
+        return `${clientBaseUrl(state, ch)}&${encodeURIComponent(p)}=${encodeURIComponent(user?.token || "")}`;
+      }
+      function backendUrl(state) {
+        return state?.pluginBackendUrl || "ws://127.0.0.1:18080/backend";
+      }
+      function pluginConfig(state, ch) {
+        return `channels:\n  generic-channel:\n    enabled: true\n    connectionMode: "relay"\n    relay:\n      url: "${backendUrl(state)}"\n      channelId: "${ch?.channelId || ""}"\n      secret: "${ch?.secret || ""}"\n      instanceId: "openclaw-node-1"\n    auth:\n      enabled: false`;
+      }
+      function connectUrl(state, ch, user) {
+        const p = new URLSearchParams();
+        p.set("serverUrl", clientBaseUrl(state, ch));
+        p.set("token", user?.token || "");
+        p.set("name", user?.senderId || "");
+        p.set("senderId", user?.senderId || "");
+        if (user?.chatId) p.set("chatId", user.chatId);
+        const agents = Array.isArray(user?.allowAgents) ? user.allowAgents.filter(a => a && a !== "*") : [];
+        if (agents[0]) p.set("agentId", agents[0]);
+        return `openclaw://connect?${p.toString()}`;
+      }
+
+      async function copyText(v) {
+        if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(v);
+        const t = document.createElement("textarea");
+        t.value = v; t.style.cssText = "position:fixed;opacity:0";
+        document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove();
+      }
+
+      async function api(path, token, init = {}) {
+        const headers = new Headers(init.headers || {});
+        if (init.body && !headers.has("content-type")) headers.set("content-type", "application/json");
+        if (token) headers.set("x-relay-admin-token", token);
+        const r = await fetch(path, { ...init, headers });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+        return d;
+      }
+
+      /* ── tiny UI primitives ── */
+
+      function Btn({ variant = "primary", className = "", ...props }) {
+        const cls = {
+          primary: "bg-slate-900 text-white hover:bg-slate-800",
+          secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
+          danger: "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100",
+          ghost: "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
+        }[variant] || "";
+        return h`<button type="button" ...${props} className=${`inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium transition ${cls} ${className}`.trim()} />`;
+      }
+
+      function Badge({ ok, children }) {
+        return h`<span className=${`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ${ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}><span className=${`dot ${ok ? "dot-on" : "dot-off"}`} />${children}</span>`;
+      }
+
+      function Field({ label, children }) {
+        return h`<label className="grid gap-1.5"><span className="text-xs font-medium text-slate-500">${label}</span>${children}</label>`;
+      }
+
+      const inputCls = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:ring-0";
+      const monoInputCls = `${inputCls} font-mono`;
+
+      /* ── Modal ── */
+
+      function Modal({ open, onClose, title, children }) {
+        if (!open) return null;
+        return h`
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick=${onClose}>
+            <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl" onClick=${e => e.stopPropagation()}>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-base font-semibold">${title}</h3>
+                <button className="text-slate-400 hover:text-slate-600" onClick=${onClose}>✕</button>
+              </div>
+              ${children}
+            </div>
+          </div>
+        `;
+      }
+
+      /* ── LoginScreen ── */
+
+      function LoginScreen({ onLogin }) {
+        const [v, setV] = useState("");
+        const submit = e => { e.preventDefault(); onLogin(v.trim()); };
+        return h`
+          <div className="grid min-h-screen place-items-center p-4">
+            <form className="w-full max-w-sm space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm" onSubmit=${submit}>
+              <h1 className="text-lg font-semibold">Relay Gateway</h1>
+              <input type="text" autoComplete="username" className="hidden" value="relay-admin" readOnly />
+              <${Field} label="Admin Token">
+                <input className=${inputCls} type="password" autoComplete="new-password" value=${v} onInput=${e => setV(e.target.value)} placeholder="输入管理令牌" />
+              </${Field}>
+              <${Btn} type="submit" variant="primary" className="w-full">登录</${Btn}>
+            </form>
+          </div>
+        `;
+      }
+
+      /* ── ChannelForm (modal) ── */
+
+      function ChannelForm({ channel, onSave, onClose }) {
+        const [d, setD] = useState({
+          channelId: channel?.channelId || "",
+          label: channel?.label || "",
+          secret: channel?.secret || "",
+          tokenParam: channel?.tokenParam || "token",
+        });
+        const patch = k => e => setD(p => ({ ...p, [k]: e.target.value }));
+        const submit = e => { e.preventDefault(); onSave(d); };
+        return h`
+          <form className="grid gap-3" onSubmit=${submit}>
+            <${Field} label="Channel ID">
+              <input className=${inputCls} value=${d.channelId} onInput=${patch("channelId")} placeholder="demo" required />
+            </${Field}>
+            <${Field} label="名称">
+              <input className=${inputCls} value=${d.label} onInput=${patch("label")} placeholder="可选" />
+            </${Field}>
+            <${Field} label="Backend Secret">
+              <div className="flex gap-2">
+                <input className=${`${monoInputCls} flex-1`} value=${d.secret} onInput=${patch("secret")} autoComplete="new-password" />
+                <${Btn} variant="secondary" onClick=${() => setD(p => ({ ...p, secret: randomToken() }))}>生成</${Btn}>
+              </div>
+            </${Field}>
+            <${Field} label="Token 参数名">
+              <input className=${monoInputCls} value=${d.tokenParam} onInput=${patch("tokenParam")} placeholder="token" />
+            </${Field}>
+            <div className="flex justify-end gap-2 pt-2">
+              <${Btn} variant="secondary" onClick=${onClose}>取消</${Btn}>
+              <${Btn} variant="primary" type="submit">保存</${Btn}>
+            </div>
+          </form>
+        `;
+      }
+
+      /* ── UserForm (modal) ── */
+
+      function UserForm({ user, onSave, onClose }) {
+        const [d, setD] = useState({
+          id: user?.id || "",
+          senderId: user?.senderId || "",
+          chatId: user?.chatId || "",
+          token: user?.token || `gc_${randomToken()}`,
+          allowAgents: Array.isArray(user?.allowAgents) ? user.allowAgents.join(",") : "",
+          enabled: user?.enabled !== false,
+        });
+        const patch = k => e => setD(p => ({ ...p, [k]: e.target.value }));
+        const submit = e => { e.preventDefault(); onSave(d); };
+        return h`
+          <form className="grid gap-3" onSubmit=${submit}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <${Field} label="Sender ID *">
+                <input className=${inputCls} value=${d.senderId} onInput=${patch("senderId")} placeholder="user-01" required />
+              </${Field}>
+              <${Field} label="User ID">
+                <input className=${inputCls} value=${d.id} onInput=${patch("id")} placeholder="可选" />
+              </${Field}>
+            </div>
+            <${Field} label="Token">
+              <div className="flex gap-2">
+                <input className=${`${monoInputCls} flex-1`} value=${d.token} onInput=${patch("token")} autoComplete="new-password" />
+                <${Btn} variant="secondary" onClick=${() => setD(p => ({ ...p, token: `gc_${randomToken()}` }))}>生成</${Btn}>
+              </div>
+            </${Field}>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <${Field} label="固定 Chat ID">
+                <input className=${inputCls} value=${d.chatId} onInput=${patch("chatId")} placeholder="可选" />
+              </${Field}>
+              <${Field} label="允许 Agents">
+                <input className=${inputCls} value=${d.allowAgents} onInput=${patch("allowAgents")} placeholder="* 或 main,code" />
+              </${Field}>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked=${d.enabled} onChange=${e => setD(p => ({ ...p, enabled: e.target.checked }))} />
+              启用
+            </label>
+            <div className="flex justify-end gap-2 pt-2">
+              <${Btn} variant="secondary" onClick=${onClose}>取消</${Btn}>
+              <${Btn} variant="primary" type="submit">保存</${Btn}>
+            </div>
+          </form>
+        `;
+      }
+
+      /* ── ShareModal ── */
+
+      function ShareModal({ open, onClose, state, channel, user }) {
+        const [qr, setQr] = useState("");
+        const url = open && channel && user ? connectUrl(state, channel, user) : "";
+        useEffect(() => {
+          if (!url) { setQr(""); return; }
+          let c = false;
+          QRCode.toDataURL(url, { width: 280, margin: 1, errorCorrectionLevel: "M" })
+            .then(d => { if (!c) setQr(d); })
+            .catch(() => { if (!c) setQr(""); });
+          return () => { c = true; };
+        }, [url]);
+        if (!open || !user) return null;
+        return h`
+          <${Modal} open=${open} onClose=${onClose} title=${`分享 — ${user.senderId}`}>
+            <div className="space-y-4">
+              <div className="flex justify-center rounded-lg bg-slate-50 p-4">
+                ${qr
+                  ? h`<img src=${qr} alt="QR" className="h-56 w-56 rounded bg-white p-2" />`
+                  : h`<div className="grid h-56 w-56 place-items-center text-sm text-slate-400">生成中...</div>`}
+              </div>
+              <div className="rounded-lg bg-slate-50 p-3">
+                <code className="block break-all font-mono text-xs text-slate-600">${url}</code>
+              </div>
+              <div className="flex gap-2">
+                <${Btn} variant="primary" className="flex-1" onClick=${() => { copyText(url); onClose(); }}>复制连接包</${Btn}>
+                <${Btn} variant="secondary" className="flex-1" onClick=${() => { copyText(clientFullUrl(state, channel, user)); onClose(); }}>复制 WSS URL</${Btn}>
+              </div>
+            </div>
+          </${Modal}>
+        `;
+      }
+
+      /* ── Sidebar ── */
+
+      function Sidebar({ channels, selected, onSelect, onNew, stats }) {
+        return h`
+          <div className="flex h-full flex-col border-r border-slate-200 bg-white">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <div className="text-sm font-semibold">Relay Gateway</div>
+              <div className="mt-0.5 text-xs text-slate-400">${stats.backends} backend · ${stats.clients} client · ${stats.users} user</div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-2 py-2">
+              ${channels.map(ch => {
+                const sel = ch.channelId === selected;
+                return h`
+                  <button key=${ch.channelId} type="button" onClick=${() => onSelect(ch.channelId)}
+                    className=${`mb-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition ${sel ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}>
+                    <span className=${`dot ${ch.backendConnected ? "dot-on" : "dot-off"}`} />
+                    <span className="min-w-0 flex-1 truncate font-medium">${ch.label || ch.channelId}</span>
+                    <span className=${`text-xs tabular-nums ${sel ? "text-white/60" : "text-slate-400"}`}>${ch.userCount}u</span>
+                  </button>
+                `;
+              })}
+              ${channels.length === 0 ? h`<div className="px-3 py-6 text-center text-sm text-slate-400">暂无服务器</div>` : null}
+            </div>
+            <div className="border-t border-slate-100 p-2">
+              <${Btn} variant="secondary" className="w-full" onClick=${onNew}>+ 新建服务器</${Btn}>
+            </div>
+          </div>
+        `;
+      }
+
+      /* ── Tab: Overview ── */
+
+      function TabOverview({ state, channel, toast }) {
+        if (!channel) return null;
+        const copy = (label, val) => { copyText(val).then(() => toast(`已复制 ${label}`)).catch(() => toast(`复制失败`, true)); };
+        return h`
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <${Badge} ok=${channel.backendConnected}>Backend</${Badge}>
+              <${Badge} ok=${channel.userCount > 0}>用户 ${channel.userCount}</${Badge}>
+              <${Badge} ok=${httpOrigin(state?.publicBaseUrl).startsWith("https://")}>TLS</${Badge}>
+              ${channel.instanceId ? h`<span className="text-xs text-slate-400">${channel.instanceId}</span>` : null}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-1 text-xs font-medium text-slate-400">客户端地址</div>
+                <code className="block break-all font-mono text-xs text-slate-700">${clientBaseUrl(state, channel)}</code>
+                <${Btn} variant="ghost" className="mt-2 text-xs" onClick=${() => copy("客户端地址", clientBaseUrl(state, channel))}>复制</${Btn}>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="mb-1 text-xs font-medium text-slate-400">Backend URL</div>
+                <code className="block break-all font-mono text-xs text-slate-700">${backendUrl(state)}</code>
+                <${Btn} variant="ghost" className="mt-2 text-xs" onClick=${() => copy("Backend URL", backendUrl(state))}>复制</${Btn}>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-400">插件配置 (openclaw.json)</span>
+                <${Btn} variant="ghost" className="text-xs" onClick=${() => copy("插件配置", pluginConfig(state, channel))}>复制</${Btn}>
+              </div>
+              <pre className="overflow-auto rounded-md bg-slate-900 px-3 py-2.5 font-mono text-xs leading-5 text-slate-100">${pluginConfig(state, channel)}</pre>
+            </div>
+          </div>
+        `;
+      }
+
+      /* ── Tab: Users ── */
+
+      function TabUsers({ state, channel, token, onReload, toast }) {
+        const [showForm, setShowForm] = useState(false);
+        const [editUser, setEditUser] = useState(null);
+        const [shareUser, setShareUser] = useState(null);
+        if (!channel) return null;
+        const users = Array.isArray(channel.users) ? channel.users : [];
+
+        const saveUser = async (d) => {
+          try {
+            await api(`/api/channels/${encodeURIComponent(channel.channelId)}/users`, token, {
+              method: "POST", body: JSON.stringify(d),
+            });
+            toast(`已保存 ${d.senderId}`);
+            setShowForm(false); setEditUser(null);
+            await onReload();
+          } catch (e) { toast(e.message, true); }
+        };
+
+        const deleteUser = async (u) => {
+          if (!confirm(`删除 ${u.senderId}？`)) return;
+          try {
+            await api(`/api/channels/${encodeURIComponent(channel.channelId)}/users/${encodeURIComponent(u.senderId)}`, token, { method: "DELETE" });
+            toast(`已删除 ${u.senderId}`);
+            await onReload();
+          } catch (e) { toast(e.message, true); }
+        };
+
+        const copy = (label, val) => copyText(val).then(() => toast(`已复制 ${label}`)).catch(() => toast("复制失败", true));
+
+        return h`
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-400">${users.length} 个用户</span>
+              <${Btn} variant="primary" onClick=${() => { setEditUser(null); setShowForm(true); }}>+ 新建</${Btn}>
+            </div>
+
+            ${users.length === 0
+              ? h`<div className="rounded-lg border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">暂无用户</div>`
+              : h`
+                <div className="overflow-hidden rounded-lg border border-slate-200">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
+                      <tr>
+                        <th className="px-3 py-2 font-medium">Sender ID</th>
+                        <th className="px-3 py-2 font-medium hidden sm:table-cell">Token</th>
+                        <th className="px-3 py-2 font-medium hidden md:table-cell">Agents</th>
+                        <th className="px-3 py-2 font-medium">状态</th>
+                        <th className="px-3 py-2 font-medium text-right">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      ${users.map(u => {
+                        const agents = Array.isArray(u.allowAgents) && u.allowAgents.length ? u.allowAgents.join(", ") : "*";
+                        return h`
+                          <tr key=${u.senderId} className="hover:bg-slate-50">
+                            <td className="px-3 py-2.5 font-medium">${u.senderId}</td>
+                            <td className="hidden px-3 py-2.5 sm:table-cell">
+                              <code className="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 hover:bg-slate-200" onClick=${() => copy(`token`, u.token)}>${u.token.slice(0, 12)}…</code>
+                            </td>
+                            <td className="hidden px-3 py-2.5 text-slate-500 md:table-cell">${agents}</td>
+                            <td className="px-3 py-2.5"><${Badge} ok=${u.enabled !== false}>${u.enabled !== false ? "启用" : "停用"}</${Badge}></td>
+                            <td className="px-3 py-2.5 text-right">
+                              <div className="flex justify-end gap-1">
+                                <${Btn} variant="ghost" className="text-xs" onClick=${() => setShareUser(u)}>分享</${Btn}>
+                                <${Btn} variant="ghost" className="text-xs" onClick=${() => { setEditUser(u); setShowForm(true); }}>编辑</${Btn}>
+                                <${Btn} variant="ghost" className="text-xs text-red-500 hover:text-red-700" onClick=${() => deleteUser(u)}>删除</${Btn}>
+                              </div>
+                            </td>
+                          </tr>
+                        `;
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              `}
+
+            <${Modal} open=${showForm} onClose=${() => { setShowForm(false); setEditUser(null); }} title=${editUser ? `编辑 ${editUser.senderId}` : "新建用户"}>
+              <${UserForm} user=${editUser} onSave=${saveUser} onClose=${() => { setShowForm(false); setEditUser(null); }} />
+            </${Modal}>
+
+            <${ShareModal} open=${!!shareUser} onClose=${() => setShareUser(null)} state=${state} channel=${channel} user=${shareUser} />
+          </div>
+        `;
+      }
+
+      /* ── Tab: Settings ── */
+
+      function TabSettings({ state, channel, token, onReload, onDelete, toast }) {
+        const [editing, setEditing] = useState(false);
+        if (!channel) return null;
+
+        const save = async (d) => {
+          try {
+            await api("/api/channels", token, { method: "POST", body: JSON.stringify(d) });
+            toast(`已保存 ${d.channelId}`);
+            setEditing(false);
+            await onReload();
+          } catch (e) { toast(e.message, true); }
+        };
+
+        return h`
+          <div className="space-y-4">
+            ${editing
+              ? h`<${ChannelForm} channel=${channel} onSave=${save} onClose=${() => setEditing(false)} />`
+              : h`
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <div className="text-xs text-slate-400">Channel ID</div>
+                    <div className="mt-0.5 font-mono text-sm">${channel.channelId}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">名称</div>
+                    <div className="mt-0.5 text-sm">${channel.label || "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Secret</div>
+                    <div className="mt-0.5 font-mono text-sm text-slate-500">${channel.secret ? `${channel.secret.slice(0, 6)}…` : "—"}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-400">Token 参数名</div>
+                    <div className="mt-0.5 font-mono text-sm">${channel.tokenParam || "token"}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <${Btn} variant="secondary" onClick=${() => setEditing(true)}>编辑</${Btn}>
+                  <${Btn} variant="danger" onClick=${onDelete}>删除服务器</${Btn}>
+                </div>
+              `}
+          </div>
+        `;
+      }
+
+      /* ── App ── */
+
+      function App() {
+        const queryToken = new URLSearchParams(location.search).get("adminToken")?.trim() || "";
+        const initToken = queryToken || localStorage.getItem(STORAGE_KEY) || "";
+
+        const [token, setToken] = useState(initToken);
+        const [state, setState] = useState(null);
+        const [authed, setAuthed] = useState(false);
+        const [selectedId, setSelectedId] = useState("");
+        const [tab, setTab] = useState("overview");
+        const [showNewChannel, setShowNewChannel] = useState(false);
+        const [toasts, setToasts] = useState([]);
+
+        const toast = useCallback((msg, isError = false) => {
+          const id = `${Date.now()}-${Math.random()}`;
+          setToasts(t => [...t, { id, msg, isError }]);
+          setTimeout(() => setToasts(t => t.filter(i => i.id !== id)), 2400);
+        }, []);
+
+        const channels = Array.isArray(state?.channels) ? state.channels : [];
+        const channel = channels.find(c => c.channelId === selectedId) || null;
+
+        const stats = {
+          backends: state?.stats?.backendCount || 0,
+          clients: state?.stats?.clientCount || 0,
+          users: channels.reduce((s, c) => s + (c.userCount || 0), 0),
+        };
+
+        const loadState = useCallback(async (t) => {
+          try {
+            const d = await api("/api/state", t ?? token);
+            setState(d);
+            setAuthed(true);
+            setSelectedId(prev => {
+              if (prev && d.channels.some(c => c.channelId === prev)) return prev;
+              return d.channels[0]?.channelId || "";
+            });
+          } catch (e) {
+            if (String(e.message).includes("admin auth required")) {
+              setAuthed(false);
+            } else {
+              toast(e.message, true);
+            }
+          }
+        }, [token]);
+
+        useEffect(() => {
+          if (queryToken) localStorage.setItem(STORAGE_KEY, queryToken);
+          if (initToken) {
+            loadState(initToken);
+          } else {
+            api("/api/meta", "").then(d => {
+              setState(d);
+              if (!d.adminAuthEnabled) loadState("");
+            }).catch(() => {});
+          }
+        }, []);
+
+        const handleLogin = async (t) => {
+          localStorage.setItem(STORAGE_KEY, t);
+          setToken(t);
+          await loadState(t);
+        };
+
+        if (!authed) return h`<${LoginScreen} onLogin=${handleLogin} />`;
+
+        const handleNewChannel = async (d) => {
+          try {
+            await api("/api/channels", token, { method: "POST", body: JSON.stringify(d) });
+            toast(`已创建 ${d.channelId}`);
+            setShowNewChannel(false);
+            await loadState();
+            setSelectedId(d.channelId);
+          } catch (e) { toast(e.message, true); }
+        };
+
+        const handleDeleteChannel = async () => {
+          if (!channel || !confirm(`删除 ${channel.channelId}？`)) return;
+          try {
+            await api(`/api/channels/${encodeURIComponent(channel.channelId)}`, token, { method: "DELETE" });
+            toast(`已删除 ${channel.channelId}`);
+            await loadState();
+          } catch (e) { toast(e.message, true); }
+        };
+
+        const tabs = [
+          { key: "overview", label: "概览" },
+          { key: "users", label: "用户" },
+          { key: "settings", label: "设置" },
+        ];
+
+        return h`
+          <div className="flex h-screen">
+            <div className="hidden w-56 flex-shrink-0 lg:block">
+              <${Sidebar} channels=${channels} selected=${selectedId}
+                onSelect=${id => { setSelectedId(id); setTab("overview"); }}
+                onNew=${() => setShowNewChannel(true)}
+                stats=${stats} />
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col">
+              <!-- mobile header -->
+              <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 lg:hidden">
+                <select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium flex-1"
+                  value=${selectedId} onChange=${e => { setSelectedId(e.target.value); setTab("overview"); }}>
+                  ${channels.map(c => h`<option key=${c.channelId} value=${c.channelId}>${c.label || c.channelId}</option>`)}
+                </select>
+                <${Btn} variant="secondary" onClick=${() => setShowNewChannel(true)}>+</${Btn}>
+                <${Btn} variant="ghost" onClick=${() => loadState()}>↻</${Btn}>
+              </div>
+
+              ${channel ? h`
+                <div className="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-base font-semibold">${channel.label || channel.channelId}</h2>
+                      <span className="font-mono text-xs text-slate-400">${channel.channelId}</span>
+                    </div>
+                    <${Btn} variant="ghost" onClick=${() => loadState()}>↻ 刷新</${Btn}>
+                  </div>
+                  <div className="mt-3 flex gap-1">
+                    ${tabs.map(t => h`
+                      <button key=${t.key} type="button" onClick=${() => setTab(t.key)}
+                        className=${`rounded-md px-3 py-1.5 text-sm font-medium transition ${tab === t.key ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"}`}>
+                        ${t.label}
+                      </button>
+                    `)}
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+                  ${tab === "overview" ? h`<${TabOverview} state=${state} channel=${channel} toast=${toast} />` : null}
+                  ${tab === "users" ? h`<${TabUsers} state=${state} channel=${channel} token=${token} onReload=${loadState} toast=${toast} />` : null}
+                  ${tab === "settings" ? h`<${TabSettings} state=${state} channel=${channel} token=${token} onReload=${loadState} onDelete=${handleDeleteChannel} toast=${toast} />` : null}
+                </div>
+              ` : h`
+                <div className="grid flex-1 place-items-center text-sm text-slate-400">
+                  ${channels.length === 0 ? "暂无服务器，点击「新建」开始" : "选择一个服务器"}
+                </div>
+              `}
+            </div>
+
+            <${Modal} open=${showNewChannel} onClose=${() => setShowNewChannel(false)} title="新建服务器">
+              <${ChannelForm} channel=${null} onSave=${handleNewChannel} onClose=${() => setShowNewChannel(false)} />
+            </${Modal}>
+
+            <div className="pointer-events-none fixed bottom-4 right-4 z-50 grid gap-2 w-72">
+              ${toasts.map(t => h`
+                <div key=${t.id} className=${`pointer-events-auto rounded-lg px-3 py-2 text-sm shadow-lg ${t.isError ? "bg-red-600 text-white" : "bg-slate-900 text-white"}`}>
+                  ${t.msg}
+                </div>
+              `)}
+            </div>
+          </div>
+        `;
+      }
+
+      createRoot(document.getElementById("app")).render(h`<${App} />`);
+    </script>
+  </body>
+</html>

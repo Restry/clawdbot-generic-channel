@@ -132,16 +132,16 @@ openclaw config set channels.generic-channel.wsPort 8080
    - The example page writes the auth token into the `token` query param. If your server uses a custom token param, put it directly into `serverUrl`.
 
 5. For direct H5 / App / WeChat Mini Program integration, see `docs/INTEGRATION_GUIDE.md`
-6. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html` -> `relay-gateway/README.md`
+6. First-time readers should use this order: `README` -> `docs/INTEGRATION_GUIDE.md` -> `docs/CONFIG_EXAMPLES*.md` -> `examples/h5-client.html` -> `src/relay-gateway/README.md`
 
 ### Relay Gateway
 
-`relay-gateway/` is a standalone forwarding service for public deployments.
+`src/relay-gateway/` is a standalone forwarding service for public deployments.
 
 - Plugin backend connects to `/backend`
 - Third-party clients connect to `/client`
 - `relay-gateway` also provides a simple admin UI for channel/user/token management
-- See `relay-gateway/README.md` for environment variables, health checks, and deployment examples
+- See `src/relay-gateway/README.md` for environment variables, health checks, and deployment examples
 
 ### Message Protocol
 
@@ -509,7 +509,7 @@ openclaw config set channels.generic-channel.wsPort 8080
    - 示例页的 token 输入框只会写入 `token` 查询参数。如果你服务端用了自定义 token 参数名，请直接把它写进 `serverUrl`
 
 5. H5 / 聊天 App / 微信小程序的真实接入方式见 `docs/INTEGRATION_GUIDE.md`
-6. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html -> relay-gateway/README.md` 的顺序阅读
+6. 第一次接入建议按 `README -> docs/INTEGRATION_GUIDE.md -> docs/CONFIG_EXAMPLES_ZH.md -> examples/h5-client.html -> src/relay-gateway/README.md` 的顺序阅读
 
 ### 接入说明
 
@@ -531,12 +531,12 @@ openclaw config set channels.generic-channel.wsPort 8080
 
 ### Relay 网关
 
-`relay-gateway/` 是用于公网部署的独立中转服务。
+`src/relay-gateway/` 是用于公网部署的独立中转服务。
 
 - 插件主动反连 `/backend`
 - 第三方客户端连接 `/client`
 - `relay-gateway` 还提供一个简单管理页，可维护 channel、用户和 token
-- 环境变量、健康检查和部署示例见 `relay-gateway/README.md`
+- 环境变量、健康检查和部署示例见 `src/relay-gateway/README.md`
 
 ### 自动语音/音频转写
 

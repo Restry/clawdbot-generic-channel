@@ -12,7 +12,7 @@
 ## 启动
 
 ```bash
-cd relay-gateway
+cd src/relay-gateway
 npm install
 RELAY_PORT=19080 \
 RELAY_CHANNELS_JSON='{"demo":{"secret":"replace-me"}}' \
@@ -22,7 +22,7 @@ npm start
 或使用持久化配置文件：
 
 ```bash
-cd relay-gateway
+cd src/relay-gateway
 npm install
 RELAY_PORT=19080 \
 RELAY_CONFIG_PATH=/path/to/relay-config.json \
@@ -33,7 +33,7 @@ npm start
 只监听本机回环地址，再由 Caddy/Nginx 提供 `https://` 和 `wss://`：
 
 ```bash
-cd relay-gateway
+cd src/relay-gateway
 npm install
 RELAY_HOST=127.0.0.1 \
 RELAY_PORT=18080 \
@@ -49,7 +49,7 @@ npm start
 | `RELAY_HOST` | `0.0.0.0` | 监听地址 |
 | `RELAY_PORT` | `19080` | 监听端口 |
 | `RELAY_CHANNELS_JSON` | `{}` | 首次启动的种子配置，兼容旧格式 `{"channel-id":{"secret":"xxx"}}` |
-| `RELAY_CONFIG_PATH` | `relay-gateway/data/relay-config.json` | 持久化配置文件路径 |
+| `RELAY_CONFIG_PATH` | `src/relay-gateway/data/relay-config.json` | 持久化配置文件路径 |
 | `RELAY_ADMIN_TOKEN` | - | 可选管理台/API 管理 token |
 | `RELAY_PLUGIN_BACKEND_URL` | `ws://127.0.0.1:<RELAY_PORT>/backend` | 管理页里展示给 OpenClaw 插件的 backend 地址，默认指向本机回环 |
 
@@ -88,7 +88,7 @@ channels:
 
 仓库里提供了一个模板文件：
 
-- `relay-gateway/Caddyfile.example`
+- `src/relay-gateway/Caddyfile.example`
 
 最小 Caddyfile 形态如下：
 
