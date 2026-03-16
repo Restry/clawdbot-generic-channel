@@ -65,7 +65,8 @@
         return `${clientBaseUrl(state, ch)}&${encodeURIComponent(p)}=${encodeURIComponent(user?.token || "")}`;
       }
       function backendUrl(state) {
-        return state?.pluginBackendUrl || "ws://127.0.0.1:18080/backend";
+        if (state?.pluginBackendUrl) return state.pluginBackendUrl;
+        return `${wsOrigin(httpOrigin(state?.publicBaseUrl))}/backend`;
       }
       function pluginConfig(state, ch) {
         return `channels:\n  generic-channel:\n    enabled: true\n    connectionMode: "relay"\n    relay:\n      url: "${backendUrl(state)}"\n      channelId: "${ch?.channelId || ""}"\n      secret: "${ch?.secret || ""}"\n      instanceId: "openclaw-node-1"\n    auth:\n      enabled: false`;
