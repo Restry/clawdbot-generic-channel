@@ -1615,7 +1615,15 @@ openclaw config set channels.generic-channel.wsPort 8080</pre>
                 safeAgents.some(agent => agent.id === normalizedCurrentAgentId);
 
             select.value = hasCurrentAgent ? normalizedCurrentAgentId : '';
-            selectedAgentId = select.value;
+
+            // 在 agent 列表尚未返回前，保留导入 URL 里携带的 agentId，
+            // 这样首次连接时仍然会把它带进握手 URL。
+            if (hasCurrentAgent || safeAgents.length === 0) {
+                selectedAgentId = normalizedCurrentAgentId;
+                return;
+            }
+
+            selectedAgentId = '';
         }
 
         function requestAgentList() {

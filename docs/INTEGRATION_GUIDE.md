@@ -168,6 +168,7 @@ ws.onmessage = (event) => {
 - `openclaw://connect?serverUrl=ws://...&token=xxx&chatId=xxx&name=xxx`
 
 客户端会自动拆出 `serverUrl`、`token`、`chatId`、用户名称，并支持一键连接或扫码导入。
+如果 URL 里额外带了 `agentId`，客户端首次连接时也会自动带上该 agent 选择。
 
 ### 0.4 先记住这几个规则
 
