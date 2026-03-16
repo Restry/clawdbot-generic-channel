@@ -38,6 +38,27 @@
 
       /* ── helpers ── */
 
+      const ANIMALS = [
+        ["🐻","bear"],["🦊","fox"],["🐺","wolf"],["🦅","eagle"],["🐬","dolphin"],
+        ["🦁","lion"],["🐯","tiger"],["🦌","deer"],["🐳","whale"],["🦉","owl"],
+        ["🐧","penguin"],["🦈","shark"],["🐆","leopard"],["🦜","parrot"],["🐨","koala"],
+        ["🦇","bat"],["🐙","octopus"],["🦎","lizard"],["🐢","turtle"],["🦩","flamingo"],
+        ["🐝","bee"],["🦋","butterfly"],["🐘","elephant"],["🦔","hedgehog"],["🐊","croc"],
+      ];
+
+      function pickAnimal() {
+        return ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
+      }
+
+      function animalIcon(channelId) {
+        if (!channelId) return "🖥️";
+        const entry = ANIMALS.find(([, name]) => channelId.includes(name));
+        if (entry) return entry[0];
+        let hash = 0;
+        for (let i = 0; i < channelId.length; i++) hash = ((hash << 5) - hash + channelId.charCodeAt(i)) | 0;
+        return ANIMALS[Math.abs(hash) % ANIMALS.length][0];
+      }
+
       function randomToken() {
         if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID().replaceAll("-", "");
         if (globalThis.crypto?.getRandomValues) {
@@ -65,11 +86,14 @@
         return `${clientBaseUrl(state, ch)}&${encodeURIComponent(p)}=${encodeURIComponent(user?.token || "")}`;
       }
       function backendUrl(state) {
-        if (state?.pluginBackendUrl) return state.pluginBackendUrl;
         return `${wsOrigin(httpOrigin(state?.publicBaseUrl))}/backend`;
       }
+      function instanceId(ch) {
+        const base = (ch?.channelId || "node").replace(/[^a-z0-9-]/gi, "-").slice(0, 32);
+        return `openclaw-${base}`;
+      }
       function pluginConfig(state, ch) {
-        return `channels:\n  generic-channel:\n    enabled: true\n    connectionMode: "relay"\n    relay:\n      url: "${backendUrl(state)}"\n      channelId: "${ch?.channelId || ""}"\n      secret: "${ch?.secret || ""}"\n      instanceId: "openclaw-node-1"\n    auth:\n      enabled: false`;
+        return `channels:\n  generic-channel:\n    enabled: true\n    connectionMode: "relay"\n    relay:\n      url: "${backendUrl(state)}"\n      channelId: "${ch?.channelId || ""}"\n      secret: "${ch?.secret || ""}"\n      instanceId: "${instanceId(ch)}"\n    auth:\n      enabled: false`;
       }
       function connectUrl(state, ch, user) {
         const p = new URLSearchParams();
@@ -162,18 +186,59 @@
       /* ── ChannelForm (modal) ── */
 
       function ChannelForm({ channel, onSave, onClose }) {
-        const [d, setD] = useState({
-          channelId: channel?.channelId || "",
-          label: channel?.label || "",
-          secret: channel?.secret || "",
-          tokenParam: channel?.tokenParam || "token",
+        const isNew = !channel;
+        const [animal] = useState(() => pickAnimal());
+        const [d, setD] = useState(() => {
+          if (channel) return {
+            channelId: channel.channelId,
+            label: channel.label || "",
+            secret: channel.secret || "",
+            tokenParam: channel.tokenParam || "token",
+          };
+          const slug = `gc-${animal[1]}-${randomToken().slice(0, 6)}`;
+          return {
+            channelId: slug,
+            label: `${animal[0]} ${animal[1].charAt(0).toUpperCase() + animal[1].slice(1)}`,
+            secret: randomToken(),
+            tokenParam: "token",
+          };
         });
+        const [showAdvanced, setShowAdvanced] = useState(false);
         const patch = k => e => setD(p => ({ ...p, [k]: e.target.value }));
         const submit = e => { e.preventDefault(); onSave(d); };
+
+        if (isNew && !showAdvanced) {
+          return h`
+            <form className="grid gap-3" onSubmit=${submit}>
+              <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3">
+                <span className="text-3xl">${animal[0]}</span>
+                <div className="flex-1">
+                  <${Field} label="服务器名称">
+                    <input className=${inputCls} value=${d.label} onInput=${e => {
+                      const label = e.target.value;
+                      setD(p => ({ ...p, label }));
+                    }} placeholder="给服务器起个名字" required autoFocus />
+                  </${Field}>
+                </div>
+              </div>
+              <div className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-500">
+                channelId: ${d.channelId}
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <button type="button" className="text-xs text-slate-400 hover:text-slate-600" onClick=${() => setShowAdvanced(true)}>高级设置 ▸</button>
+                <div className="flex gap-2">
+                  <${Btn} variant="secondary" onClick=${onClose}>取消</${Btn}>
+                  <${Btn} variant="primary" type="submit">创建</${Btn}>
+                </div>
+              </div>
+            </form>
+          `;
+        }
+
         return h`
           <form className="grid gap-3" onSubmit=${submit}>
             <${Field} label="Channel ID">
-              <input className=${inputCls} value=${d.channelId} onInput=${patch("channelId")} placeholder="demo" required />
+              <input className=${monoInputCls} value=${d.channelId} onInput=${patch("channelId")} placeholder="demo" required />
             </${Field}>
             <${Field} label="名称">
               <input className=${inputCls} value=${d.label} onInput=${patch("label")} placeholder="可选" />
@@ -186,6 +251,7 @@
             </${Field}>
             <${Field} label="Token 参数名">
               <input className=${monoInputCls} value=${d.tokenParam} onInput=${patch("tokenParam")} placeholder="token" />
+              <span className="text-xs text-slate-400">客户端连接时传 token 的 URL 参数名，一般不需要改</span>
             </${Field}>
             <div className="flex justify-end gap-2 pt-2">
               <${Btn} variant="secondary" onClick=${onClose}>取消</${Btn}>
@@ -292,8 +358,8 @@
                 const sel = ch.channelId === selected;
                 return h`
                   <button key=${ch.channelId} type="button" onClick=${() => onSelect(ch.channelId)}
-                    className=${`mb-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition ${sel ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}>
-                    <span className=${`dot ${ch.backendConnected ? "dot-on" : "dot-off"}`} />
+                    className=${`mb-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition ${sel ? "bg-slate-900 text-white" : ch.backendConnected ? "text-slate-700 hover:bg-slate-100" : "text-slate-400 hover:bg-slate-100"}`}>
+                    <span className="text-base leading-none">${animalIcon(ch.channelId)}</span>
                     <span className="min-w-0 flex-1 truncate font-medium">${ch.label || ch.channelId}</span>
                     <span className=${`text-xs tabular-nums ${sel ? "text-white/60" : "text-slate-400"}`}>${ch.userCount}u</span>
                   </button>
