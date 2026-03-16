@@ -9,6 +9,20 @@
       tailwind.config = {
         theme: {
           extend: {
+            colors: {
+              border: "hsl(var(--border))",
+              input: "hsl(var(--input))",
+              ring: "hsl(var(--ring))",
+              background: "hsl(var(--background))",
+              foreground: "hsl(var(--foreground))",
+              primary: { DEFAULT: "hsl(var(--primary))", foreground: "hsl(var(--primary-foreground))" },
+              secondary: { DEFAULT: "hsl(var(--secondary))", foreground: "hsl(var(--secondary-foreground))" },
+              destructive: { DEFAULT: "hsl(var(--destructive))", foreground: "hsl(var(--destructive-foreground))" },
+              muted: { DEFAULT: "hsl(var(--muted))", foreground: "hsl(var(--muted-foreground))" },
+              accent: { DEFAULT: "hsl(var(--accent))", foreground: "hsl(var(--accent-foreground))" },
+              card: { DEFAULT: "hsl(var(--card))", foreground: "hsl(var(--card-foreground))" },
+            },
+            borderRadius: { lg: "var(--radius)", md: "calc(var(--radius) - 2px)", sm: "calc(var(--radius) - 4px)" },
             fontFamily: {
               sans: ["Inter", "system-ui", "PingFang SC", "Microsoft YaHei", "sans-serif"],
               mono: ["JetBrains Mono", "SFMono-Regular", "ui-monospace", "monospace"],
@@ -18,736 +32,170 @@
       };
     </script>
     <style>
-      body { background: #f8fafc; }
-      .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-      .dot-on { background: #22c55e; }
-      .dot-off { background: #ef4444; }
+      :root {
+        --background: 0 0% 100%; --foreground: 240 10% 3.9%;
+        --card: 0 0% 100%; --card-foreground: 240 10% 3.9%;
+        --primary: 240 5.9% 10%; --primary-foreground: 0 0% 98%;
+        --secondary: 240 4.8% 95.9%; --secondary-foreground: 240 5.9% 10%;
+        --muted: 240 4.8% 95.9%; --muted-foreground: 240 3.8% 46.1%;
+        --accent: 240 4.8% 95.9%; --accent-foreground: 240 5.9% 10%;
+        --destructive: 0 84.2% 60.2%; --destructive-foreground: 0 0% 98%;
+        --border: 240 5.9% 90%; --input: 240 5.9% 90%; --ring: 240 5.9% 10%;
+        --radius: 0.5rem;
+      }
+      * { border-color: hsl(var(--border)); }
+      body { background: hsl(var(--background)); color: hsl(var(--foreground)); }
+      .sb::-webkit-scrollbar { width: 4px; } .sb::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
     </style>
   </head>
-  <body class="min-h-screen text-slate-900 antialiased">
-    <div id="app"></div>
-
+  <body class="min-h-screen antialiased"><div id="app"></div>
     <script type="module">
-      import React, { useEffect, useState, useCallback } from "https://esm.sh/react@19.2.0";
-      import { createRoot } from "https://esm.sh/react-dom@19.2.0/client";
+      import React,{useEffect,useState,useCallback,useRef} from "https://esm.sh/react@19.2.0";
+      import {createRoot} from "https://esm.sh/react-dom@19.2.0/client";
       import htm from "https://esm.sh/htm@3.1.1";
       import QRCode from "https://esm.sh/qrcode@1.5.4";
+      const h=htm.bind(React.createElement), SK="relay-admin-token";
 
-      const h = htm.bind(React.createElement);
-      const STORAGE_KEY = "relay-admin-token";
+      /* ── data ── */
+      const AN=[["🐻","bear"],["🦊","fox"],["🐺","wolf"],["🦅","eagle"],["🐬","dolphin"],["🦁","lion"],["🐯","tiger"],["🦌","deer"],["🐳","whale"],["🦉","owl"],["🐧","penguin"],["🦈","shark"],["🐆","leopard"],["🦜","parrot"],["🐨","koala"],["🦇","bat"],["🐙","octopus"],["🦎","lizard"],["🐢","turtle"],["🦩","flamingo"],["🐝","bee"],["🦋","butterfly"],["🐘","elephant"],["🦔","hedgehog"],["🐊","croc"]];
+      const pickA=()=>AN[Math.floor(Math.random()*AN.length)];
+      function aIcon(id){if(!id)return"🖥️";const e=AN.find(([,n])=>id.includes(n));if(e)return e[0];let h2=0;for(let i=0;i<id.length;i++)h2=((h2<<5)-h2+id.charCodeAt(i))|0;return AN[Math.abs(h2)%AN.length][0];}
+      function tAgo(ts){const d=Date.now()-ts;if(d<6e4)return"刚刚";if(d<36e5)return`${Math.floor(d/6e4)}分前`;if(d<864e5)return`${Math.floor(d/36e5)}时前`;return new Date(ts).toLocaleTimeString("zh-CN",{hour:"2-digit",minute:"2-digit"});}
+      function rTok(){if(globalThis.crypto?.randomUUID)return globalThis.crypto.randomUUID().replaceAll("-","");if(globalThis.crypto?.getRandomValues){const b=new Uint8Array(16);globalThis.crypto.getRandomValues(b);return Array.from(b,v=>v.toString(16).padStart(2,"0")).join("");}return`${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`.replace(/\./g,"").slice(0,32);}
+      function hOr(v){if(!v)return location.origin;try{return new URL(v).origin;}catch{return location.origin;}}
+      function wsOr(o){const u=new URL(o);u.protocol=u.protocol==="https:"?"wss:":"ws:";return u.origin;}
+      function cUrl(s,c){return`${wsOr(hOr(s?.publicBaseUrl))}/client?channelId=${encodeURIComponent(c?.channelId||"")}`;}
+      function cFull(s,c,u){return`${cUrl(s,c)}&${encodeURIComponent(c?.tokenParam||"token")}=${encodeURIComponent(u?.token||"")}`;}
+      function bUrl(s){return`${wsOr(hOr(s?.publicBaseUrl))}/backend`;}
+      function iid(c){return`openclaw-${(c?.channelId||"node").replace(/[^a-z0-9-]/gi,"-").slice(0,32)}`;}
+      function pYaml(s,c){return`channels:\n  generic-channel:\n    enabled: true\n    connectionMode: "relay"\n    relay:\n      url: "${bUrl(s)}"\n      channelId: "${c?.channelId||""}"\n      secret: "${c?.secret||""}"\n      instanceId: "${iid(c)}"\n    auth:\n      enabled: false`;}
+      function conUrl(s,c,u){const p=new URLSearchParams();p.set("serverUrl",cUrl(s,c));p.set("token",u?.token||"");p.set("name",u?.senderId||"");p.set("senderId",u?.senderId||"");if(u?.chatId)p.set("chatId",u.chatId);const ag=Array.isArray(u?.allowAgents)?u.allowAgents.filter(a=>a&&a!=="*"):[];if(ag[0])p.set("agentId",ag[0]);return`openclaw://connect?${p.toString()}`;}
+      async function cp(v){if(navigator.clipboard?.writeText)return navigator.clipboard.writeText(v);const t=document.createElement("textarea");t.value=v;t.style.cssText="position:fixed;opacity:0";document.body.appendChild(t);t.select();document.execCommand("copy");t.remove();}
+      async function api(path,token,init={}){const hd=new Headers(init.headers||{});if(init.body&&!hd.has("content-type"))hd.set("content-type","application/json");if(token)hd.set("x-relay-admin-token",token);const r=await fetch(path,{...init,headers:hd});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d;}
 
-      /* ── helpers ── */
-
-      const ANIMALS = [
-        ["🐻","bear"],["🦊","fox"],["🐺","wolf"],["🦅","eagle"],["🐬","dolphin"],
-        ["🦁","lion"],["🐯","tiger"],["🦌","deer"],["🐳","whale"],["🦉","owl"],
-        ["🐧","penguin"],["🦈","shark"],["🐆","leopard"],["🦜","parrot"],["🐨","koala"],
-        ["🦇","bat"],["🐙","octopus"],["🦎","lizard"],["🐢","turtle"],["🦩","flamingo"],
-        ["🐝","bee"],["🦋","butterfly"],["🐘","elephant"],["🦔","hedgehog"],["🐊","croc"],
-      ];
-
-      function pickAnimal() {
-        return ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
-      }
-
-      function animalIcon(channelId) {
-        if (!channelId) return "🖥️";
-        const entry = ANIMALS.find(([, name]) => channelId.includes(name));
-        if (entry) return entry[0];
-        let hash = 0;
-        for (let i = 0; i < channelId.length; i++) hash = ((hash << 5) - hash + channelId.charCodeAt(i)) | 0;
-        return ANIMALS[Math.abs(hash) % ANIMALS.length][0];
-      }
-
-      function timeAgo(ts) {
-        const d = Date.now() - ts;
-        if (d < 60000) return "刚刚";
-        if (d < 3600000) return `${Math.floor(d / 60000)}分前`;
-        if (d < 86400000) return `${Math.floor(d / 3600000)}时前`;
-        return new Date(ts).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
-      }
-
-      function randomToken() {
-        if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID().replaceAll("-", "");
-        if (globalThis.crypto?.getRandomValues) {
-          const b = new Uint8Array(16);
-          globalThis.crypto.getRandomValues(b);
-          return Array.from(b, v => v.toString(16).padStart(2, "0")).join("");
-        }
-        return `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`.replace(/\./g, "").slice(0, 32);
-      }
-
-      function httpOrigin(val) {
-        if (!val) return location.origin;
-        try { return new URL(val).origin; } catch { return location.origin; }
-      }
-      function wsOrigin(httpO) {
-        const u = new URL(httpO);
-        u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-        return u.origin;
-      }
-      function clientBaseUrl(state, ch) {
-        return `${wsOrigin(httpOrigin(state?.publicBaseUrl))}/client?channelId=${encodeURIComponent(ch?.channelId || "")}`;
-      }
-      function clientFullUrl(state, ch, user) {
-        const p = ch?.tokenParam || "token";
-        return `${clientBaseUrl(state, ch)}&${encodeURIComponent(p)}=${encodeURIComponent(user?.token || "")}`;
-      }
-      function backendUrl(state) {
-        return `${wsOrigin(httpOrigin(state?.publicBaseUrl))}/backend`;
-      }
-      function instanceId(ch) {
-        const base = (ch?.channelId || "node").replace(/[^a-z0-9-]/gi, "-").slice(0, 32);
-        return `openclaw-${base}`;
-      }
-      function pluginConfig(state, ch) {
-        return `channels:\n  generic-channel:\n    enabled: true\n    connectionMode: "relay"\n    relay:\n      url: "${backendUrl(state)}"\n      channelId: "${ch?.channelId || ""}"\n      secret: "${ch?.secret || ""}"\n      instanceId: "${instanceId(ch)}"\n    auth:\n      enabled: false`;
-      }
-      function connectUrl(state, ch, user) {
-        const p = new URLSearchParams();
-        p.set("serverUrl", clientBaseUrl(state, ch));
-        p.set("token", user?.token || "");
-        p.set("name", user?.senderId || "");
-        p.set("senderId", user?.senderId || "");
-        if (user?.chatId) p.set("chatId", user.chatId);
-        const agents = Array.isArray(user?.allowAgents) ? user.allowAgents.filter(a => a && a !== "*") : [];
-        if (agents[0]) p.set("agentId", agents[0]);
-        return `openclaw://connect?${p.toString()}`;
-      }
-
-      async function copyText(v) {
-        if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(v);
-        const t = document.createElement("textarea");
-        t.value = v; t.style.cssText = "position:fixed;opacity:0";
-        document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove();
-      }
-
-      async function api(path, token, init = {}) {
-        const headers = new Headers(init.headers || {});
-        if (init.body && !headers.has("content-type")) headers.set("content-type", "application/json");
-        if (token) headers.set("x-relay-admin-token", token);
-        const r = await fetch(path, { ...init, headers });
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
-        return d;
-      }
-
-      /* ── tiny UI primitives ── */
-
-      /* SVG icon components */
-      const IC = {
-        copy: h`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M10.5 2h-7A1.5 1.5 0 002 3.5v9A1.5 1.5 0 003.5 14h7a1.5 1.5 0 001.5-1.5v-9A1.5 1.5 0 0010.5 2zM13 4.5v8a2.5 2.5 0 01-2.5 2.5h-6A1.5 1.5 0 006 16h6.5A3.5 3.5 0 0016 12.5V6a1.5 1.5 0 00-1-1.415V4.5z"/></svg>`,
-        edit: h`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M12.146.854a.5.5 0 01.708 0l2.292 2.292a.5.5 0 010 .708l-9.5 9.5a.5.5 0 01-.233.131l-3.5 1a.5.5 0 01-.617-.617l1-3.5a.5.5 0 01.131-.233l9.5-9.5z"/></svg>`,
-        trash: h`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M5.5 5.5a.5.5 0 01.5.5v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm5 0a.5.5 0 01.5.5v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5zm-7-3A1.5 1.5 0 015 1h6a1.5 1.5 0 011.5 1.5V3h2a.5.5 0 010 1h-.554l-.816 9.787A1.5 1.5 0 0111.64 15H4.36a1.5 1.5 0 01-1.49-1.213L2.054 4H1.5a.5.5 0 010-1h2v-.5z"/></svg>`,
-        share: h`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M11 2.5a2.5 2.5 0 11.603 1.628l-6.718 3.12a2.5 2.5 0 010 1.504l6.718 3.12a2.5 2.5 0 11-.488.876l-6.718-3.12a2.5 2.5 0 110-3.256l6.718-3.12A2.5 2.5 0 0111 2.5z"/></svg>`,
-        refresh: h`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M8 3a5 5 0 104.546 2.914.5.5 0 01.908-.418A6 6 0 118 2v1z"/><path d="M8 4.466V.534a.25.25 0 01.41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 018 4.466z"/></svg>`,
-        plus: h`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M8 2a.5.5 0 01.5.5v5h5a.5.5 0 010 1h-5v5a.5.5 0 01-1 0v-5h-5a.5.5 0 010-1h5v-5A.5.5 0 018 2z"/></svg>`,
-        qr: h`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path d="M0 2a2 2 0 012-2h4a2 2 0 012 2v4a2 2 0 01-2 2H2a2 2 0 01-2-2V2zm6 0H2v4h4V2zm4 0a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V2zm4 0h-2v4h2V2zM0 12a2 2 0 012-2h4a2 2 0 012 2v2a2 2 0 01-2 2H2a2 2 0 01-2-2v-2zm6 0H2v2h4v-2zm4-1.5a.5.5 0 01.5-.5h3a.5.5 0 010 1H13v2.5a.5.5 0 01-1 0V12h-1.5a.5.5 0 01-.5-.5zm4 2a.5.5 0 01.5.5v1.5a.5.5 0 01-.5.5H13a.5.5 0 010-1h1v-1a.5.5 0 01.5-.5z"/></svg>`,
+      /* ── Icons (Lucide-style stroke) ── */
+      const I={
+        copy:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`,
+        edit:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`,
+        trash:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`,
+        share:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>`,
+        refresh:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>`,
+        plus:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>`,
+        server:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>`,
+        users:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+        settings:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`,
+        activity:h`<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`,
+        ck:h`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+        xx:h`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
+        dot:(on)=>h`<span className=${`inline-block w-2 h-2 rounded-full ${on?"bg-emerald-500":"bg-zinc-300"}`}/>`,
       };
 
-      function IconBtn({ icon, title, variant = "ghost", className = "", ...props }) {
-        const cls = {
-          primary: "bg-slate-900 text-white hover:bg-slate-800",
-          secondary: "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700",
-          danger: "text-red-400 hover:text-red-600 hover:bg-red-50",
-          ghost: "text-slate-400 hover:text-slate-600 hover:bg-slate-100",
-        }[variant] || "";
-        return h`<button type="button" title=${title} ...${props} className=${`inline-flex items-center justify-center rounded-md p-1.5 transition ${cls} ${className}`.trim()}>${icon}</button>`;
+      /* ── shadcn primitives ── */
+      const Card=({className="",children})=>h`<div className=${`rounded-lg border bg-card text-card-foreground shadow-sm ${className}`}>${children}</div>`;
+      const CH=({className="",children})=>h`<div className=${`flex flex-col space-y-1.5 p-6 ${className}`}>${children}</div>`;
+      const CT=({className="",children})=>h`<h3 className=${`text-sm font-medium leading-none tracking-tight ${className}`}>${children}</h3>`;
+      const CC=({className="",children})=>h`<div className=${`p-6 pt-0 ${className}`}>${children}</div>`;
+
+      function Btn({variant="default",size="default",className="",...props}){
+        const b="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50";
+        const v={default:"bg-primary text-primary-foreground hover:bg-primary/90",secondary:"bg-secondary text-secondary-foreground hover:bg-secondary/80",outline:"border border-input bg-background hover:bg-accent hover:text-accent-foreground",ghost:"hover:bg-accent hover:text-accent-foreground",destructive:"bg-destructive text-destructive-foreground hover:bg-destructive/90",link:"text-primary underline-offset-4 hover:underline"}[variant]||"";
+        const sz={default:"h-9 px-4 py-2",sm:"h-8 rounded-md px-3 text-xs",lg:"h-10 rounded-md px-8",icon:"h-8 w-8"}[size]||"";
+        return h`<button type="button" ...${props} className=${`${b} ${v} ${sz} ${className}`.trim()}/>`;
       }
-
-      function Btn({ variant = "primary", className = "", ...props }) {
-        const cls = {
-          primary: "bg-slate-900 text-white hover:bg-slate-800",
-          secondary: "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50",
-          danger: "bg-red-50 text-red-700 border border-red-200 hover:bg-red-100",
-          ghost: "text-slate-500 hover:text-slate-700 hover:bg-slate-100",
-        }[variant] || "";
-        return h`<button type="button" ...${props} className=${`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition ${cls} ${className}`.trim()} />`;
+      function Badge({variant="default",className="",children}){
+        const v={default:"border-transparent bg-primary text-primary-foreground",secondary:"border-transparent bg-secondary text-secondary-foreground",outline:"text-foreground",destructive:"border-transparent bg-destructive text-destructive-foreground"}[variant]||"";
+        return h`<span className=${`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${v} ${className}`}>${children}</span>`;
       }
+      const Input=({className="",...props})=>h`<input ...${props} className=${`flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${className}`}/>`;
+      const Label=({className="",children,...props})=>h`<label ...${props} className=${`text-sm font-medium leading-none ${className}`}>${children}</label>`;
+      const Field=({label,children})=>h`<div className="grid gap-2"><${Label}>${label}</${Label}>${children}</div>`;
+      const Sep=()=>h`<div className="shrink-0 bg-border h-[1px] w-full"/>`;
 
-      function Badge({ ok, children }) {
-        return h`<span className=${`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ${ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}><span className=${`dot ${ok ? "dot-on" : "dot-off"}`} />${children}</span>`;
-      }
-
-      function Field({ label, children }) {
-        return h`<label className="grid gap-1.5"><span className="text-xs font-medium text-slate-500">${label}</span>${children}</label>`;
-      }
-
-      const inputCls = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:ring-0";
-      const monoInputCls = `${inputCls} font-mono`;
-
-      /* ── Modal ── */
-
-      function Modal({ open, onClose, title, children }) {
-        if (!open) return null;
-        return h`
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick=${onClose}>
-            <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl" onClick=${e => e.stopPropagation()}>
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-base font-semibold">${title}</h3>
-                <button className="text-slate-400 hover:text-slate-600" onClick=${onClose}>✕</button>
-              </div>
-              ${children}
-            </div>
-          </div>
-        `;
+      function Dlg({open,onClose,title,desc,children}){
+        if(!open)return null;
+        return h`<div className="fixed inset-0 z-50 flex items-center justify-center"><div className="fixed inset-0 bg-black/80" onClick=${onClose}/><div className="relative z-50 w-full max-w-lg rounded-lg border bg-background p-6 shadow-lg mx-4"><div className="flex flex-col space-y-1.5 mb-4"><h2 className="text-lg font-semibold leading-none tracking-tight">${title}</h2>${desc?h`<p className="text-sm text-muted-foreground">${desc}</p>`:null}</div>${children}<button className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100" onClick=${onClose}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></div></div>`;
       }
 
       /* ── LoginScreen ── */
-
-      function LoginScreen({ onLogin }) {
-        const [v, setV] = useState("");
-        const submit = e => { e.preventDefault(); onLogin(v.trim()); };
-        return h`
-          <div className="grid min-h-screen place-items-center p-4">
-            <form className="w-full max-w-sm space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm" onSubmit=${submit}>
-              <h1 className="text-lg font-semibold">Relay Gateway</h1>
-              <input type="text" autoComplete="username" className="hidden" value="relay-admin" readOnly />
-              <${Field} label="Admin Token">
-                <input className=${inputCls} type="password" autoComplete="new-password" value=${v} onInput=${e => setV(e.target.value)} placeholder="输入管理令牌" />
-              </${Field}>
-              <${Btn} type="submit" variant="primary" className="w-full">登录</${Btn}>
-            </form>
-          </div>
-        `;
+      function LoginScreen({onLogin}){
+        const[v,setV]=useState("");
+        return h`<div className="flex min-h-screen items-center justify-center p-4"><${Card} className="w-full max-w-sm"><${CH}><${CT} className="text-2xl">Relay Gateway</${CT}><p className="text-sm text-muted-foreground">输入管理令牌以继续</p></${CH}><${CC}><form className="grid gap-4" onSubmit=${e=>{e.preventDefault();onLogin(v.trim());}}><input type="text" autoComplete="username" className="hidden" value="relay-admin" readOnly/><${Field} label="Admin Token"><${Input} type="password" autoComplete="new-password" value=${v} onInput=${e=>setV(e.target.value)} placeholder="••••••••"/></${Field}><${Btn} type="submit" className="w-full">登录</${Btn}></form></${CC}></${Card}></div>`;
       }
 
-      /* ── ChannelForm (modal) ── */
-
-      function ChannelForm({ channel, onSave, onClose }) {
-        const isNew = !channel;
-        const [animal] = useState(() => pickAnimal());
-        const [d, setD] = useState(() => {
-          if (channel) return {
-            channelId: channel.channelId,
-            label: channel.label || "",
-            secret: channel.secret || "",
-            tokenParam: channel.tokenParam || "token",
-          };
-          const slug = `gc-${animal[1]}-${randomToken().slice(0, 6)}`;
-          return {
-            channelId: slug,
-            label: `${animal[0]} ${animal[1].charAt(0).toUpperCase() + animal[1].slice(1)}`,
-            secret: randomToken(),
-            tokenParam: "token",
-          };
-        });
-        const [showAdvanced, setShowAdvanced] = useState(false);
-        const patch = k => e => setD(p => ({ ...p, [k]: e.target.value }));
-        const submit = e => { e.preventDefault(); onSave(d); };
-
-        if (isNew && !showAdvanced) {
-          return h`
-            <form className="grid gap-3" onSubmit=${submit}>
-              <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3">
-                <span className="text-3xl">${animal[0]}</span>
-                <div className="flex-1">
-                  <${Field} label="服务器名称">
-                    <input className=${inputCls} value=${d.label} onInput=${e => {
-                      const label = e.target.value;
-                      setD(p => ({ ...p, label }));
-                    }} placeholder="给服务器起个名字" required autoFocus />
-                  </${Field}>
-                </div>
-              </div>
-              <div className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-500">
-                channelId: ${d.channelId}
-              </div>
-              <div className="flex items-center justify-between pt-2">
-                <button type="button" className="text-xs text-slate-400 hover:text-slate-600" onClick=${() => setShowAdvanced(true)}>高级设置 ▸</button>
-                <div className="flex gap-2">
-                  <${Btn} variant="secondary" onClick=${onClose}>取消</${Btn}>
-                  <${Btn} variant="primary" type="submit">创建</${Btn}>
-                </div>
-              </div>
-            </form>
-          `;
-        }
-
-        return h`
-          <form className="grid gap-3" onSubmit=${submit}>
-            <${Field} label="Channel ID">
-              <input className=${monoInputCls} value=${d.channelId} onInput=${patch("channelId")} placeholder="demo" required />
-            </${Field}>
-            <${Field} label="名称">
-              <input className=${inputCls} value=${d.label} onInput=${patch("label")} placeholder="可选" />
-            </${Field}>
-            <${Field} label="Backend Secret">
-              <div className="flex gap-2">
-                <input className=${`${monoInputCls} flex-1`} value=${d.secret} onInput=${patch("secret")} autoComplete="new-password" />
-                <${Btn} variant="secondary" onClick=${() => setD(p => ({ ...p, secret: randomToken() }))}>生成</${Btn}>
-              </div>
-            </${Field}>
-            <div className="flex justify-end gap-2 pt-2">
-              <${Btn} variant="secondary" onClick=${onClose}>取消</${Btn}>
-              <${Btn} variant="primary" type="submit">保存</${Btn}>
-            </div>
-          </form>
-        `;
+      /* ── ChannelForm ── */
+      function CForm({channel,onSave,onClose}){
+        const isN=!channel;const[an]=useState(()=>pickA());
+        const[d,setD]=useState(()=>{if(channel)return{channelId:channel.channelId,label:channel.label||"",secret:channel.secret||"",tokenParam:channel.tokenParam||"token"};const slug=`gc-${an[1]}-${rTok().slice(0,6)}`;return{channelId:slug,label:`${an[0]} ${an[1].charAt(0).toUpperCase()+an[1].slice(1)}`,secret:rTok(),tokenParam:"token"};});
+        const[adv,setAdv]=useState(false);const pk=k=>e=>setD(p=>({...p,[k]:e.target.value}));const sub=e=>{e.preventDefault();onSave(d);};
+        if(isN&&!adv)return h`<form className="grid gap-4" onSubmit=${sub}><div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-4"><span className="text-4xl">${an[0]}</span><div className="flex-1"><${Field} label="服务器名称"><${Input} value=${d.label} onInput=${e=>setD(p=>({...p,label:e.target.value}))} placeholder="给服务器起个名字" required autoFocus/></${Field}></div></div><div className="rounded-md bg-muted px-3 py-2 font-mono text-xs text-muted-foreground">channelId: ${d.channelId}</div><div className="flex items-center justify-between"><button type="button" className="text-xs text-muted-foreground hover:text-foreground transition-colors" onClick=${()=>setAdv(true)}>高级设置 →</button><div className="flex gap-2"><${Btn} variant="outline" onClick=${onClose}>取消</${Btn}><${Btn} type="submit">创建</${Btn}></div></div></form>`;
+        return h`<form className="grid gap-4" onSubmit=${sub}><${Field} label="Channel ID"><${Input} className="font-mono" value=${d.channelId} onInput=${pk("channelId")} required/></${Field}><${Field} label="名称"><${Input} value=${d.label} onInput=${pk("label")}/></${Field}><${Field} label="Backend Secret"><div className="flex gap-2"><${Input} className="flex-1 font-mono" value=${d.secret} onInput=${pk("secret")} autoComplete="new-password"/><${Btn} variant="outline" size="sm" onClick=${()=>setD(p=>({...p,secret:rTok()}))}>生成</${Btn}></div></${Field}><div className="flex justify-end gap-2 pt-2"><${Btn} variant="outline" onClick=${onClose}>取消</${Btn}><${Btn} type="submit">保存</${Btn}></div></form>`;
       }
 
-      /* ── UserForm (modal) ── */
-
-      function UserForm({ user, onSave, onClose }) {
-        const [d, setD] = useState({
-          id: user?.id || "",
-          senderId: user?.senderId || "",
-          chatId: user?.chatId || "",
-          token: user?.token || `gc_${randomToken()}`,
-          allowAgents: Array.isArray(user?.allowAgents) ? user.allowAgents.join(",") : "",
-          enabled: user?.enabled !== false,
-        });
-        const patch = k => e => setD(p => ({ ...p, [k]: e.target.value }));
-        const submit = e => { e.preventDefault(); onSave(d); };
-        return h`
-          <form className="grid gap-3" onSubmit=${submit}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <${Field} label="Sender ID *">
-                <input className=${inputCls} value=${d.senderId} onInput=${patch("senderId")} placeholder="user-01" required />
-              </${Field}>
-              <${Field} label="User ID">
-                <input className=${inputCls} value=${d.id} onInput=${patch("id")} placeholder="可选" />
-              </${Field}>
-            </div>
-            <${Field} label="Token">
-              <div className="flex gap-2">
-                <input className=${`${monoInputCls} flex-1`} value=${d.token} onInput=${patch("token")} autoComplete="new-password" />
-                <${Btn} variant="secondary" onClick=${() => setD(p => ({ ...p, token: `gc_${randomToken()}` }))}>生成</${Btn}>
-              </div>
-            </${Field}>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <${Field} label="固定 Chat ID">
-                <input className=${inputCls} value=${d.chatId} onInput=${patch("chatId")} placeholder="可选" />
-              </${Field}>
-              <${Field} label="允许 Agents">
-                <input className=${inputCls} value=${d.allowAgents} onInput=${patch("allowAgents")} placeholder="* 或 main,code" />
-              </${Field}>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked=${d.enabled} onChange=${e => setD(p => ({ ...p, enabled: e.target.checked }))} />
-              启用
-            </label>
-            <div className="flex justify-end gap-2 pt-2">
-              <${Btn} variant="secondary" onClick=${onClose}>取消</${Btn}>
-              <${Btn} variant="primary" type="submit">保存</${Btn}>
-            </div>
-          </form>
-        `;
+      /* ── UserForm ── */
+      function UForm({user,onSave,onClose}){
+        const[d,setD]=useState({id:user?.id||"",senderId:user?.senderId||"",chatId:user?.chatId||"",token:user?.token||`gc_${rTok()}`,allowAgents:Array.isArray(user?.allowAgents)?user.allowAgents.join(","):"",enabled:user?.enabled!==false});
+        const pk=k=>e=>setD(p=>({...p,[k]:e.target.value}));
+        return h`<form className="grid gap-4" onSubmit=${e=>{e.preventDefault();onSave(d);}}><div className="grid gap-4 sm:grid-cols-2"><${Field} label="Sender ID *"><${Input} value=${d.senderId} onInput=${pk("senderId")} placeholder="user-01" required/></${Field}><${Field} label="User ID"><${Input} value=${d.id} onInput=${pk("id")} placeholder="可选"/></${Field}></div><${Field} label="Token"><div className="flex gap-2"><${Input} className="flex-1 font-mono" value=${d.token} onInput=${pk("token")} autoComplete="new-password"/><${Btn} variant="outline" size="sm" onClick=${()=>setD(p=>({...p,token:`gc_${rTok()}`}))}>生成</${Btn}></div></${Field}><div className="grid gap-4 sm:grid-cols-2"><${Field} label="固定 Chat ID"><${Input} value=${d.chatId} onInput=${pk("chatId")} placeholder="可选"/></${Field}><${Field} label="允许 Agents"><${Input} value=${d.allowAgents} onInput=${pk("allowAgents")} placeholder="* 或 main,code"/></${Field}></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" className="rounded border-input" checked=${d.enabled} onChange=${e=>setD(p=>({...p,enabled:e.target.checked}))}/> 启用</label><div className="flex justify-end gap-2 pt-2"><${Btn} variant="outline" onClick=${onClose}>取消</${Btn}><${Btn} type="submit">保存</${Btn}></div></form>`;
       }
 
-      /* ── ShareModal ── */
-
-      function ShareModal({ open, onClose, state, channel, user }) {
-        const [qr, setQr] = useState("");
-        const url = open && channel && user ? connectUrl(state, channel, user) : "";
-        useEffect(() => {
-          if (!url) { setQr(""); return; }
-          let c = false;
-          QRCode.toDataURL(url, { width: 280, margin: 1, errorCorrectionLevel: "M" })
-            .then(d => { if (!c) setQr(d); })
-            .catch(() => { if (!c) setQr(""); });
-          return () => { c = true; };
-        }, [url]);
-        if (!open || !user) return null;
-        return h`
-          <${Modal} open=${open} onClose=${onClose} title=${`分享 — ${user.senderId}`}>
-            <div className="space-y-4">
-              <div className="flex justify-center rounded-lg bg-slate-50 p-4">
-                ${qr
-                  ? h`<img src=${qr} alt="QR" className="h-56 w-56 rounded bg-white p-2" />`
-                  : h`<div className="grid h-56 w-56 place-items-center text-sm text-slate-400">生成中...</div>`}
-              </div>
-              <div className="rounded-lg bg-slate-50 p-3">
-                <code className="block break-all font-mono text-xs text-slate-600">${url}</code>
-              </div>
-              <div className="flex gap-2">
-                <${Btn} variant="primary" className="flex-1" onClick=${() => { copyText(url); onClose(); }}>复制连接包</${Btn}>
-                <${Btn} variant="secondary" className="flex-1" onClick=${() => { copyText(clientFullUrl(state, channel, user)); onClose(); }}>复制 WSS URL</${Btn}>
-              </div>
-            </div>
-          </${Modal}>
-        `;
+      /* ── ShareDialog ── */
+      function ShareDlg({open,onClose,state,channel,user,toast}){
+        const[qr,setQr]=useState("");const url=open&&channel&&user?conUrl(state,channel,user):"";
+        useEffect(()=>{if(!url){setQr("");return;}let c=false;QRCode.toDataURL(url,{width:280,margin:1,errorCorrectionLevel:"M"}).then(d=>{if(!c)setQr(d);}).catch(()=>{if(!c)setQr("");});return()=>{c=true;};},[url]);
+        if(!open||!user)return null;
+        const doCp=(l,v)=>{cp(v).then(()=>{toast(`已复制 ${l}`);onClose();}).catch(()=>toast("复制失败",true));};
+        return h`<${Dlg} open=${open} onClose=${onClose} title=${`分享 — ${user.senderId}`} desc="扫码或复制连接包即可登录"><div className="grid gap-4"><div className="flex justify-center rounded-lg border bg-muted/30 p-6">${qr?h`<img src=${qr} alt="QR" className="h-52 w-52 rounded-md"/>`:h`<div className="grid h-52 w-52 place-items-center text-sm text-muted-foreground">生成中...</div>`}</div><div className="rounded-md bg-muted p-3"><code className="block break-all font-mono text-xs text-muted-foreground">${url}</code></div><div className="flex gap-2"><${Btn} className="flex-1" onClick=${()=>doCp("连接包",url)}>复制连接包</${Btn}><${Btn} variant="outline" className="flex-1" onClick=${()=>doCp("WSS URL",cFull(state,channel,user))}>复制 WSS URL</${Btn}></div></div></${Dlg}>`;
       }
 
-      /* ── Sidebar ── */
-
-      function Sidebar({ channels, selected, onSelect, onNew, stats, activity }) {
-        return h`
-          <div className="flex h-full flex-col border-r border-slate-200 bg-white">
-            <div className="border-b border-slate-100 px-4 py-3">
-              <div className="text-sm font-semibold">Relay Gateway</div>
-              <div className="mt-0.5 text-xs text-slate-400">${stats.backends} backend · ${stats.clients} client · ${stats.users} user</div>
-            </div>
-            <div className="flex-1 overflow-y-auto px-2 py-2">
-              ${channels.map(ch => {
-                const sel = ch.channelId === selected;
-                return h`
-                  <button key=${ch.channelId} type="button" onClick=${() => onSelect(ch.channelId)}
-                    className=${`mb-1 flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm transition ${sel ? "bg-slate-900 text-white" : ch.backendConnected ? "text-slate-700 hover:bg-slate-100" : "text-slate-400 hover:bg-slate-100"}`}>
-                    <span className="text-base leading-none">${animalIcon(ch.channelId)}</span>
-                    <span className="min-w-0 flex-1 truncate font-medium">${ch.label || ch.channelId}</span>
-                    <span className=${`text-xs tabular-nums ${sel ? "text-white/60" : "text-slate-400"}`}>${ch.userCount}u</span>
-                  </button>
-                `;
-              })}
-              ${channels.length === 0 ? h`<div className="px-3 py-6 text-center text-sm text-slate-400">暂无服务器</div>` : null}
-            </div>
-            <div className="border-t border-slate-100 p-2">
-              <${Btn} variant="secondary" className="w-full" onClick=${onNew}>${IC.plus} 新建服务器</${Btn}>
-            </div>
-            ${activity.length > 0 ? h`
-              <div className="border-t border-slate-100 px-3 py-2 max-h-52 overflow-y-auto">
-                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-300">最近操作</div>
-                ${activity.map(a => h`
-                  <div key=${a.id} className="flex items-start gap-1.5 py-1.5 border-b border-slate-50 last:border-0">
-                    <span className=${`mt-0.5 flex-shrink-0 text-xs ${a.isError ? "text-red-400" : "text-emerald-400"}`}>${a.isError ? "✗" : "✓"}</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs text-slate-600 truncate">${a.msg}</div>
-                      <div className="text-[10px] text-slate-300">${timeAgo(a.ts)}</div>
-                    </div>
-                  </div>
-                `)}
-              </div>
-            ` : null}
-          </div>
-        `;
+      /* ── Nav ── */
+      function Nav({channels,selected,onSelect,onNew,activity}){
+        return h`<div className="flex h-full w-[220px] flex-col border-r bg-muted/40"><div className="flex h-14 items-center gap-2 border-b px-4 font-semibold text-sm">${I.server} Relay Gateway</div><div className="flex-1 overflow-y-auto px-2 py-2 sb"><div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">服务器</div>${channels.map(ch=>{const sel=ch.channelId===selected;return h`<button key=${ch.channelId} type="button" onClick=${()=>onSelect(ch.channelId)} className=${`group mb-0.5 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${sel?"bg-primary text-primary-foreground":"text-muted-foreground hover:bg-accent hover:text-accent-foreground"}`}><span className="text-base leading-none">${aIcon(ch.channelId)}</span><span className="min-w-0 flex-1 truncate text-left">${ch.label||ch.channelId}</span><span className="flex items-center gap-1.5">${I.dot(ch.backendConnected)}<span className=${`text-xs tabular-nums ${sel?"text-primary-foreground/60":"text-muted-foreground"}`}>${ch.userCount}</span></span></button>`;})}${channels.length===0?h`<div className="px-2 py-8 text-center text-sm text-muted-foreground">暂无服务器</div>`:null}</div><div className="p-2"><${Btn} variant="outline" className="w-full" size="sm" onClick=${onNew}>${I.plus} 新建</${Btn}></div>${activity.length>0?h`<div className="border-t"><div className="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">最近操作</div><div className="max-h-40 overflow-y-auto px-2 pb-2 sb">${activity.map(a=>h`<div key=${a.id} className="flex items-start gap-2 rounded-md px-2 py-1.5"><span className=${`mt-0.5 ${a.isError?"text-destructive":"text-emerald-500"}`}>${a.isError?I.xx:I.ck}</span><div className="min-w-0 flex-1"><div className="text-xs truncate">${a.msg}</div><div className="text-[10px] text-muted-foreground">${tAgo(a.ts)}</div></div></div>`)}</div></div>`:null}</div>`;
       }
 
-      /* ── Tab: Overview ── */
-
-      function TabOverview({ state, channel, toast }) {
-        if (!channel) return null;
-        const copy = (label, val) => { copyText(val).then(() => toast(`已复制 ${label}`)).catch(() => toast(`复制失败`, true)); };
-        return h`
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <${Badge} ok=${channel.backendConnected}>Backend</${Badge}>
-              <${Badge} ok=${channel.userCount > 0}>用户 ${channel.userCount}</${Badge}>
-              <${Badge} ok=${httpOrigin(state?.publicBaseUrl).startsWith("https://")}>TLS</${Badge}>
-              ${channel.instanceId ? h`<span className="text-xs text-slate-400">${channel.instanceId}</span>` : null}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="group rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-400">客户端地址</span>
-                  <${IconBtn} icon=${IC.copy} title="复制" onClick=${() => copy("客户端地址", clientBaseUrl(state, channel))} />
-                </div>
-                <code className="block break-all font-mono text-xs leading-5 text-slate-700">${clientBaseUrl(state, channel)}</code>
-              </div>
-              <div className="group rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="mb-1.5 flex items-center justify-between">
-                  <span className="text-xs font-medium text-slate-400">Backend URL</span>
-                  <${IconBtn} icon=${IC.copy} title="复制" onClick=${() => copy("Backend URL", backendUrl(state))} />
-                </div>
-                <code className="block break-all font-mono text-xs leading-5 text-slate-700">${backendUrl(state)}</code>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-slate-200 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-400">插件配置 (openclaw.json)</span>
-                <${IconBtn} icon=${IC.copy} title="复制配置" onClick=${() => copy("插件配置", pluginConfig(state, channel))} />
-              </div>
-              <pre className="overflow-auto rounded-md bg-slate-900 px-3 py-2.5 font-mono text-xs leading-5 text-slate-100">${pluginConfig(state, channel)}</pre>
-            </div>
-          </div>
-        `;
+      /* ── Overview ── */
+      function TOverview({state,channel,toast}){
+        if(!channel)return null;
+        const doCp=(l,v)=>cp(v).then(()=>toast(`已复制 ${l}`)).catch(()=>toast("复制失败",true));
+        return h`<div className="space-y-6"><div className="grid gap-4 md:grid-cols-3"><${Card}><${CH} className="flex flex-row items-center justify-between space-y-0 pb-2"><${CT}>Backend</${CT}>${I.dot(channel.backendConnected)}</${CH}><${CC}><div className="text-2xl font-bold">${channel.backendConnected?"在线":"离线"}</div><p className="text-xs text-muted-foreground">${channel.instanceId||"未连接"}</p></${CC}></${Card}><${Card}><${CH} className="flex flex-row items-center justify-between space-y-0 pb-2"><${CT}>用户</${CT}><span className="text-muted-foreground">${I.users}</span></${CH}><${CC}><div className="text-2xl font-bold">${channel.userCount||0}</div><p className="text-xs text-muted-foreground">已配置用户数</p></${CC}></${Card}><${Card}><${CH} className="flex flex-row items-center justify-between space-y-0 pb-2"><${CT}>客户端</${CT}><span className="text-muted-foreground">${I.activity}</span></${CH}><${CC}><div className="text-2xl font-bold">${channel.clientCount||0}</div><p className="text-xs text-muted-foreground">当前在线</p></${CC}></${Card}></div><div className="grid gap-4 md:grid-cols-2"><${Card}><${CH} className="flex flex-row items-center justify-between space-y-0 pb-2"><${CT}>客户端地址</${CT}><${Btn} variant="ghost" size="icon" onClick=${()=>doCp("客户端地址",cUrl(state,channel))}>${I.copy}</${Btn}></${CH}><${CC}><code className="block break-all rounded-md bg-muted px-3 py-2 font-mono text-xs">${cUrl(state,channel)}</code></${CC}></${Card}><${Card}><${CH} className="flex flex-row items-center justify-between space-y-0 pb-2"><${CT}>Backend URL</${CT}><${Btn} variant="ghost" size="icon" onClick=${()=>doCp("Backend URL",bUrl(state))}>${I.copy}</${Btn}></${CH}><${CC}><code className="block break-all rounded-md bg-muted px-3 py-2 font-mono text-xs">${bUrl(state)}</code></${CC}></${Card}></div><${Card}><${CH} className="flex flex-row items-center justify-between space-y-0 pb-2"><${CT}>插件配置 (openclaw.json)</${CT}><${Btn} variant="ghost" size="icon" onClick=${()=>doCp("插件配置",pYaml(state,channel))}>${I.copy}</${Btn}></${CH}><${CC}><pre className="overflow-auto rounded-md bg-zinc-950 px-4 py-3 font-mono text-xs leading-6 text-zinc-100">${pYaml(state,channel)}</pre></${CC}></${Card}></div>`;
       }
 
-      /* ── Tab: Users ── */
-
-      function TabUsers({ state, channel, token, onReload, toast }) {
-        const [showForm, setShowForm] = useState(false);
-        const [editUser, setEditUser] = useState(null);
-        const [shareUser, setShareUser] = useState(null);
-        if (!channel) return null;
-        const users = Array.isArray(channel.users) ? channel.users : [];
-
-        const saveUser = async (d) => {
-          try {
-            await api(`/api/channels/${encodeURIComponent(channel.channelId)}/users`, token, {
-              method: "POST", body: JSON.stringify(d),
-            });
-            toast(`已保存 ${d.senderId}`);
-            setShowForm(false); setEditUser(null);
-            await onReload();
-          } catch (e) { toast(e.message, true); }
-        };
-
-        const deleteUser = async (u) => {
-          if (!confirm(`删除 ${u.senderId}？`)) return;
-          try {
-            await api(`/api/channels/${encodeURIComponent(channel.channelId)}/users/${encodeURIComponent(u.senderId)}`, token, { method: "DELETE" });
-            toast(`已删除 ${u.senderId}`);
-            await onReload();
-          } catch (e) { toast(e.message, true); }
-        };
-
-        const copy = (label, val) => copyText(val).then(() => toast(`已复制 ${label}`)).catch(() => toast("复制失败", true));
-
-        return h`
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400">${users.length} 个用户</span>
-              <${Btn} variant="primary" onClick=${() => { setEditUser(null); setShowForm(true); }}>${IC.plus} 新建</${Btn}>
-            </div>
-
-            ${users.length === 0
-              ? h`<div className="rounded-lg border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">暂无用户</div>`
-              : h`
-                <div className="overflow-hidden rounded-lg border border-slate-200">
-                  <table className="w-full text-sm">
-                    <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs text-slate-500">
-                      <tr>
-                        <th className="px-3 py-2 font-medium">Sender ID</th>
-                        <th className="px-3 py-2 font-medium hidden sm:table-cell">Token</th>
-                        <th className="px-3 py-2 font-medium hidden md:table-cell">Agents</th>
-                        <th className="px-3 py-2 font-medium">状态</th>
-                        <th className="px-3 py-2 font-medium text-right">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      ${users.map(u => {
-                        const agents = Array.isArray(u.allowAgents) && u.allowAgents.length ? u.allowAgents.join(", ") : "*";
-                        return h`
-                          <tr key=${u.senderId} className="hover:bg-slate-50">
-                            <td className="px-3 py-2.5 font-medium">${u.senderId}</td>
-                            <td className="hidden px-3 py-2.5 sm:table-cell">
-                              <code className="cursor-pointer rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-500 hover:bg-slate-200" onClick=${() => copy(`token`, u.token)}>${u.token.slice(0, 12)}…</code>
-                            </td>
-                            <td className="hidden px-3 py-2.5 text-slate-500 md:table-cell">${agents}</td>
-                            <td className="px-3 py-2.5"><${Badge} ok=${u.enabled !== false}>${u.enabled !== false ? "启用" : "停用"}</${Badge}></td>
-                            <td className="px-3 py-2.5 text-right">
-                              <div className="flex justify-end gap-0.5">
-                                <${IconBtn} icon=${IC.share} title="分享" onClick=${() => setShareUser(u)} />
-                                <${IconBtn} icon=${IC.edit} title="编辑" onClick=${() => { setEditUser(u); setShowForm(true); }} />
-                                <${IconBtn} icon=${IC.trash} title="删除" variant="danger" onClick=${() => deleteUser(u)} />
-                              </div>
-                            </td>
-                          </tr>
-                        `;
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              `}
-
-            <${Modal} open=${showForm} onClose=${() => { setShowForm(false); setEditUser(null); }} title=${editUser ? `编辑 ${editUser.senderId}` : "新建用户"}>
-              <${UserForm} user=${editUser} onSave=${saveUser} onClose=${() => { setShowForm(false); setEditUser(null); }} />
-            </${Modal}>
-
-            <${ShareModal} open=${!!shareUser} onClose=${() => setShareUser(null)} state=${state} channel=${channel} user=${shareUser} />
-          </div>
-        `;
+      /* ── Users ── */
+      function TUsers({state,channel,token,onReload,toast}){
+        const[sf,setSf]=useState(false);const[eu,setEu]=useState(null);const[su,setSu]=useState(null);
+        if(!channel)return null;const users=Array.isArray(channel.users)?channel.users:[];
+        const saveU=async d=>{try{await api(`/api/channels/${encodeURIComponent(channel.channelId)}/users`,token,{method:"POST",body:JSON.stringify(d)});toast(`已保存 ${d.senderId}`);setSf(false);setEu(null);await onReload();}catch(e){toast(e.message,true);}};
+        const delU=async u=>{if(!confirm(`删除 ${u.senderId}？`))return;try{await api(`/api/channels/${encodeURIComponent(channel.channelId)}/users/${encodeURIComponent(u.senderId)}`,token,{method:"DELETE"});toast(`已删除 ${u.senderId}`);await onReload();}catch(e){toast(e.message,true);}};
+        const doCp=(l,v)=>cp(v).then(()=>toast(`已复制 ${l}`)).catch(()=>toast("复制失败",true));
+        return h`<div className="space-y-4"><div className="flex items-center justify-between"><div><h3 className="text-lg font-semibold">用户管理</h3><p className="text-sm text-muted-foreground">${users.length} 个用户</p></div><${Btn} size="sm" onClick=${()=>{setEu(null);setSf(true);}}>${I.plus} 新建</${Btn}></div>${users.length===0?h`<div className="flex min-h-[200px] flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center"><p className="text-sm text-muted-foreground">暂无用户</p><${Btn} variant="outline" size="sm" className="mt-4" onClick=${()=>{setEu(null);setSf(true);}}>${I.plus} 创建第一个用户</${Btn}></div>`:h`<${Card}><div className="overflow-auto"><table className="w-full text-sm"><thead><tr className="border-b bg-muted/50"><th className="h-10 px-4 text-left font-medium text-muted-foreground">Sender ID</th><th className="h-10 px-4 text-left font-medium text-muted-foreground hidden sm:table-cell">Token</th><th className="h-10 px-4 text-left font-medium text-muted-foreground hidden md:table-cell">Agents</th><th className="h-10 px-4 text-left font-medium text-muted-foreground">状态</th><th className="h-10 px-4 text-right font-medium text-muted-foreground">操作</th></tr></thead><tbody>${users.map(u=>{const ag=Array.isArray(u.allowAgents)&&u.allowAgents.length?u.allowAgents.join(", "):"*";return h`<tr key=${u.senderId} className="border-b transition-colors hover:bg-muted/50"><td className="p-4 font-medium">${u.senderId}</td><td className="hidden p-4 sm:table-cell"><code className="cursor-pointer rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground hover:bg-muted/80 transition-colors" onClick=${()=>doCp("token",u.token)}>${u.token.slice(0,14)}…</code></td><td className="hidden p-4 text-muted-foreground md:table-cell">${ag}</td><td className="p-4"><${Badge} variant=${u.enabled!==false?"secondary":"destructive"}>${u.enabled!==false?"启用":"停用"}</${Badge}></td><td className="p-4 text-right"><div className="flex justify-end gap-1"><${Btn} variant="ghost" size="icon" title="分享" onClick=${()=>setSu(u)}>${I.share}</${Btn}><${Btn} variant="ghost" size="icon" title="编辑" onClick=${()=>{setEu(u);setSf(true);}}>${I.edit}</${Btn}><${Btn} variant="ghost" size="icon" title="删除" className="text-destructive hover:text-destructive" onClick=${()=>delU(u)}>${I.trash}</${Btn}></div></td></tr>`;})}</tbody></table></div></${Card}>`}<${Dlg} open=${sf} onClose=${()=>{setSf(false);setEu(null);}} title=${eu?`编辑 ${eu.senderId}`:"新建用户"} desc="配置用户身份和访问权限"><${UForm} user=${eu} onSave=${saveU} onClose=${()=>{setSf(false);setEu(null);}}/></${Dlg}><${ShareDlg} open=${!!su} onClose=${()=>setSu(null)} state=${state} channel=${channel} user=${su} toast=${toast}/></div>`;
       }
 
-      /* ── Tab: Settings ── */
-
-      function TabSettings({ state, channel, token, onReload, onDelete, toast }) {
-        const [editing, setEditing] = useState(false);
-        if (!channel) return null;
-
-        const save = async (d) => {
-          try {
-            await api("/api/channels", token, { method: "POST", body: JSON.stringify(d) });
-            toast(`已保存 ${d.channelId}`);
-            setEditing(false);
-            await onReload();
-          } catch (e) { toast(e.message, true); }
-        };
-
-        return h`
-          <div className="space-y-4">
-            ${editing
-              ? h`<${ChannelForm} channel=${channel} onSave=${save} onClose=${() => setEditing(false)} />`
-              : h`
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <div className="text-xs text-slate-400">Channel ID</div>
-                    <div className="mt-0.5 font-mono text-sm">${channel.channelId}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400">名称</div>
-                    <div className="mt-0.5 text-sm">${channel.label || "—"}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-400">Secret</div>
-                    <div className="mt-0.5 font-mono text-sm text-slate-500">${channel.secret ? `${channel.secret.slice(0, 6)}…` : "—"}</div>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <${Btn} variant="secondary" onClick=${() => setEditing(true)}>编辑</${Btn}>
-                  <${Btn} variant="danger" onClick=${onDelete}>删除服务器</${Btn}>
-                </div>
-              `}
-          </div>
-        `;
+      /* ── Settings ── */
+      function TSettings({state,channel,token,onReload,onDelete,toast}){
+        const[ed,setEd]=useState(false);if(!channel)return null;
+        const save=async d=>{try{await api("/api/channels",token,{method:"POST",body:JSON.stringify(d)});toast(`已保存 ${d.channelId}`);setEd(false);await onReload();}catch(e){toast(e.message,true);}};
+        return h`<div className="space-y-6"><div><h3 className="text-lg font-semibold">服务器设置</h3><p className="text-sm text-muted-foreground">管理 Channel 配置</p></div><${Card}><${CC} className="pt-6">${ed?h`<${CForm} channel=${channel} onSave=${save} onClose=${()=>setEd(false)}/>`:h`<div className="grid gap-4 sm:grid-cols-3"><div className="space-y-1"><${Label} className="text-muted-foreground">Channel ID</${Label}><div className="font-mono text-sm">${channel.channelId}</div></div><div className="space-y-1"><${Label} className="text-muted-foreground">名称</${Label}><div className="text-sm">${channel.label||"—"}</div></div><div className="space-y-1"><${Label} className="text-muted-foreground">Secret</${Label}><div className="font-mono text-sm text-muted-foreground">${channel.secret?`${channel.secret.slice(0,8)}…`:"—"}</div></div></div><${Sep}/><div className="flex gap-2 pt-4"><${Btn} variant="outline" size="sm" onClick=${()=>setEd(true)}>${I.edit} 编辑</${Btn}><${Btn} variant="destructive" size="sm" onClick=${onDelete}>${I.trash} 删除服务器</${Btn}></div>`}</${CC}></${Card}></div>`;
       }
 
       /* ── App ── */
-
-      function App() {
-        const queryToken = new URLSearchParams(location.search).get("adminToken")?.trim() || "";
-        const initToken = queryToken || localStorage.getItem(STORAGE_KEY) || "";
-
-        const [token, setToken] = useState(initToken);
-        const [state, setState] = useState(null);
-        const [authed, setAuthed] = useState(false);
-        const [selectedId, setSelectedId] = useState("");
-        const [tab, setTab] = useState("overview");
-        const [showNewChannel, setShowNewChannel] = useState(false);
-        const [toasts, setToasts] = useState([]);
-        const [activity, setActivity] = useState([]);
-
-        const toast = useCallback((msg, isError = false) => {
-          const id = `${Date.now()}-${Math.random()}`;
-          const ts = Date.now();
-          setToasts(t => [...t, { id, msg, isError }]);
-          setActivity(a => [{ id, msg, isError, ts }, ...a].slice(0, 20));
-          setTimeout(() => setToasts(t => t.filter(i => i.id !== id)), 2400);
-        }, []);
-
-        const channels = Array.isArray(state?.channels) ? state.channels : [];
-        const channel = channels.find(c => c.channelId === selectedId) || null;
-
-        const stats = {
-          backends: state?.stats?.backendCount || 0,
-          clients: state?.stats?.clientCount || 0,
-          users: channels.reduce((s, c) => s + (c.userCount || 0), 0),
-        };
-
-        const loadState = useCallback(async (t) => {
-          try {
-            const d = await api("/api/state", t ?? token);
-            setState(d);
-            setAuthed(true);
-            setSelectedId(prev => {
-              if (prev && d.channels.some(c => c.channelId === prev)) return prev;
-              return d.channels[0]?.channelId || "";
-            });
-          } catch (e) {
-            if (String(e.message).includes("admin auth required")) {
-              setAuthed(false);
-            } else {
-              toast(e.message, true);
-            }
-          }
-        }, [token]);
-
-        useEffect(() => {
-          if (queryToken) localStorage.setItem(STORAGE_KEY, queryToken);
-          if (initToken) {
-            loadState(initToken);
-          } else {
-            api("/api/meta", "").then(d => {
-              setState(d);
-              if (!d.adminAuthEnabled) loadState("");
-            }).catch(() => {});
-          }
-        }, []);
-
-        const handleLogin = async (t) => {
-          localStorage.setItem(STORAGE_KEY, t);
-          setToken(t);
-          await loadState(t);
-        };
-
-        if (!authed) return h`<${LoginScreen} onLogin=${handleLogin} />`;
-
-        const handleNewChannel = async (d) => {
-          try {
-            await api("/api/channels", token, { method: "POST", body: JSON.stringify(d) });
-            toast(`已创建 ${d.channelId}`);
-            setShowNewChannel(false);
-            await loadState();
-            setSelectedId(d.channelId);
-          } catch (e) { toast(e.message, true); }
-        };
-
-        const handleDeleteChannel = async () => {
-          if (!channel || !confirm(`删除 ${channel.channelId}？`)) return;
-          try {
-            await api(`/api/channels/${encodeURIComponent(channel.channelId)}`, token, { method: "DELETE" });
-            toast(`已删除 ${channel.channelId}`);
-            await loadState();
-          } catch (e) { toast(e.message, true); }
-        };
-
-        const tabs = [
-          { key: "overview", label: "概览" },
-          { key: "users", label: "用户" },
-          { key: "settings", label: "设置" },
-        ];
-
-        return h`
-          <div className="flex h-screen">
-            <div className="hidden w-56 flex-shrink-0 lg:block">
-              <${Sidebar} channels=${channels} selected=${selectedId}
-                onSelect=${id => { setSelectedId(id); setTab("overview"); }}
-                onNew=${() => setShowNewChannel(true)}
-                stats=${stats}
-                activity=${activity} />
-            </div>
-
-            <div className="flex min-w-0 flex-1 flex-col">
-              <!-- mobile header -->
-              <div className="flex items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 lg:hidden">
-                <select className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium flex-1"
-                  value=${selectedId} onChange=${e => { setSelectedId(e.target.value); setTab("overview"); }}>
-                  ${channels.map(c => h`<option key=${c.channelId} value=${c.channelId}>${c.label || c.channelId}</option>`)}
-                </select>
-                <${Btn} variant="secondary" onClick=${() => setShowNewChannel(true)}>+</${Btn}>
-                <${Btn} variant="ghost" onClick=${() => loadState()}>${IC.refresh}</${Btn}>
-              </div>
-
-              ${channel ? h`
-                <div className="border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-base font-semibold">${channel.label || channel.channelId}</h2>
-                      <span className="font-mono text-xs text-slate-400">${channel.channelId}</span>
-                    </div>
-                    <${Btn} variant="ghost" onClick=${() => loadState()}>${IC.refresh} 刷新</${Btn}>
-                  </div>
-                  <div className="mt-3 flex gap-1">
-                    ${tabs.map(t => h`
-                      <button key=${t.key} type="button" onClick=${() => setTab(t.key)}
-                        className=${`rounded-md px-3 py-1.5 text-sm font-medium transition ${tab === t.key ? "bg-slate-900 text-white" : "text-slate-500 hover:bg-slate-100"}`}>
-                        ${t.label}
-                      </button>
-                    `)}
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-                  ${tab === "overview" ? h`<${TabOverview} state=${state} channel=${channel} toast=${toast} />` : null}
-                  ${tab === "users" ? h`<${TabUsers} state=${state} channel=${channel} token=${token} onReload=${loadState} toast=${toast} />` : null}
-                  ${tab === "settings" ? h`<${TabSettings} state=${state} channel=${channel} token=${token} onReload=${loadState} onDelete=${handleDeleteChannel} toast=${toast} />` : null}
-                </div>
-              ` : h`
-                <div className="grid flex-1 place-items-center text-sm text-slate-400">
-                  ${channels.length === 0 ? "暂无服务器，点击「新建」开始" : "选择一个服务器"}
-                </div>
-              `}
-            </div>
-
-            <${Modal} open=${showNewChannel} onClose=${() => setShowNewChannel(false)} title="新建服务器">
-              <${ChannelForm} channel=${null} onSave=${handleNewChannel} onClose=${() => setShowNewChannel(false)} />
-            </${Modal}>
-
-            <div className="pointer-events-none fixed bottom-4 right-4 z-50 grid gap-2 w-72">
-              ${toasts.map(t => h`
-                <div key=${t.id} className=${`pointer-events-auto rounded-lg px-3 py-2 text-sm shadow-lg ${t.isError ? "bg-red-600 text-white" : "bg-slate-900 text-white"}`}>
-                  ${t.msg}
-                </div>
-              `)}
-            </div>
-          </div>
-        `;
+      function App(){
+        const qt=new URLSearchParams(location.search).get("adminToken")?.trim()||"";
+        const it=qt||localStorage.getItem(SK)||"";
+        const[token,setToken]=useState(it);const[state,setState]=useState(null);const[authed,setAuthed]=useState(false);
+        const[selId,setSelId]=useState("");const[tab,setTab]=useState("overview");const[showNew,setShowNew]=useState(false);
+        const[toasts,setToasts]=useState([]);const[activity,setActivity]=useState([]);
+        const toast=useCallback((msg,isError=false)=>{const id=`${Date.now()}-${Math.random()}`;const ts=Date.now();setToasts(t=>[...t,{id,msg,isError}]);setActivity(a=>[{id,msg,isError,ts},...a].slice(0,20));setTimeout(()=>setToasts(t=>t.filter(i=>i.id!==id)),2400);},[]);
+        const channels=Array.isArray(state?.channels)?state.channels:[];
+        const channel=channels.find(c=>c.channelId===selId)||null;
+        const loadState=useCallback(async t=>{try{const d=await api("/api/state",t??token);setState(d);setAuthed(true);setSelId(p=>(p&&d.channels.some(c=>c.channelId===p))?p:d.channels[0]?.channelId||"");}catch(e){if(String(e.message).includes("admin auth required"))setAuthed(false);else toast(e.message,true);}},[token]);
+        useEffect(()=>{if(qt)localStorage.setItem(SK,qt);if(it)loadState(it);else api("/api/meta","").then(d=>{setState(d);if(!d.adminAuthEnabled)loadState("");}).catch(()=>{});},[]);
+        const handleLogin=async t=>{localStorage.setItem(SK,t);setToken(t);await loadState(t);};
+        if(!authed)return h`<${LoginScreen} onLogin=${handleLogin}/>`;
+        const newCh=async d=>{try{await api("/api/channels",token,{method:"POST",body:JSON.stringify(d)});toast(`已创建 ${d.channelId}`);setShowNew(false);await loadState();setSelId(d.channelId);}catch(e){toast(e.message,true);}};
+        const delCh=async()=>{if(!channel||!confirm(`删除 ${channel.channelId}？`))return;try{await api(`/api/channels/${encodeURIComponent(channel.channelId)}`,token,{method:"DELETE"});toast(`已删除 ${channel.channelId}`);await loadState();}catch(e){toast(e.message,true);}};
+        const tabs=[{key:"overview",label:"概览",icon:I.server},{key:"users",label:"用户",icon:I.users},{key:"settings",label:"设置",icon:I.settings}];
+        return h`<div className="flex h-screen overflow-hidden"><div className="hidden lg:block"><${Nav} channels=${channels} selected=${selId} onSelect=${id=>{setSelId(id);setTab("overview");}} onNew=${()=>setShowNew(true)} activity=${activity}/></div><div className="flex min-w-0 flex-1 flex-col"><div className="flex h-14 items-center gap-2 border-b bg-background px-4 lg:hidden"><span className="flex items-center gap-2 font-semibold text-sm">${I.server} Relay</span><div className="flex-1"/><select className="h-8 rounded-md border border-input bg-background px-2 text-sm" value=${selId} onChange=${e=>{setSelId(e.target.value);setTab("overview");}}>${channels.map(c=>h`<option key=${c.channelId} value=${c.channelId}>${c.label||c.channelId}</option>`)}</select><${Btn} variant="outline" size="icon" onClick=${()=>setShowNew(true)}>${I.plus}</${Btn}><${Btn} variant="ghost" size="icon" onClick=${()=>loadState()}>${I.refresh}</${Btn}></div>${channel?h`<div className="flex h-14 items-center justify-between border-b bg-background px-6"><div className="flex items-center gap-3"><span className="text-xl">${aIcon(channel.channelId)}</span><div><h2 className="text-sm font-semibold">${channel.label||channel.channelId}</h2><span className="font-mono text-xs text-muted-foreground">${channel.channelId}</span></div></div><${Btn} variant="ghost" size="sm" onClick=${()=>loadState()}>${I.refresh} 刷新</${Btn}></div><div className="border-b bg-background"><div className="flex gap-1 px-6">${tabs.map(t=>h`<button key=${t.key} type="button" onClick=${()=>setTab(t.key)} className=${`flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors ${tab===t.key?"border-primary text-foreground":"border-transparent text-muted-foreground hover:text-foreground"}`}>${t.icon}${t.label}</button>`)}</div></div><div className="flex-1 overflow-y-auto p-6">${tab==="overview"?h`<${TOverview} state=${state} channel=${channel} toast=${toast}/>`:null}${tab==="users"?h`<${TUsers} state=${state} channel=${channel} token=${token} onReload=${loadState} toast=${toast}/>`:null}${tab==="settings"?h`<${TSettings} state=${state} channel=${channel} token=${token} onReload=${loadState} onDelete=${delCh} toast=${toast}/>`:null}</div>`:h`<div className="grid flex-1 place-items-center"><div className="text-center"><p className="text-muted-foreground">${channels.length===0?"暂无服务器":"选择一个服务器"}</p>${channels.length===0?h`<${Btn} variant="outline" className="mt-4" onClick=${()=>setShowNew(true)}>${I.plus} 新建服务器</${Btn}>`:null}</div></div>`}</div><${Dlg} open=${showNew} onClose=${()=>setShowNew(false)} title="新建服务器" desc="创建一个新的 relay channel"><${CForm} channel=${null} onSave=${newCh} onClose=${()=>setShowNew(false)}/></${Dlg}><div className="pointer-events-none fixed bottom-4 right-4 z-50 grid gap-2 w-80">${toasts.map(t=>h`<div key=${t.id} className=${`pointer-events-auto flex items-center gap-2 rounded-lg border px-4 py-3 text-sm shadow-lg ${t.isError?"border-destructive/50 bg-destructive text-destructive-foreground":"bg-background text-foreground"}`}>${t.isError?I.xx:I.ck} ${t.msg}</div>`)}</div></div>`;
       }
-
-      createRoot(document.getElementById("app")).render(h`<${App} />`);
+      createRoot(document.getElementById("app")).render(h`<${App}/>`);
     </script>
   </body>
 </html>
