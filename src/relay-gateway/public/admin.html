@@ -249,10 +249,6 @@
                 <${Btn} variant="secondary" onClick=${() => setD(p => ({ ...p, secret: randomToken() }))}>生成</${Btn}>
               </div>
             </${Field}>
-            <${Field} label="Token 参数名">
-              <input className=${monoInputCls} value=${d.tokenParam} onInput=${patch("tokenParam")} placeholder="token" />
-              <span className="text-xs text-slate-400">客户端连接时传 token 的 URL 参数名，一般不需要改</span>
-            </${Field}>
             <div className="flex justify-end gap-2 pt-2">
               <${Btn} variant="secondary" onClick=${onClose}>取消</${Btn}>
               <${Btn} variant="primary" type="submit">保存</${Btn}>
@@ -346,7 +342,7 @@
 
       /* ── Sidebar ── */
 
-      function Sidebar({ channels, selected, onSelect, onNew, stats }) {
+      function Sidebar({ channels, selected, onSelect, onNew, stats, activity }) {
         return h`
           <div className="flex h-full flex-col border-r border-slate-200 bg-white">
             <div className="border-b border-slate-100 px-4 py-3">
@@ -370,6 +366,16 @@
             <div className="border-t border-slate-100 p-2">
               <${Btn} variant="secondary" className="w-full" onClick=${onNew}>+ 新建服务器</${Btn}>
             </div>
+            ${activity.length > 0 ? h`
+              <div className="border-t border-slate-100 px-3 py-2 max-h-48 overflow-y-auto">
+                <div className="mb-1 text-xs font-medium text-slate-400">最近操作</div>
+                ${activity.map(a => h`
+                  <div key=${a.id} className="py-1 text-xs text-slate-500 truncate">
+                    <span className=${a.isError ? "text-red-500" : "text-slate-400"}>${a.isError ? "✗" : "✓"}</span>${" "}${a.msg}
+                  </div>
+                `)}
+              </div>
+            ` : null}
           </div>
         `;
       }
@@ -532,10 +538,6 @@
                     <div className="text-xs text-slate-400">Secret</div>
                     <div className="mt-0.5 font-mono text-sm text-slate-500">${channel.secret ? `${channel.secret.slice(0, 6)}…` : "—"}</div>
                   </div>
-                  <div>
-                    <div className="text-xs text-slate-400">Token 参数名</div>
-                    <div className="mt-0.5 font-mono text-sm">${channel.tokenParam || "token"}</div>
-                  </div>
                 </div>
                 <div className="flex gap-2">
                   <${Btn} variant="secondary" onClick=${() => setEditing(true)}>编辑</${Btn}>
@@ -559,10 +561,12 @@
         const [tab, setTab] = useState("overview");
         const [showNewChannel, setShowNewChannel] = useState(false);
         const [toasts, setToasts] = useState([]);
+        const [activity, setActivity] = useState([]);
 
         const toast = useCallback((msg, isError = false) => {
           const id = `${Date.now()}-${Math.random()}`;
           setToasts(t => [...t, { id, msg, isError }]);
+          setActivity(a => [{ id, msg, isError }, ...a].slice(0, 20));
           setTimeout(() => setToasts(t => t.filter(i => i.id !== id)), 2400);
         }, []);
 
@@ -644,7 +648,8 @@
               <${Sidebar} channels=${channels} selected=${selectedId}
                 onSelect=${id => { setSelectedId(id); setTab("overview"); }}
                 onNew=${() => setShowNewChannel(true)}
-                stats=${stats} />
+                stats=${stats}
+                activity=${activity} />
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col">
