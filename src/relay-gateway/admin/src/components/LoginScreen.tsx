@@ -8,7 +8,7 @@ interface Props { onLogin: (token: string) => void }
 
 export function LoginScreen({ onLogin }: Props) {
   const [value, setValue] = useState("");
-  const submit = (e: FormEvent) => { e.preventDefault(); onLogin(value.trim()); };
+  const submit = (e: FormEvent) => { e.preventDefault(); if (value.trim()) onLogin(value.trim()); };
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-sm">

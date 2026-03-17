@@ -11,7 +11,13 @@ const publicDir = join(baseDir, "public");
 const MIME_TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "application/javascript", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".woff": "font/woff" };
 const host = process.env.RELAY_HOST || "0.0.0.0";
 const port = Number(process.env.RELAY_PORT || 19080);
-const adminToken = normalizeNonEmpty(process.env.RELAY_ADMIN_TOKEN);
+const adminToken = normalizeNonEmpty(process.env.RELAY_ADMIN_TOKEN) || (() => {
+  const generated = randomUUID().replace(/-/g, "");
+  console.warn("[relay] ⚠️  RELAY_ADMIN_TOKEN not set, generated random admin token:");
+  console.warn(`[relay]    ${generated}`);
+  console.warn("[relay]    Set RELAY_ADMIN_TOKEN env var to use a fixed token.");
+  return generated;
+})();
 const publicBaseUrl = normalizeNonEmpty(process.env.RELAY_PUBLIC_BASE_URL);
 const pluginBackendUrl =
   normalizeNonEmpty(process.env.RELAY_PLUGIN_BACKEND_URL) || `ws://127.0.0.1:${port}/backend`;
@@ -241,10 +247,6 @@ async function persistRelayConfig() {
 }
 
 function requireAdmin(request, response, url) {
-  if (!adminToken) {
-    return true;
-  }
-
   const headerToken = normalizeNonEmpty(request.headers["x-relay-admin-token"]);
   const queryToken = normalizeNonEmpty(url.searchParams.get("adminToken"));
   if (headerToken === adminToken || queryToken === adminToken) {

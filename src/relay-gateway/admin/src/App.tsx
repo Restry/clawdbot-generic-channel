@@ -52,10 +52,6 @@ export default function App() {
   useEffect(() => {
     if (qt) localStorage.setItem(SK, qt);
     if (it) { loadState(it); return; }
-    api<ServerState>("/api/meta", "").then(d => {
-      setState(d);
-      if (!d.adminAuthEnabled) loadState("");
-    }).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLogin = async (t: string) => {
