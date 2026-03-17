@@ -6,4 +6,4 @@ dist/
 
 .playwright-cli
 
-output/e2e
+output/e2esrc/relay-gateway/data/
