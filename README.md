@@ -1,3 +1,6 @@
+> ⚠️ **本项目已迁移至 [msdevhub/openclaw-generic-channel](https://github.com/msdevhub/openclaw-generic-channel)**，请前往新仓库获取最新代码。本仓库已归档，不再维护。
+
+
 # Generic Channel
 
 Generic WebSocket/Relay/Webhook channel plugin for [OpenClaw](https://github.com/openclaw/openclaw).
