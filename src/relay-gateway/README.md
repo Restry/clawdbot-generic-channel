@@ -82,6 +82,55 @@ channels:
       instanceId: "openclaw-sg-1"
 ```
 
+## Docker 部署
+
+镜像采用两阶段构建：先编译 admin 前端，再打包精简的 production 镜像。
+
+### 构建
+
+```bash
+cd src/relay-gateway
+docker build -t relay-gateway .
+```
+
+### 运行
+
+```bash
+docker run -d \
+  --name relay-gateway \
+  -p 19080:19080 \
+  -e RELAY_ADMIN_TOKEN=replace-me \
+  -v relay-data:/app/data \
+  relay-gateway
+```
+
+`/app/data` 为持久化配置目录，包含 `relay-config.json`。挂载 volume 后配置在容器重建时不会丢失。
+
+### 搭配 Caddy 反代
+
+让容器只暴露到宿主机回环地址，由外层 Caddy 提供 TLS：
+
+```bash
+docker run -d \
+  --name relay-gateway \
+  -p 127.0.0.1:18080:19080 \
+  -e RELAY_ADMIN_TOKEN=replace-me \
+  -e RELAY_PUBLIC_BASE_URL=https://relay.example.com \
+  -v relay-data:/app/data \
+  relay-gateway
+```
+
+### 环境变量
+
+容器支持与直接运行相同的环境变量（见上方"环境变量"一节），常用的：
+
+| 变量 | 容器默认值 | 说明 |
+|------|-----------|------|
+| `RELAY_ADMIN_TOKEN` | 自动生成（打印到日志） | **强烈建议手动设置** |
+| `RELAY_PORT` | `19080` | 容器内监听端口，一般无需修改 |
+| `RELAY_PUBLIC_BASE_URL` | - | 设置后管理页展示的连接地址会使用此 URL |
+| `RELAY_CONFIG_PATH` | `/app/data/relay-config.json` | 持久化配置路径 |
+
 ## Caddy TLS 示例
 
 建议让 `relay-gateway` 只监听 `127.0.0.1:18080`，再由 Caddy 申请证书并反代。
