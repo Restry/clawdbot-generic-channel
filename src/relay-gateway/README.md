@@ -121,3 +121,28 @@ relay.example.com {
   - 新增/编辑/删除 channel
   - 为 channel 配置 `tokenParam`
   - 新增/编辑/删除用户、token、固定 `chatId`、`allowAgents`
+
+## 管理页前端开发
+
+管理页是一个标准的 React + Vite + shadcn/ui 项目，源码在 `admin/`，构建后输出到 `public/`。
+
+```bash
+# 安装管理页依赖
+cd admin && npm install
+
+# 开发模式（自动代理 /api 到 localhost:19080）
+npm run dev
+
+# 生产构建（输出到 ../public/）
+npm run build
+```
+
+技术栈：
+
+- React 19 + TypeScript
+- Vite 6
+- Tailwind CSS v4 + shadcn/ui
+- lucide-react 图标
+- qrcode（生成连接二维码）
+
+开发时先在另一个终端启动 relay-gateway 服务，管理页 dev server 会把 `/api` 代理到 `http://localhost:19080`。

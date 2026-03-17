@@ -1,13 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { mkdir, readFile, writeFile, access } from "node:fs/promises";
+import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocket, WebSocketServer } from "ws";
 
 const baseDir = dirname(fileURLToPath(import.meta.url));
 const configPath = process.env.RELAY_CONFIG_PATH || join(baseDir, "data", "relay-config.json");
-const adminPagePath = join(baseDir, "public", "admin.html");
+const publicDir = join(baseDir, "public");
+const MIME_TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "application/javascript", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".woff": "font/woff" };
 const host = process.env.RELAY_HOST || "0.0.0.0";
 const port = Number(process.env.RELAY_PORT || 19080);
 const adminToken = normalizeNonEmpty(process.env.RELAY_ADMIN_TOKEN);
@@ -724,14 +725,11 @@ server.on("request", async (request, response) => {
 
   if (pathname === "/" || pathname === "/admin") {
     try {
-      const html = await readFile(adminPagePath, "utf8");
+      const html = await readFile(join(publicDir, "index.html"), "utf8");
       writeHtml(response, html);
     } catch (error) {
       console.error("[relay] failed to read admin page:", error);
-      writeJson(response, 500, {
-        ok: false,
-        error: "failed to load admin page",
-      });
+      writeJson(response, 500, { ok: false, error: "failed to load admin page" });
     }
     return;
   }
@@ -802,10 +800,21 @@ server.on("request", async (request, response) => {
     return;
   }
 
-  writeJson(response, 404, {
-    ok: false,
-    error: "not found",
-  });
+  // Serve static files from public/ (Vite build output)
+  const safePath = pathname.replace(/\.\./g, "").replace(/\/\//g, "/");
+  const filePath = join(publicDir, safePath);
+  try {
+    await access(filePath);
+    const content = await readFile(filePath);
+    const ext = extname(safePath);
+    const mime = MIME_TYPES[ext] || "application/octet-stream";
+    const cacheControl = ext === ".html" ? "no-cache" : "public, max-age=31536000, immutable";
+    response.writeHead(200, { "content-type": mime, "cache-control": cacheControl });
+    response.end(content);
+    return;
+  } catch {}
+
+  writeJson(response, 404, { ok: false, error: "not found" });
 });
 
 server.on("upgrade", (request, socket, head) => {
